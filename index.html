@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Fantasy RP dla autystów</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=Spectral:wght@400;600&display=swap" rel="stylesheet">
+</head><body>
+<div id="menu">
+<canvas id="scena"></canvas>
+<div class="cien"></div>
+
+<h1>Fantasy RP <br>dla autystów</h1>
+<p class="pod">Sala Tronów — zaloguj się, by wejść do gry</p>
+<form class="panel" id="logowanie">
+  <div class="aktualizacja" id="aktualizacja" role="status" hidden></div>
+  <label for="mail">E-mail</label><input id="mail" type="email" autocomplete="username" placeholder="E-mail">
+  <label for="haslo">Hasło</label><input id="haslo" type="password" autocomplete="current-password" placeholder="Hasło">
+  <p class="blad" id="blad-logowania" role="alert" hidden></p>
+  <button class="wejdz" type="submit">Wejdź do sali</button>
+  <button class="google" type="button" id="zaloz-konto" hidden>Załóż konto</button>
+  <div class="lub">albo</div>
+  <button class="google" type="button" id="google">Zaloguj przez Google</button>
+  <div class="wersja"><span id="wersja"></span><span id="tryb">tryb DEMO</span></div>
+</form>
+
+<div class="podpis"><div class="imie" id="imie"></div><div class="frakcja" id="frakcja"></div></div>
+<div class="miniatury" id="miniatury"></div>
+</div>
+
+<div id="aplikacja" hidden>
+  <header class="gora">
+    <div class="tytul">Fantasy RP <span>dla autystów</span></div>
+    <div class="konto"><span id="konto-mail">tryb DEMO</span> <button type="button" id="panel-gm">Panel GM</button> <button type="button" id="wyjdz">Sala Tronów</button> <button type="button" id="wyloguj" hidden>Wyloguj</button></div>
+  </header>
+  <nav class="frakcje" id="lista-frakcji" aria-label="Frakcje"></nav>
+  <main class="glowny" id="glowny"></main>
+  <dialog class="okno" id="bohater" aria-label="Bohater"></dialog>
+</div>
+<script type="module" src="/src/main.js"></script>
+</body></html>

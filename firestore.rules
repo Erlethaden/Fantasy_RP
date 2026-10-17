@@ -1,0 +1,79 @@
+rules_version = '2';
+// Etap 4.4–4.5: role + część tajna + propozycje + logi. Wklej w: Firebase → Firestore Database → Reguły (Rules) → Opublikuj.
+// - dane gry (frakcje, bohaterowie, zasoby, tury, jednostki) ZAPISUJĄ tylko GM i admin; czytają członkowie (GM, admin, gracz, obserwator)
+// - oczekujący nie widzi danych gry, tylko swój profil
+// - admin nadaje każdą rolę; GM tylko oczekujący/gracz/obserwator i nie rusza kont GM/admin; nikt nie zmienia własnej roli
+// - konto admina rozpoznawane po e-mailu Google (zweryfikowanym) — tylko ono może utworzyć sobie profil z rolą admin
+// - część tajna frakcji (tajne_zasoby / tajne_jednostki / tajne_statusy) czyta GM, admin i gracz tej frakcji;
+//   pozostali członkowie tylko wtedy, gdy GM ustawił w dokumencie frakcji jawne.<rodzaj> = true
+// - notatki_gracza: czyta i pisze gracz tej frakcji + GM; notatki_gm: tylko GM/admin
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function zalogowany() { return request.auth != null; }
+    function adminEmail() {
+      return zalogowany() && request.auth.token.email == "3philar@gmail.com" && request.auth.token.email_verified == true;
+    }
+    function sciezkaProfilu() { return /databases/$(database)/documents/uzytkownicy/$(request.auth.uid); }
+    function rola() { return zalogowany() && exists(sciezkaProfilu()) ? get(sciezkaProfilu()).data.rola : ""; }
+    function admin() { return adminEmail() || rola() == "admin"; }
+    function gm() { return admin() || rola() == "gm"; }
+    function czlonek() { return gm() || rola() in ["gracz", "obserwator"]; }
+    function rolaZwykla(r) { return r in ["oczekujacy", "gracz", "obserwator"]; }
+    function mojaFrakcja() { return zalogowany() && exists(sciezkaProfilu()) ? get(sciezkaProfilu()).data.frakcja : ""; }
+    function wlasciciel(f) { return czlonek() && mojaFrakcja() == f; }
+    function jawne(f, rodzaj) {
+      return czlonek() && get(/databases/$(database)/documents/frakcje/$(f)).data.get("jawne", {}).get(rodzaj, false) == true;
+    }
+    function polaProfilu() { return request.resource.data.keys().hasOnly(["email", "nazwa", "rola", "frakcja", "utworzono"]); }
+
+    match /uzytkownicy/{uid} {
+      allow read: if (zalogowany() && request.auth.uid == uid) || gm();
+      allow create: if zalogowany() && request.auth.uid == uid && polaProfilu() && request.resource.data.frakcja == ""
+        && (request.resource.data.rola == "oczekujacy" || (adminEmail() && request.resource.data.rola == "admin"));
+      // admin może zmienić sobie tylko państwo (też gra); własnej roli nikt nie zmienia
+      allow update: if zalogowany() && request.auth.uid == uid && admin() && polaProfilu()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["frakcja"]);
+      allow update: if zalogowany() && request.auth.uid != uid && polaProfilu()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["rola", "frakcja"])
+        && (admin() || (rola() == "gm" && rolaZwykla(resource.data.rola) && rolaZwykla(request.resource.data.rola)));
+      allow delete: if admin();
+    }
+    match /frakcje/{id} { allow read: if czlonek(); allow write: if gm(); }
+    match /bohaterowie/{id} { allow read: if czlonek(); allow write: if gm(); }
+    match /gra/{id} { allow read: if czlonek(); allow write: if gm(); }
+    match /tajne_zasoby/{f} { allow read: if gm() || wlasciciel(f) || jawne(f, "zasoby"); allow write: if gm(); }
+    match /tajne_jednostki/{f} { allow read: if gm() || wlasciciel(f) || jawne(f, "jednostki"); allow write: if gm(); }
+    match /tajne_statusy/{f} { allow read: if gm() || wlasciciel(f) || jawne(f, "statusy"); allow write: if gm(); }
+    match /notatki_gracza/{f} {
+      allow read: if gm() || wlasciciel(f);
+      allow write: if gm() || (wlasciciel(f) && request.resource.data.keys().hasOnly(["tekst"]) && request.resource.data.tekst.size() <= 5000);
+    }
+    match /notatki_gm/{f} { allow read, write: if gm(); }
+    // propozycje zmian: gracz składa tylko dla swojego państwa i jego bohaterów, tylko dozwolone pola; GM rozpatruje;
+    // gracz czyta i wycofuje (dopóki czeka) tylko swoje
+    function nowaPropozycja() {
+      let d = request.resource.data;
+      return czlonek() && d.uid == request.auth.uid && d.frakcja == mojaFrakcja() && d.status == "czeka"
+        && d.komentarz == "" && d.rozpatrzono == "" && d.rozpatrzyl == ""
+        && d.keys().hasOnly(["czas", "uid", "email", "frakcja", "cel", "celId", "nazwa", "zmiany", "przed", "status", "komentarz", "rozpatrzono", "rozpatrzyl"])
+        && ((d.cel == "frakcja" && d.celId == mojaFrakcja()
+              && d.zmiany.keys().hasOnly(["stolica", "ustroj", "wladca", "godlo", "motto", "specjalizacja", "tereny", "opis"]))
+          || (d.cel == "bohater" && get(/databases/$(database)/documents/bohaterowie/$(d.celId)).data.frakcja == mojaFrakcja()
+              && d.zmiany.keys().hasOnly(["tytul", "funkcja", "wiek", "bron", "opis"])));
+    }
+    match /propozycje/{id} {
+      allow create: if nowaPropozycja();
+      allow read: if gm() || (zalogowany() && resource.data.uid == request.auth.uid);
+      allow update: if gm() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "komentarz", "rozpatrzono", "rozpatrzyl"]);
+      allow delete: if gm() || (zalogowany() && resource.data.uid == request.auth.uid && resource.data.status == "czeka");
+    }
+    // logi: wpis dodaje członek gry tylko pod własnym kontem (mały, o stałych polach); czyta i kasuje tylko admin
+    match /logi/{id} {
+      allow create: if czlonek() && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(["czas", "uid", "email", "typ", "co", "kod"])
+        && request.resource.data.typ in ["zmiana", "blad"] && request.resource.data.co.size() <= 30;
+      allow read, delete: if admin();
+    }
+    // wszystko inne: zamknięte
+  }
+}
