@@ -50,7 +50,9 @@ Władca Shire: karta w `wladcy.md`; portret na podstawie jego sceny z Sali Tron�
 - Cechy obowiązkowe: stara wiedźma · długie siwe potargane włosy · chatka na kurzych nogach w tle · czerwone błyskawice.
 - Blok: `ancient crone witch Baba Yaga, wrinkled grey skin, long wild tangled white-grey hair, hooked nose, wicked grin, ragged dark shawl and tattered robes, bony clawed hands, behind her a crooked wooden hut standing on giant chicken legs with warm glowing windows, red lightning in a black stormy sky`
 
-## Czarownik z krainy IRS
+## Czarownik z krainy IRS — Magister Aurelius „Podatek” Vex
+- Opis od gracza (2026-10-18): Zarządca Długów, sinner (były urzędnik skarbówki spalony żywcem), nekromanta przywołujący duchy dłużników w kajdanach. Pełny tekst w `src/dane/bohaterowie.js`.
+- Opis gracza dodaje do wyglądu (portret obecny tego nie ma): płaszcz urzędniczy z wyhaftowanymi pieczęciami i cyframi; kryształ laski w kształcie ostrza z wirującymi cyframi i duchami; blade widma dłużników w kajdanach z cyframi i pieczęciami skarbowymi.
 - Obraz: `Czarownik z krainy IRS/…jpg`, ref `refy/czarownik_ref_gracz.png`
 - Wygląd: wysoki blady czarownik, **długie czarne potargane włosy**, ciemne podkrążone oczy, poważna twarz, **czarna szata z wysokim kołnierzem**, srebrny medalion, **kostur zakończony świecącym bladoniebieskim kryształem**, wokół szaro-niebieskie widmowe smugi.
 - Cechy obowiązkowe: długie czarne włosy · blada twarz · czarna szata · kostur z niebieskim kryształem · szare smugi magii.

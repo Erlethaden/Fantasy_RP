@@ -5,7 +5,7 @@ import { BOHATEROWIE } from "./bohaterowie.js";
 import { ZASOBY } from "./zasoby.js";
 import { firebaseConfig } from "../firebase-config.js";
 import { initializeApp } from "firebase/app";
-import { initializeFirestore, collection, doc, onSnapshot, writeBatch, getDoc, getDocs, setDoc, updateDoc, addDoc, deleteDoc, query, where, orderBy, limit, getCountFromServer } from "firebase/firestore";
+import { initializeFirestore, collection, doc, FieldPath, deleteField, onSnapshot, writeBatch, getDoc, getDocs, setDoc, updateDoc, addDoc, deleteDoc, query, where, orderBy, limit, getCountFromServer } from "firebase/firestore";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 
 export const CHMURA = Boolean(firebaseConfig.apiKey);
@@ -14,14 +14,14 @@ export const stan = {}; // jeden wspólny obiekt — moduły go mutują, magazyn
 const KLUCZ = "frp-demo";
 const WERSJA = 3; // podbij, gdy zmienią się dane startowe — stary zapis DEMO zostanie zastąpiony
 const USTAWIENIA = { dniLogow: 30 };
-const start = () => structuredClone({ wersja: WERSJA, frakcje: FRAKCJE, bohaterowie: BOHATEROWIE, zasoby: ZASOBY, tury: [], ustawienia: USTAWIENIA });
+const start = () => structuredClone({ wersja: WERSJA, frakcje: FRAKCJE, bohaterowie: BOHATEROWIE, zasoby: ZASOBY, tury: [], ustawienia: USTAWIENIA, prowincje: {}, npc: {} });
 
 // --- DEMO ---
 function zapisDemo() {
   try {
     const s = JSON.parse(localStorage.getItem(KLUCZ));
     // nowe pole dopisywane do starego zapisu zamiast podbijania WERSJA, żeby nie kasować zmian z DEMO
-    if (s?.wersja === WERSJA) { s.zasoby ??= structuredClone(ZASOBY); s.tury ??= []; s.ustawienia ??= { ...USTAWIENIA }; return s; }
+    if (s?.wersja === WERSJA) { s.zasoby ??= structuredClone(ZASOBY); s.tury ??= []; s.ustawienia ??= { ...USTAWIENIA }; s.prowincje ??= {}; s.npc ??= {}; return s; }
   } catch {}
   return null;
 }
@@ -29,7 +29,7 @@ export const wczytaj = () => Object.assign(stan, zapisDemo() || start());
 export function resetuj() { try { localStorage.removeItem(KLUCZ); } catch {} return Object.assign(stan, start()); }
 
 // --- chmura ---
-// dokumenty: frakcje/{id}, bohaterowie/{id}, gra/stan {zasoby, tury}; _nr = kolejność na liście
+// dokumenty: frakcje/{id}, bohaterowie/{id}, gra/stan {zasoby, tury}, gra/prowincje {p: {idProwincji: {wlasciciel, nazwa, opis}}, npc: {id: {nazwa, rodzaj, zwierzchnik, opis}}}; _nr = kolejność na liście
 const app = CHMURA ? initializeApp(firebaseConfig) : null;
 const db = app && initializeFirestore(app, { ignoreUndefinedProperties: true });
 const auth = app && getAuth(app);
@@ -71,6 +71,7 @@ const dokumenty = s => {
   });
   s.bohaterowie.forEach((h, i) => d.set(`bohaterowie/${h.id}`, { ...bez(h, ["status", "misja", "_brak"]), _nr: i }));
   d.set("gra/stan", { zasoby: s.zasoby, tury: s.tury.map(t => ({ nr: t.nr, data: t.data })), ustawienia: s.ustawienia || USTAWIENIA });
+  d.set("gra/prowincje", { p: s.prowincje || {}, npc: s.npc || {} });   // jeden dokument (622 prowincje mieszczą się z zapasem w limicie 1 MB), jawny dla wszystkich
   return d;
 };
 const zaladowane = new Set(); // ścieżki, które przyszły z bazy (istniejące albo nie) — tylko te wolno nadpisać
@@ -93,6 +94,7 @@ export function zapisz(s) {
     // niewczytany dokument nie może nadpisać prawdziwego pustką; gracz zapisuje tylko swoje notatki (resztę i tak odrzuciłyby reguły)
     if (!wgrywanie && !zaladowane.has(sciezka)) continue;
     if (!dostep.gm && !sciezka.startsWith("notatki_gracza/")) continue;
+    if (sciezka === "gra/prowincje" && !wgrywanie) continue;   // prowincje i kraje NPC zapisuje zapiszProwincje — po jednym polu
     const j = json(dane);
     if (ostatnio.get(sciezka) !== j) { batch.set(doc(db, sciezka), dane); ostatnio.set(sciezka, j); ile++; co.push(sciezka); }
   }
@@ -100,6 +102,23 @@ export function zapisz(s) {
   if (!wgrywanie) batch.set(doc(collection(db, "logi")), { czas: new Date().toISOString(), ...kto(), typ: "zmiana", co: co.slice(0, 30) });
   licznik.zapisy++; licznik.dokumenty += ile;
   batch.commit().catch(e => { console.error(e); zalogujBlad(e, co.slice(0, 30)); bladZapisu(e); });
+}
+// prowincje i kraje NPC: w bazie zmieniane tylko wskazane pola (p.<id>, npc.<id>), nie cały dokument — dwóch GM
+// zmieniających naraz różne prowincje nie nadpisze sobie zmian. zmiany = [["p" | "npc", id], …]; wartości bierze ze stanu (brak = usuń)
+export function zapiszProwincje(zmiany) {
+  if (!CHMURA) return zapisz(stan);
+  if (!dostep.gm || !zmiany.length) return;
+  const pola = zmiany.flatMap(([gdzie, id]) => [new FieldPath(gdzie, id), (gdzie === "p" ? stan.prowincje : stan.npc)?.[id] ?? deleteField()]);
+  const log = () => ({ czas: new Date().toISOString(), ...kto(), typ: "zmiana", co: ["gra/prowincje"] });
+  const ref = doc(db, "gra/prowincje"), batch = writeBatch(db);
+  batch.update(ref, ...pola); batch.set(doc(collection(db, "logi")), log());
+  licznik.zapisy++; licznik.dokumenty++;
+  batch.commit().catch(e => {
+    if (e.code !== "not-found") { console.error(e); zalogujBlad(e, ["gra/prowincje"]); return bladZapisu(e); }
+    // dokumentu jeszcze nie ma (pierwsza prowincja w grze): zakładamy go z całym obecnym stanem
+    const b2 = writeBatch(db); b2.set(ref, { p: stan.prowincje || {}, npc: stan.npc || {} }); b2.set(doc(collection(db, "logi")), log());
+    b2.commit().catch(e2 => { console.error(e2); zalogujBlad(e2, ["gra/prowincje"]); bladZapisu(e2); });
+  });
 }
 // przywracanie kopii: zapis wszystkich dokumentów, także tych, których nie ma jeszcze w bazie
 export function zapiszWszystko(s) { wgrywanie = true; try { zapisz(s); } finally { wgrywanie = false; } }
@@ -170,11 +189,11 @@ export function ustawDostep(d) { dostep = d; odmowy.clear(); odswiezTajne(); }
 export function polacz(onZmiana) {
   odlacz();
   return new Promise((gotowe, blad) => {
-    const czesci = { frakcje: null, bohaterowie: null, gra: undefined }, tajne = new Map(), tajneSub = new Map();
+    const czesci = { frakcje: null, bohaterowie: null, gra: undefined, prowincje: undefined }, tajne = new Map(), tajneSub = new Map();
     let pierwszy = true;
     const migracja = (stare, nowe) => nowe === undefined ? undefined : nowe ?? stare; // brak nowego dokumentu → dane ze starego formatu
     const sklej = () => {
-      if (czesci.frakcje === null || czesci.bohaterowie === null || czesci.gra === undefined) return;
+      if (czesci.frakcje === null || czesci.bohaterowie === null || czesci.gra === undefined || czesci.prowincje === undefined) return;
       if (pierwszy && !czesci.gra) { // pusta baza — pierwsze logowanie: wgrywamy zapis z DEMO (jeśli jest w tej przeglądarce) albo dane startowe
         pierwszy = false; const { wersja, ...s } = zapisDemo() || start(); Object.assign(stan, s);
         wgrywanie = true; zapisz(stan); wgrywanie = false; gotowe(stan); return;
@@ -205,8 +224,8 @@ export function polacz(onZmiana) {
         const z = tz?.tury?.find(x => x.nr === m.nr) ?? m.frakcje?.[f.id]; // stary format: migawki w gra/stan
         return z ? [[f.id, { stany: z.stany || {}, unikalne: z.unikalne || {} }]] : [];
       })) }));
-      Object.assign(stan, { frakcje, bohaterowie, zasoby: czesci.gra?.zasoby || [], tury, ustawienia: { ...USTAWIENIA, ...czesci.gra?.ustawienia } });
-      if (pierwszy) { pierwszy = false; if (dostep.gm) zapisz(stan); gotowe(stan); } // GM: przeniesienie starego formatu do nowych dokumentów
+      Object.assign(stan, { frakcje, bohaterowie, zasoby: czesci.gra?.zasoby || [], tury, ustawienia: { ...USTAWIENIA, ...czesci.gra?.ustawienia }, prowincje: czesci.prowincje?.p || {}, npc: czesci.prowincje?.npc || {} });
+      if (pierwszy) { pierwszy = false; if (dostep.gm) { dopiszNowychBohaterow(); zapisz(stan); } gotowe(stan); } // GM: przeniesienie starego formatu do nowych dokumentów
       else onZmiana();
     };
     // które tajne dokumenty subskrybować — zależy od roli, własnej frakcji i przełączników „jawne” (zmieniają się na żywo)
@@ -234,8 +253,21 @@ export function polacz(onZmiana) {
       licznik.odczyty++; zaladowane.add("gra/stan");
       if (snap.exists()) ostatnio.set("gra/stan", json(snap.data()));
       czesci.gra = snap.exists() ? snap.data() : null; sklej();
+    }, blad), onSnapshot(doc(db, "gra/prowincje"), snap => {
+      if (snap.metadata.hasPendingWrites) return;
+      licznik.odczyty++; zaladowane.add("gra/prowincje");
+      if (snap.exists()) ostatnio.set("gra/prowincje", json(snap.data()));
+      czesci.prowincje = snap.exists() ? snap.data() : null; sklej();
     }, blad), () => { tajneSub.forEach(o => o()); tajneSub.clear(); }];
   });
+}
+// bohaterowie dopisani w kodzie (bohaterowie.js) po starcie gry: GM przy logowaniu wgrywa tych, których nie ma w bazie.
+// shortcut: bohater usunięty ręcznie w konsoli Firebase wróciłby — gdy dojdzie usuwanie w programie, trzeba listy usuniętych
+function dopiszNowychBohaterow() {
+  const frakcje = new Set(stan.frakcje.map(f => f.id));
+  for (const h of BOHATEROWIE) if (frakcje.has(h.frakcja) && !stan.bohaterowie.some(x => x.id === h.id)) {
+    stan.bohaterowie.push(structuredClone(h)); zaladowane.add(`bohaterowie/${h.id}`);   // nowy dokument: nie nadpisuje niczego pustką
+  }
 }
 export function odlacz() { odpiecia.forEach(o => o()); odpiecia = []; odswiezTajne = () => {}; ostatnio.clear(); zaladowane.clear(); odmowy.clear(); }
 
@@ -274,7 +306,13 @@ export async function mojProfil(user) {
 }
 export const sluchajProfilu = (uid, cb) => onSnapshot(doc(db, "uzytkownicy", uid), s => s.exists() && cb(s.data()));
 export const sluchajUzytkownikow = (cb, blad) => onSnapshot(collection(db, "uzytkownicy"), s => cb(s.docs.map(d => ({ uid: d.id, ...d.data() }))), blad);
-export const ustawUzytkownika = (uid, zmiany) => updateDoc(doc(db, "uzytkownicy", uid), zmiany);
+// zmiana roli/państwa razem z wpisem w logach (opis: czytelny tekst, np. „e-mail → Gracz-władca, Goblandia”)
+export function ustawUzytkownika(uid, zmiany, opis) {
+  const batch = writeBatch(db);
+  batch.update(doc(db, "uzytkownicy", uid), zmiany);
+  batch.set(doc(collection(db, "logi")), { czas: new Date().toISOString(), ...kto(), typ: "zmiana", co: [`uzytkownicy/${opis}`] });
+  return batch.commit();
+}
 
 // --- logowanie ---
 export const naZmianeKonta = cb => auth ? onAuthStateChanged(auth, cb) : cb(null);

@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="pl"><head><meta charset="utf-8"><title>Edytor mapy — Fantasy RP</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#0e0f16;color:#e9dcb8;font:14px/1.4 Georgia,serif}
+#plotno{position:fixed;inset:0;display:block;cursor:crosshair}
+.pasek{position:fixed;left:0;right:0;top:0;z-index:1;display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 12px;background:rgba(14,15,22,.92);border-bottom:1px solid #6b5527}
+.pasek b{color:#d9b25a;margin-right:8px}
+.pasek button{font:inherit;background:#171925;color:#e9dcb8;border:1px solid #6b5527;border-radius:4px;padding:4px 10px;cursor:pointer}
+.pasek button.wl{background:#6b5527;color:#fff}
+.pasek input{width:80px;font:inherit;background:#171925;color:#fff;border:1px solid #6b5527;border-radius:4px;padding:3px 6px}
+#stan{margin-left:auto;color:#bfae86}
+#pomoc{position:fixed;left:12px;bottom:10px;z-index:1;max-width:min(900px,calc(100vw - 48px));padding:6px 10px;background:rgba(14,15,22,.9);border:1px solid #3a3020}
+#komunikat{color:#ff9a7a}
+</style></head><body>
+<canvas id="plotno"></canvas>
+<div class="pasek">
+  <b>Edytor mapy</b>
+  <button type="button" data-tryb="numer" class="wl">Numer (N)</button>
+  <button type="button" data-tryb="scal">Scal (S)</button>
+  <button type="button" data-tryb="podziel">Podziel (D)</button>
+  <button type="button" data-tryb="woda">Woda (W)</button>
+  <button type="button" data-tryb="gory">Góry (G)</button>
+  <label>Numer: <input id="numer" autocomplete="off"></label>
+  <button type="button" id="cofnij">Cofnij (Ctrl+Z)</button>
+  <button type="button" id="zapisz">Zapisz mapę</button>
+  <span id="stan">Wczytuję…</span>
+</div>
+<div id="pomoc"><span id="opis"></span> <span id="komunikat"></span></div>
+<script>
+// Komórki w skali 1/4 (5000×5000). Edycje = lista operacji (edycje.json) odtwarzana na pliku z wykrywania, więc da się cofać także po ponownym otwarciu.
+const W = 5000, H = 5000, MAXID = 65536;
+const pl = document.getElementById("plotno"), ctx = pl.getContext("2d");
+const nak = document.createElement("canvas"), nctx = nak.getContext("2d");
+const poleNumeru = document.getElementById("numer"), stan = document.getElementById("stan"), komunikat = document.getElementById("komunikat");
+const OPISY = {
+  numer: "Kliknij komórkę, wpisz numer i Enter (Enter bez zmiany = ten sam numer co poprzednio). Dwie komórki z tym samym numerem = jedna prowincja. Pusty numer usuwa. Przeciąganie przesuwa mapę, kółko przybliża.",
+  scal: "Kliknij komórkę, która zostaje, potem tę, którą do niej dołączyć. Esc = anuluj.",
+  woda: "Kliknij komórkę, żeby oznaczyć ją jako jezioro albo z powrotem jako ląd (jeziora są niebieskie i nie są prowincjami). Rzeki (niebieskie linie) wykrywa skrypt.",
+  gory: "Góry (brązowe) są nie do przejścia: granica prowincji biegnąca przez góry zablokuje ruch armii. Przeciągnij lewym przyciskiem, żeby dorysować góry, z Shiftem — żeby zmazać. Mapę przesuwasz prawym przyciskiem.",
+  podziel: "Przytrzymaj lewy przycisk i narysuj linię przez całą komórkę, od granicy do granicy. Mapę przesuwasz prawym przyciskiem.",
+};
+let lab, tlo, warstwy, gory, nastepnyId = 1, tryb = "numer", zazn = 0, scalA = 0, ostatniNumer = "", linia = null;
+const bx0 = new Int32Array(MAXID).fill(-1), by0 = new Int32Array(MAXID), bx1 = new Int32Array(MAXID), by1 = new Int32Array(MAXID);
+const numery = new Map(), srodki = new Map(), jeziora = new Set();
+let ops = [], cofki = [], widok = { s: 0.18, x: 0, y: 60 };
+
+// --- operacje (każda zwraca zapis do cofnięcia albo { blad }) ---
+function nowyZapis() {
+  const r = { pix: [], old: [], boxy: new Map(), num: new Map(), nast: nastepnyId };
+  r.set = (i, v) => { r.pix.push(i); r.old.push(lab[i]); lab[i] = v; };
+  r.box = id => { if (!r.boxy.has(id)) r.boxy.set(id, [bx0[id], by0[id], bx1[id], by1[id]]); };
+  r.woda = id => { r.jez = r.jez || []; r.jez.push([id, jeziora.has(id)]); jeziora.has(id) ? jeziora.delete(id) : jeziora.add(id); };
+  r.gora = (i, v) => { (r.gpix ||= []).push(i); (r.gold ||= []).push(gory[i]); gory[i] = v; };
+  r.numer = (id, n) => { if (!r.num.has(id)) r.num.set(id, numery.get(id)); n ? numery.set(id, n) : numery.delete(id); };
+  return r;
+}
+function przelicz(ids) {  // ramki i środki komórek po zmianie, skanując tylko obszar ich dawnych ramek
+  const zb = new Set(ids), o = [Infinity, Infinity, -1, -1];
+  for (const id of zb) if (bx0[id] >= 0) { o[0] = Math.min(o[0], bx0[id]); o[1] = Math.min(o[1], by0[id]); o[2] = Math.max(o[2], bx1[id]); o[3] = Math.max(o[3], by1[id]); }
+  for (const id of zb) bx0[id] = -1;
+  if (o[2] < 0) return;
+  const sx = new Map();
+  for (let y = o[1]; y <= o[3]; y++) for (let x = o[0], i = y * W + o[0]; x <= o[2]; x++, i++) {
+    const v = lab[i]; if (!zb.has(v)) continue;
+    if (bx0[v] < 0) { bx0[v] = bx1[v] = x; by0[v] = by1[v] = y; } else { if (x < bx0[v]) bx0[v] = x; if (x > bx1[v]) bx1[v] = x; if (y > by1[v]) by1[v] = y; }
+    const s = sx.get(v) || [0, 0, 0]; s[0] += x; s[1] += y; s[2]++; sx.set(v, s);
+  }
+  for (const id of zb) { const s = sx.get(id); s ? srodki.set(id, [s[0] / s[2], s[1] / s[2]]) : srodki.delete(id); }
+}
+function scal(a, b) {
+  if (!a || !b || a === b) return { blad: "Wybierz dwie różne komórki." };
+  const r = nowyZapis(); r.box(a); r.box(b);
+  for (let y = by0[b]; y <= by1[b]; y++) for (let x = bx0[b], i = y * W + x; x <= bx1[b]; x++, i++) if (lab[i] === b) r.set(i, a);
+  bx0[a] = Math.min(bx0[a], bx0[b]); by0[a] = Math.min(by0[a], by0[b]); bx1[a] = Math.max(bx1[a], bx1[b]); by1[a] = Math.max(by1[a], by1[b]);
+  if (!numery.has(a) && numery.has(b)) r.numer(a, numery.get(b));
+  r.numer(b, ""); if (jeziora.has(b)) r.woda(b);
+  przelicz([a, b]);
+  return r;
+}
+function kreskaMapy(pts) {  // linia 8-spójna (Bresenham) — zatrzymuje wypełnianie 4-spójne
+  const out = [];
+  for (let k = 1; k < pts.length; k++) {
+    let [x0, y0] = pts[k - 1], [x1, y1] = pts[k];
+    const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+    let e = dx + dy;
+    for (;;) {
+      if (x0 >= 0 && y0 >= 0 && x0 < W && y0 < H) out.push(y0 * W + x0);
+      if (x0 === x1 && y0 === y1) break;
+      const e2 = 2 * e; if (e2 >= dy) { e += dy; x0 += sx; } if (e2 <= dx) { e += dx; y0 += sy; }
+    }
+  }
+  return out;
+}
+function podziel(pts) {
+  const kr = kreskaMapy(pts), ile = new Map();
+  for (const i of kr) if (lab[i]) ile.set(lab[i], (ile.get(lab[i]) || 0) + 1);
+  if (!ile.size) return { blad: "Linia nie przechodzi przez żadną komórkę." };
+  const a = [...ile].sort((p, q) => q[1] - p[1])[0][0];
+  const x0 = bx0[a], y0 = by0[a], bw = bx1[a] - x0 + 1, bh = by1[a] - y0 + 1;
+  const m = new Int32Array(bw * bh);  // 0 = nie ta komórka, -1 = linia, 1 = do odwiedzenia, >=2 = część
+  for (let y = 0; y < bh; y++) for (let x = 0, i = (y + y0) * W + x0; x < bw; x++, i++) if (lab[i] === a) m[y * bw + x] = 1;
+  for (const i of kr) { const x = i % W - x0, y = (i / W | 0) - y0; if (x >= 0 && y >= 0 && x < bw && y < bh && m[y * bw + x] === 1) m[y * bw + x] = -1; }
+  const czesci = [], kol = new Int32Array(bw * bh);
+  for (let s = 0; s < m.length; s++) {
+    if (m[s] !== 1) continue;
+    const id = czesci.length + 2, px = []; let n = 0; kol[n++] = s; m[s] = id;
+    while (n) {
+      const p = kol[--n]; px.push(p); const x = p % bw;
+      for (const q of [p - bw, p + bw, x > 0 ? p - 1 : -1, x < bw - 1 ? p + 1 : -1]) if (q >= 0 && q < m.length && m[q] === 1) { m[q] = id; kol[n++] = q; }
+    }
+    czesci.push(px);
+  }
+  const duze = czesci.filter(c => c.length >= 30).sort((p, q) => q.length - p.length);
+  if (duze.length < 2) return { blad: "Linia musi przeciąć komórkę w poprzek, od granicy do granicy." };
+  const r = nowyZapis(); r.box(a);
+  const nowe = [];
+  for (const c of duze.slice(1)) {
+    const id = nastepnyId++; r.box(id); nowe.push(id);
+    for (const p of c) r.set((y0 + (p / bw | 0)) * W + x0 + p % bw, id);
+  }
+  // piksele linii (i drobne okruchy) zostają przy największej części
+  for (const id of nowe) { bx0[id] = bx0[a]; by0[id] = by0[a]; bx1[id] = bx1[a]; by1[id] = by1[a]; }
+  przelicz([a, ...nowe]);
+  return r;
+}
+// góry: maska gory (1 bajt na piksel) + jej obraz goryC (do rysowania z wygładzaniem przy oddaleniu)
+const PEDZEL = 6, goryC = new OffscreenCanvas(W, H), gctx = goryC.getContext("2d");
+let goryImg;
+function odswiezGory(x0, y0, x1, y1) {
+  const u = new Uint32Array(goryImg.data.buffer);
+  for (let y = y0; y <= y1; y++) for (let x = x0, i = y * W + x0; x <= x1; x++, i++) u[i] = gory[i] ? 0xff1450a0 : 0;
+  gctx.putImageData(goryImg, 0, 0, x0, y0, x1 - x0 + 1, y1 - y0 + 1);
+}
+function malujGory(pts, zmaz) {
+  const r = nowyZapis(), v = zmaz ? 0 : 1, o = [W, H, 0, 0];
+  for (const i of kreskaMapy(pts.length > 1 ? pts : [pts[0], pts[0]])) {
+    const cx = i % W, cy = i / W | 0;
+    for (let dy = -PEDZEL; dy <= PEDZEL; dy++) for (let dx = -PEDZEL; dx <= PEDZEL; dx++) {
+      const x = cx + dx, y = cy + dy;
+      if (dx * dx + dy * dy > PEDZEL * PEDZEL || x < 0 || y < 0 || x >= W || y >= H || (!zmaz && !lab[y * W + x]) || gory[y * W + x] === v) continue;
+      r.gora(y * W + x, v); o[0] = Math.min(o[0], x); o[1] = Math.min(o[1], y); o[2] = Math.max(o[2], x); o[3] = Math.max(o[3], y);
+    }
+  }
+  if (!r.gpix) return { blad: zmaz ? "Tu nie ma gór do zmazania." : "Tu są już góry (albo to morze)." };
+  r.gramka = o; odswiezGory(...o);
+  return r;
+}
+function ustawNumer(id, n) {
+  if (!id) return { blad: "Kliknij komórkę." };
+  const r = nowyZapis(); r.numer(id, n); przelicz([id]); return r;
+}
+function przelaczWode(id) {
+  if (!id) return { blad: "Kliknij komórkę." };
+  const r = nowyZapis(); r.woda(id); if (jeziora.has(id)) r.numer(id, ""); return r;
+}
+function wykonaj(op, zapisac = true) {
+  const r = op.t === "scal" ? scal(op.a, op.b) : op.t === "podziel" ? podziel(op.pts) : op.t === "woda" ? przelaczWode(op.id)
+    : op.t === "gory" ? malujGory(op.pts, op.zmaz) : ustawNumer(op.id, op.n);
+  if (r.blad) { komunikat.textContent = r.blad; return false; }
+  komunikat.textContent = "";
+  ops.push(op); cofki.push(r);
+  if (zapisac) zmiana();
+  return true;
+}
+function cofnij() {
+  if (!ops.length) return;
+  ops.pop(); const r = cofki.pop();
+  for (let k = r.pix.length - 1; k >= 0; k--) lab[r.pix[k]] = r.old[k];
+  for (const [id, b] of r.boxy) [bx0[id], by0[id], bx1[id], by1[id]] = b;
+  for (const [id, n] of r.num) n ? numery.set(id, n) : numery.delete(id);
+  for (const [id, by] of (r.jez || []).reverse()) by ? jeziora.add(id) : jeziora.delete(id);
+  if (r.gpix) { for (let k = r.gpix.length - 1; k >= 0; k--) gory[r.gpix[k]] = r.gold[k]; odswiezGory(...r.gramka); }
+  nastepnyId = r.nast;
+  przelicz([...new Set([...r.boxy.keys(), ...r.num.keys()])].filter(id => bx0[id] >= 0));
+  zazn = scalA = 0; zmiana();
+}
+
+// --- zapis ---
+let czasZapisu = 0, zapisuje = false, niezapisane = false;
+async function wyslij(plik, dane) {
+  const r = await fetch("/__zapisz?plik=" + plik, { method: "POST", body: dane });
+  if (!r.ok) throw new Error(await r.text());
+}
+function zmiana() {
+  niezapisane = true; rysuj(); pokazStan();
+  clearTimeout(czasZapisu);
+  czasZapisu = setTimeout(async () => {
+    try { zapisuje = true; pokazStan(); await wyslij("edycje.json", JSON.stringify({ wersja: 1, ops })); niezapisane = false; }
+    catch (e) { komunikat.textContent = "Nie zapisano edycji: " + e.message; }
+    zapisuje = false; pokazStan();
+  }, 1200);
+}
+async function zapiszMape() {
+  stan.textContent = "Zapisuję mapę…";
+  const c = new OffscreenCanvas(W, H), cx = c.getContext("2d"), img = cx.createImageData(W, H), d = img.data;
+  for (let i = 0, j = 0; i < lab.length; i++, j += 4) { d[j] = lab[i] >> 8; d[j + 1] = lab[i] & 255; d[j + 3] = 255; }
+  cx.putImageData(img, 0, 0);
+  const prow = {};
+  for (const [id, n] of numery) if (bx0[id] >= 0) (prow[n] ||= []).push(id);
+  const gc = new OffscreenCanvas(W, H), gcx = gc.getContext("2d"), gi = gcx.createImageData(W, H), gd = new Uint32Array(gi.data.buffer);
+  for (let i = 0; i < gory.length; i++) gd[i] = gory[i] ? 0xffffffff : 0xff000000;
+  gcx.putImageData(gi, 0, 0);
+  try {
+    await wyslij("komorki_final.png", await c.convertToBlob({ type: "image/png" }));
+    await wyslij("gory_final.png", await gc.convertToBlob({ type: "image/png" }));
+    await wyslij("prowincje.json", JSON.stringify({ wersja: 1, opis: "numer prowincji -> id komórek w komorki_final.png (R*256+G); jeziora = id komórek z wodą; gory_final.png (białe = góry, nie do przejścia bez umiejętności frakcji)", prowincje: prow, jeziora: [...jeziora].filter(id => bx0[id] >= 0) }, null, 1));
+    komunikat.textContent = "Mapa zapisana w materialy/mapa/.";
+  } catch (e) { komunikat.textContent = "Nie zapisano mapy: " + e.message; }
+  pokazStan();
+}
+function pokazStan() {
+  let kom = 0; for (let id = 1; id < nastepnyId; id++) if (bx0[id] >= 0) kom++;
+  const ileNa = new Map(); for (const [id, n] of numery) if (bx0[id] >= 0) ileNa.set(n, (ileNa.get(n) || 0) + 1);
+  const pojedyncze = [...ileNa.values()].filter(v => v === 1).length;
+  stan.textContent = `komórek: ${kom} · z numerem: ${[...numery.keys()].filter(id => bx0[id] >= 0).length} · prowincji: ${ileNa.size} (z jedną komórką: ${pojedyncze}) · ${zapisuje ? "zapisuję…" : niezapisane ? "niezapisane" : "zapisano"}`;
+}
+
+// --- rysowanie ---
+const paleta = new Uint32Array(MAXID);
+function rgba(h, s, v, a) {
+  const f = (n, k = (n + h * 6) % 6) => v - v * s * Math.max(Math.min(k, 4 - k, 1), 0);
+  return (a << 24) | (Math.round(f(1) * 255) << 16) | (Math.round(f(3) * 255) << 8) | Math.round(f(5) * 255);
+}
+const kolorId = id => paleta[id] ||= rgba((id * 0.618) % 1, 0.55, 0.95, 60);
+const kolorNum = n => { let h = 0; for (const c of n) h = (h * 31 + c.charCodeAt(0)) >>> 0; return rgba((h * 0.618) % 1, 0.75, 0.9, 120); };
+let ramka = 0;
+function rysuj() { if (!ramka) ramka = requestAnimationFrame(() => { ramka = 0; rysujTeraz(); }); }
+function rysujTeraz() {
+  const cw = pl.width = innerWidth, ch = pl.height = innerHeight;
+  ctx.fillStyle = "#0e0f16"; ctx.fillRect(0, 0, cw, ch);
+  if (!lab) return;
+  const s = widok.s;
+  ctx.imageSmoothingEnabled = s < 1;
+  ctx.setTransform(s, 0, 0, s, widok.x, widok.y); ctx.drawImage(tlo, 0, 0); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  if (nak.width !== cw || nak.height !== ch) { nak.width = cw; nak.height = ch; }
+  const img = nctx.createImageData(cw, ch), u = new Uint32Array(img.data.buffer);
+  const mx = new Int32Array(cw); for (let x = 0; x < cw; x++) mx[x] = Math.floor((x - widok.x) / s);
+  let poprz = new Int32Array(cw), wiersz = new Int32Array(cw);
+  const kNum = new Map();
+  for (let y = 0; y < ch; y++) {
+    const my = Math.floor((y - widok.y) / s);
+    for (let x = 0; x < cw; x++) wiersz[x] = my >= 0 && my < H && mx[x] >= 0 && mx[x] < W ? lab[my * W + mx[x]] : 0;
+    for (let x = 0, o = y * cw; x < cw; x++, o++) {
+      const id = wiersz[x]; if (!id) continue;
+      if ((x + 1 < cw && wiersz[x + 1] !== id) || (y && poprz[x] !== id)) { u[o] = 0xdc101010; continue; }
+      if (id === zazn || id === scalA) { u[o] = 0x9000d8ff; continue; }
+      if (jeziora.has(id)) { u[o] = 0xb4c8783c; continue; }
+      const n = numery.get(id);
+      u[o] = n ? (kNum.get(n) ?? kNum.set(n, kolorNum(n)).get(n)) : kolorId(id);
+    }
+    [poprz, wiersz] = [wiersz, poprz];
+  }
+  nctx.putImageData(img, 0, 0); ctx.drawImage(nak, 0, 0);
+  ctx.globalAlpha = 0.8; ctx.setTransform(s, 0, 0, s, widok.x, widok.y);
+  ctx.drawImage(goryC, 0, 0); if (warstwy) ctx.drawImage(warstwy, 0, 0);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1;
+  ctx.font = `bold ${Math.max(11, Math.min(28, 70 * s))}px Georgia`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.lineWidth = 3; ctx.strokeStyle = "#000"; ctx.fillStyle = "#fff";
+  for (const [id, [x, y]] of srodki) {
+    const n = numery.get(id); if (!n) continue;
+    const sx = x * s + widok.x, sy = y * s + widok.y;
+    if (sx > -40 && sy > -40 && sx < cw + 40 && sy < ch + 40) { ctx.strokeText(n, sx, sy); ctx.fillText(n, sx, sy); }
+  }
+  if (linia) {
+    const g = tryb === "gory";
+    ctx.strokeStyle = g ? (linia.zmaz ? "#ffffffa0" : "#a05014c0") : "#ff3b3b"; ctx.lineWidth = g ? Math.max(2, (2 * PEDZEL + 1) * s) : 2; ctx.lineCap = "round"; ctx.beginPath();
+    linia.forEach(([x, y], k) => ctx[k ? "lineTo" : "moveTo"](x * s + widok.x + s / 2, y * s + widok.y + s / 2)); ctx.stroke();
+  }
+}
+
+// --- obsługa ---
+function ustawTryb(t) {
+  tryb = t; scalA = 0; linia = null;
+  document.querySelectorAll("[data-tryb]").forEach(b => b.classList.toggle("wl", b.dataset.tryb === t));
+  document.getElementById("opis").textContent = OPISY[t]; komunikat.textContent = ""; rysuj();
+}
+document.querySelectorAll("[data-tryb]").forEach(b => b.onclick = () => ustawTryb(b.dataset.tryb));
+const naMape = e => [Math.floor((e.clientX - widok.x) / widok.s), Math.floor((e.clientY - widok.y) / widok.s)];
+let chwyt = null;
+pl.addEventListener("contextmenu", e => e.preventDefault());
+pl.addEventListener("pointerdown", e => {
+  pl.setPointerCapture(e.pointerId);
+  if ((tryb === "podziel" || tryb === "gory") && e.button === 0) { linia = [naMape(e)]; linia.zmaz = e.shiftKey; return; }
+  chwyt = { x: e.clientX, y: e.clientY, wx: widok.x, wy: widok.y, ruch: 0, przycisk: e.button };
+});
+pl.addEventListener("pointermove", e => {
+  if (linia) { const p = naMape(e), q = linia[linia.length - 1]; if (p[0] !== q[0] || p[1] !== q[1]) { linia.push(p); rysuj(); } return; }
+  if (!chwyt) return;
+  chwyt.ruch = Math.max(chwyt.ruch, Math.hypot(e.clientX - chwyt.x, e.clientY - chwyt.y));
+  widok.x = chwyt.wx + e.clientX - chwyt.x; widok.y = chwyt.wy + e.clientY - chwyt.y; rysuj();
+});
+pl.addEventListener("pointerup", e => {
+  if (linia) {
+    const pts = [...linia], zmaz = linia.zmaz; linia = null;
+    if (tryb === "gory") wykonaj({ t: "gory", pts, zmaz }) || rysuj();   // klik bez przeciągania też maluje
+    else if (pts.length > 1) wykonaj({ t: "podziel", pts }); else rysuj();
+    return;
+  }
+  const c = chwyt; chwyt = null;
+  if (!c || c.ruch > 4 || c.przycisk !== 0) return;
+  const [x, y] = naMape(e); if (x < 0 || y < 0 || x >= W || y >= H) return;
+  const id = lab[y * W + x]; if (!id) return;
+  if (tryb === "numer") { zazn = id; poleNumeru.value = numery.get(id) ?? ostatniNumer; poleNumeru.focus(); poleNumeru.select(); rysuj(); }
+  else if (tryb === "woda") wykonaj({ t: "woda", id });
+  else if (tryb === "scal") { if (!scalA) { scalA = id; rysuj(); } else { const a = scalA; scalA = 0; wykonaj({ t: "scal", a, b: id }) || rysuj(); } }
+});
+pl.addEventListener("wheel", e => {
+  e.preventDefault();
+  const s = Math.min(8, Math.max(0.05, widok.s * Math.exp(-e.deltaY * 0.0015)));
+  widok.x = e.clientX - (e.clientX - widok.x) * s / widok.s; widok.y = e.clientY - (e.clientY - widok.y) * s / widok.s; widok.s = s; rysuj();
+}, { passive: false });
+poleNumeru.addEventListener("keydown", e => {
+  if (e.key === "Enter") { const n = poleNumeru.value.trim(); if (zazn) { wykonaj({ t: "numer", id: zazn, n }); ostatniNumer = n; } zazn = 0; poleNumeru.blur(); rysuj(); }
+  if (e.key === "Escape") { zazn = 0; poleNumeru.blur(); rysuj(); }
+});
+addEventListener("keydown", e => {
+  if (e.target === poleNumeru) return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); cofnij(); return; }
+  const t = { n: "numer", s: "scal", d: "podziel", w: "woda", g: "gory" }[e.key.toLowerCase()]; if (t) ustawTryb(t);
+  if (e.key === "Escape") { zazn = scalA = 0; linia = null; rysuj(); }
+});
+document.getElementById("cofnij").onclick = cofnij;
+document.getElementById("zapisz").onclick = zapiszMape;
+addEventListener("resize", rysuj);
+addEventListener("beforeunload", e => { if (niezapisane) e.preventDefault(); });
+
+// --- start ---
+async function obraz(url, opcje) {
+  const r = await fetch(url + "?t=" + Date.now()); if (!r.ok) throw new Error("brak pliku " + url);
+  return createImageBitmap(await r.blob(), opcje);
+}
+(async () => {
+  try {
+    const [k, t] = await Promise.all([obraz("/materialy/mapa/edytor/komorki.png", { colorSpaceConversion: "none", premultiplyAlpha: "none" }), obraz("/materialy/mapa/edytor/tlo.png")]);
+    tlo = t;
+    try { warstwy = await obraz("/materialy/mapa/edytor/warstwy.png"); } catch {}
+    gory = new Uint8Array(W * H); goryImg = new ImageData(W, H);
+    try {
+      const gc = new OffscreenCanvas(W, H), gcx = gc.getContext("2d", { willReadFrequently: true });
+      gcx.drawImage(await obraz("/materialy/mapa/edytor/gory.png", { colorSpaceConversion: "none" }), 0, 0);
+      const gd = gcx.getImageData(0, 0, W, H).data; for (let i = 0; i < gory.length; i++) gory[i] = gd[i * 4] > 127 ? 1 : 0;
+      odswiezGory(0, 0, W - 1, H - 1);
+    } catch {}
+    const o = await fetch("/materialy/mapa/obiekty.json?t=" + Date.now());
+    if (o.ok && (o.headers.get("content-type") || "").includes("json")) for (const id of (await o.json()).jeziora || []) jeziora.add(id);
+    const c = new OffscreenCanvas(W, H), cx = c.getContext("2d", { willReadFrequently: true }); cx.drawImage(k, 0, 0);
+    const d = cx.getImageData(0, 0, W, H).data;
+    lab = new Uint16Array(W * H);
+    for (let y = 0, i = 0; y < H; y++) for (let x = 0; x < W; x++, i++) {
+      const v = lab[i] = d[i * 4] * 256 + d[i * 4 + 1]; if (!v) continue;
+      if (bx0[v] < 0) { bx0[v] = bx1[v] = x; by0[v] = by1[v] = y; } else { if (x < bx0[v]) bx0[v] = x; if (x > bx1[v]) bx1[v] = x; by1[v] = y; }
+      if (v >= nastepnyId) nastepnyId = v + 1;
+    }
+    const r = await fetch("/materialy/mapa/edycje.json?t=" + Date.now());
+    // brak pliku: serwer Vite odsyła wtedy stronę HTML zamiast błędu
+    if (r.ok && (r.headers.get("content-type") || "").includes("json")) { const z = await r.json(); for (const op of z.ops || []) wykonaj(op, false); }
+    widok.s = Math.min(innerWidth, innerHeight - 60) / W; widok.x = (innerWidth - W * widok.s) / 2;
+    niezapisane = false; ustawTryb("numer"); pokazStan(); rysuj();
+  } catch (e) { stan.textContent = "Błąd: " + e.message; }
+})();
+</script>
+</body></html>

@@ -21,22 +21,34 @@ W `package.json` zmień `"version"` na wyższy, np. `"0.1.0"` → `"0.2.0"`.
 - Numer musi być **większy** niż w poprzednim wydaniu, inaczej program nie uzna go za aktualizację.
 - Zasada: małe poprawki → ostatnia cyfra (`0.2.0` → `0.2.1`), nowe funkcje → środkowa (`0.2.1` → `0.3.0`).
 
+### 1b. Dopisz „Co nowego”
+W pliku `src/dane/zmiany.js` dodaj **na górze listy** wpis z tym samym numerem co w `package.json`, np.:
+```js
+  { wersja: "0.2.0", data: "2026-11-01", zmiany: [
+    "Mapa świata z prowincjami.",
+    "Poprawiony błąd przy zamykaniu tury.",
+  ] },
+```
+Każda zmiana w cudzysłowie, oddzielone przecinkami. Gracze zobaczą to okienko raz, przy pierwszym uruchomieniu po aktualizacji (jeśli pominęli kilka wersji — wszystkie wpisy od ostatniej, którą mieli). Bez wpisu dla nowej wersji okienko się nie pokaże.
+
 ### 2. Zbuduj instalator
 Kliknij dwa razy **`zbuduj-instalator.bat`** (albo w konsoli: `npm run instalator`). Trwa 1–3 minuty.
 Po skończeniu otworzy się folder `release/` z plikami — potrzebne są te **trzy**:
 
 | Plik | Po co |
 |---|---|
-| `Fantasy-RP-Setup-0.2.0.exe` | instalator (dla nowych graczy i do aktualizacji) |
-| `Fantasy-RP-Setup-0.2.0.exe.blockmap` | pozwala pobierać tylko zmienione części |
-| `latest.yml` | **najważniejszy** — po nim program poznaje, że jest nowa wersja |
+| `Fantasy-RP-Setup-0.2.0.exe` | instalator (dla nowych graczy i do aktualizacji) — **obowiązkowy** |
+| `latest.yml` | po nim program poznaje, że jest nowa wersja i który plik pobrać — **obowiązkowy** |
+| `Fantasy-RP-Setup-0.2.0.exe.blockmap` | zalecany: przy aktualizacji pobierają się tylko zmienione części; bez niego aktualizacja działa, ale pobiera cały instalator (~127 MB) |
+
+Graczowi do **pierwszej instalacji** wystarczy sam `.exe` — pozostałe dwa pliki są tylko dla mechanizmu aktualizacji.
 
 Najlepiej najpierw zainstaluj ten `.exe` u siebie i sprawdź, czy wszystko działa.
 
 ### 3. Opublikuj wydanie na GitHubie
 1. Wejdź na https://github.com/Erlethaden/Fantasy_RP → po prawej **Releases** → **Draft a new release** (albo „Create a new release”).
 2. **Choose a tag** → wpisz `v0.2.0` (litera `v` + numer z `package.json`) → **Create new tag: v0.2.0 on publish**.
-3. **Release title**: np. `Wersja 0.2.0`. W opisie możesz w kilku zdaniach napisać, co się zmieniło (gracze tego w programie nie widzą, to dla Was).
+3. **Release title**: np. `Wersja 0.2.0`. W opisie możesz skopiować listę zmian z `src/dane/zmiany.js` (gracze widzą ją w programie w okienku „Co nowego”).
 4. Na dół, w pole „Attach binaries…”, **przeciągnij 3 pliki** z tabeli wyżej. Poczekaj, aż wszystkie się wgrają (zielone).
 5. Upewnij się, że **NIE** jest zaznaczone „Set as a pre-release”, a jest zaznaczone **„Set as the latest release”**.
 6. Kliknij **Publish release** (nie „Save draft” — szkic jest niewidoczny dla programu).

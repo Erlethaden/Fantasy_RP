@@ -100,6 +100,8 @@ Jest niezwykle uprzejma, ale trudno odgadnąć, co naprawdę myśli. Zanim poprz
   b("goblandia", "Gobloni", { wladca: true, funkcja: "władca Goblandii", opis: `Władca kraju, miły i uprzejmy. Nie lubi niewolnictwa.` }),
   b("goblandia", "What, Deez i Nuts", { funkcja: "bracia, najwybitniejsi sprzedawcy Goblandii",
     opis: `Trzej bracia i najwybitniejsi sprzedawcy: What sprzedaje klejnoty, Deez sztukę, a Nuts jedzenie.` }),
+  b("goblandia", "Kapitan Gobjack", { tytul: "Kapitan", funkcja: "najlepszy kapitan w całej Goblandii",
+    opis: `Najlepszy kapitan statku w całej Goblandii. Wygląda trochę jak pirat. Legendy mówią, że uciekł przed krakenem statkiem pełnym towaru.` }),
 
   // Rogus Ardens
   b("rogus-ardens", "Elmon Devil", { wladca: true, tytul: "Cesarz Kreegan", funkcja: "władca Rogus Ardens, ostatni fizyczny syn Ras-Al-Ghula",
@@ -133,7 +135,39 @@ Nieznajomy, który podróżuje po świecie — po co, nikt nie wie. Zawsze jest 
 - Sylvara „Echo Pustki” — elfka z pękniętą porcelanową twarzą i fioletowym dymem.
 - Draven „Czarny Akord” — szkieletowy elf z koroną cierniową, grający na perkusji z czaszek.` }),
   b("czarny-smok", "Baba Jaga", { opis: "" }),
-  b("czarny-smok", "Czarownik z krainy IRS", { opis: "" }),
+  // id zostaje po dawnym imieniu „Czarownik z krainy IRS” — pod nim bohater jest już zapisany w bazie gry
+  b("czarny-smok", "Magister Aurelius „Podatek” Vex", { id: "czarny-smok-czarownik-z-krainy-irs",
+    tytul: "Zarządca Długów, Czarownik z Krainy IRS", funkcja: "nekromanta i zarządca; sinner (były człowiek)",
+    bron: "laska zakończona kryształem w kształcie ostrza, w którym wirują cyfry i duchy", opis: `Aurelius Vex był za życia wzorowym urzędnikiem skarbówki. Nie brał łapówek, nie przymykał oka, nie „załatwiał”. Kochał swoją pracę tak bardzo, że traktował ją jak świętą misję. Dla niego system podatkowy był jedyną rzeczą, która trzymała świat w ryzach. Jeśli ktoś miał płacić — miał płacić teraz, na czysto, z fakturą i pieczątką. Żadnych „na rękę”, żadnych „później”, żadnych „kolega załatwi”.
+
+Mieszkańcy jego rejonu go nienawidzili.
+
+Pewnej nocy grupa lokalnych przedsiębiorców (oraz kilku zwykłych cwaniaków, którzy od lat unikali podatków) postanowiła „rozwiązać problem”. Zwabili go do opuszczonego magazynu pod pretekstem kontroli dużego przedsięwzięcia. Gdy wszedł do środka, drzwi zatrzasnęły się za nim. Najpierw dostał w głowę metalową rurą. Potem kopali go, gdy już leżał. Na koniec jeden z nich wziął jego własny służbowy segregator z dokumentami, oblał go alkoholem i podpalił… razem z Aureliusem. Płonął żywcem, a ostatnią rzeczą, którą słyszał, był śmiech i słowa:
+
+„Teraz sam sobie wystaw fakturę, skurwysynu.”
+
+Odrodzenie
+
+Ogień nie zniszczył go do końca. Jego obsesja na punkcie porządku i sprawiedliwości podatkowej była tak silna, że nawet śmierć nie zdołała go puścić. Obudził się w krainie koszmarów, którą rządzi Czarny Smok — dokładnie w miejscu, gdzie lądują ludzie, którzy za życia byli „zbyt uczciwi” jak na gusta innych. Zamiast stać się zwykłym sinnerem, zachował swoją biurokratyczną naturę i dostał moc, która idealnie do niego pasowała.
+
+Umiejętność specjalna: Egzekucja Długu
+
+Aurelius może przywoływać duchy i widma osób, które za życia (lub po śmierci) mają niespłacone długi — podatkowe, moralne, krwawe, dowolne. Im większy dług, tym silniejszy i bardziej „zobowiązany” duch.
+- Duch z małym długiem (np. jeden niezapłacony podatek) — po wykonaniu jednego zadania (walka, ochrona, szpiegostwo) zostaje wolny.
+- Duch ze średnim długiem — musi odpracować 2–3 zadania.
+- Duch z ogromnym długiem (lata unikania podatków, oszustwa, morderstwa dla pieniędzy) — staje się praktycznie stałym sługą i może być wzywany wielokrotnie, aż dług zostanie uznany za spłacony.
+
+Duchy pojawiają się w kajdanach z łańcuchów z cyframi i pieczęciami skarbowymi. Im dłużej mają dług, tym bardziej są zdesperowane, by go spłacić — dlatego walczą z fanatycznym zaangażowaniem. Aurelius traktuje ich jak pracowników. Prowadzi nawet mentalną kartotekę: kto ile ma do odpracowania, kto już spłacił, kto próbuje kombinować.
+
+Osobowość
+- Nadal mówi jak urzędnik („Proszę o okazanie dokumentów”, „Termin minął”, „Odsetki rosną”).
+- Nienawidzi bałaganu, opóźnień i „załatwiania na boku”.
+- Potrafi być zaskakująco lojalny wobec tych, którzy płacą w terminie i grają czysto.
+- Ma ciemne, niemal martwe poczucie humoru na temat śmierci i podatków.
+
+Wygląd
+
+Wysoki, wychudzony mężczyzna o bladej, prawie sinej skórze. Długie, czarne, rozwiane włosy. Ciemne kręgi pod oczami. Nosi długi, czarny płaszcz urzędniczy z wyhaftowanymi pieczęciami i cyframi. W ręku trzyma laskę zakończoną kryształem w kształcie ostrza, w którym wirują cyfry i duchy. Wokół niego zawsze unoszą się blade widma dłużników w kajdanach.` }),
 
   // Królestwo Szarych Kłów
   b("gor-khar", "Król Drogath „Najdłuższy Kieł”", { wladca: true, tytul: "Najdłuższy Kieł, Król Królestwa Szarych Kłów",

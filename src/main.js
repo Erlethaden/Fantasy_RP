@@ -3,14 +3,21 @@ import "../assets/sala_tronow/animacje.js"; // ustawia window.Sala
 import pakiet from "../package.json";
 import { stan, wczytaj, zapisz, CHMURA, polacz, odlacz, naZmianeKonta, zaloguj, zalozKonto, zalogujGoogle, wyloguj, ustawBladZapisu,
   ROLE, mojProfil, sluchajProfilu, sluchajUzytkownikow, ustawUzytkownika, ustawDostep, sprzatnijLogi, ostatnieLogi, licznik, KOLEKCJE, policzDokumenty, rozmiaryWczytanych, szukajSmieci, zapiszWszystko,
-  zaproponuj, sluchajPropozycji, rozpatrz, wycofaj, sprzatnijPropozycje } from "./dane/magazyn.js";
+  zaproponuj, sluchajPropozycji, rozpatrz, wycofaj, sprzatnijPropozycje, zapiszProwincje } from "./dane/magazyn.js";
+import { ZMIANY } from "./dane/zmiany.js";
+import { utworzMape } from "./mapa.js";
+import mapaUrl from "../assets/mapa/mapa.png";
+import indeksyUrl from "../assets/mapa/prowincje.png";
+import PROWINCJE from "../assets/mapa/prowincje.json";
+import KAFLE from "../assets/mapa/kafle.json";
 
 // obrazy scen przez Vite: do dist trafiają tylko pliki z sala_tronow/ (bez fanartów)
 const obrazy = import.meta.glob("../assets/sala_tronow/*.png", { eager: true, query: "?url", import: "default" });
 const adres = plik => obrazy["../assets/sala_tronow/" + plik];
 // portrety 128 px: plik = jedno ze słów imienia małymi literami (dagna.png, seranya.png)
 const portrety = import.meta.glob(["../assets/portrety/*.png", "!../assets/portrety/*_1024.png"], { eager: true, query: "?url", import: "default" });
-const plikPortretu = imie => imie.toLowerCase().split(/[^a-ząćęłńóśźż]+/).map(s => portrety[`../assets/portrety/${s}.png`]).find(Boolean);
+// portret po słowie z imienia, a gdy imię zmieniono (np. edycją GM), po słowie ze stałego id
+const plikPortretu = h => `${h.imie} ${h.id}`.toLowerCase().split(/[^a-ząćęłńóśźż]+/).map(s => portrety[`../assets/portrety/${s}.png`]).find(Boolean);
 // ikony zasobów 32 px: plik = pole „ikona” typu zasobu (bron.png)
 const ikony = import.meta.glob(["../assets/ikony/*.png", "!../assets/ikony/*_1024.png"], { eager: true, query: "?url", import: "default" });
 // herby 64 px: plik = id frakcji (krag-mhor.png)
@@ -55,12 +62,93 @@ const tekst = t => t.split(/\n\s*\n/).map(blok => {
   const wstep = linie.filter(l => !l.startsWith("- "));
   return (wstep.length ? `<p>${wstep.map(esc).join("<br>")}</p>` : "") + `<ul>${punkty.map(l => `<li>${esc(l.slice(2))}</li>`).join("")}</ul>`;
 }).join("");
+// górny pasek: same herby; nazwa w podpowiedzi, własne państwo w ramce
+const herbFrakcji = f => herby[`../assets/herby/${f.id}.png`];
 function zbudujListe() {
   lista.replaceChildren(...stan.frakcje.map(f => {
     const b = document.createElement("button"); b.type = "button"; b.dataset.id = f.id; b.style.setProperty("--kolor", f.kolor);
-    b.innerHTML = `<span class="nazwa">${esc(f.nazwa)}</span><span class="rasa">${esc(f.rasa)}${f.id === profil?.frakcja ? " · <b>Twoje państwo</b>" : ""}</span>`;
-    b.onclick = () => wybierz(f.id); return b;
+    const twoje = f.id === profil?.frakcja;
+    b.title = f.nazwa + (twoje ? " — Twoje państwo" : ""); b.setAttribute("aria-label", b.title); b.classList.toggle("moja", twoje);
+    b.setAttribute("aria-current", widok === f.id);
+    b.innerHTML = herbFrakcji(f) ? `<img src="${herbFrakcji(f)}" alt="">` : `<span class="herb-maly" aria-hidden="true">${esc(f.nazwa[0])}</span>`;
+    b.onclick = () => widok === f.id ? zamknijSzuflade() : wybierz(f.id); return b;
   }));
+}
+// szuflada z prawej (karta frakcji, Panel GM): zwęża mapę; zamyka ją ✕, Esc albo klik w mapę
+const szuflada = document.getElementById("szuflada");
+function otworzSzuflade() { szuflada.hidden = false; }
+function zamknijSzuflade() {
+  szuflada.hidden = true; widok = null; glowny.innerHTML = ""; mapa.wybierz(0);
+  [...lista.children].forEach(b => b.setAttribute("aria-current", false));
+}
+document.getElementById("zamknij-szuflade").onclick = zamknijSzuflade;
+addEventListener("keydown", e => { if (e.key === "Escape" && !szuflada.hidden && !document.querySelector("dialog[open]")) zamknijSzuflade(); });
+// klik w prowincję otwiera jej kartę, klik w wodę zamyka szufladę
+const mapa = utworzMape(document.getElementById("mapa"), { rysunek: mapaUrl, indeksy: indeksyUrl, ramki: PROWINCJE.map(p => p.ramka), kafle: KAFLE,
+  onKlik: i => i ? pokazProwincje(i) : !szuflada.hidden && zamknijSzuflade() });
+// karta prowincji: właściciel, nazwa, opis — edytuje GM/admin, widzą wszyscy (decyzje 6.3)
+// stan.prowincje[id] = { wlasciciel: idFrakcji | "npc:<id>", nazwa, opis }; brak wpisu = ziemia niczyja
+// stan.npc[id] = { nazwa, rodzaj: "wasal" | "marionetka", zwierzchnik: idFrakcji, opis } — kraj NPC w odcieniu koloru zwierzchnika (decyzja użytkownika)
+// id prowincji to numer z rysunku (wewnętrzny), „D…” = dolne kontynenty, „90a/90b” = bliźniacze wyspy
+const NAZWY_GRANIC = { "zwykła": ["zwykła", "g-zwykla"], "góry": ["góry", "g-gory"], "rzeka": ["rzeka", "g-rzeka"] };
+const RODZAJE_NPC = { wasal: "wasal", marionetka: "marionetka" };
+const rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const hex = c => "#" + c.map(v => Math.round(v).toString(16).padStart(2, "0")).join("");
+const frakcjaPo = id => stan.frakcje.find(f => f.id === id);
+// kolejne kraje NPC zwierzchnika: na przemian jaśniej i ciemniej, coraz mocniej
+function kolorNpc(id) {
+  const n = stan.npc?.[id], z = frakcjaPo(n?.zwierzchnik); if (!z) return "#808080";
+  const k = Object.keys(stan.npc).filter(x => stan.npc[x].zwierzchnik === n.zwierzchnik).sort().indexOf(id);
+  const sila = 0.3 + 0.15 * (k >> 1), cel = k % 2 ? 0 : 255;
+  return hex(rgb(z.kolor).map(v => v + (cel - v) * Math.min(sila, 0.75)));
+}
+// właściciel prowincji jako { nazwa, kolor, opis tekstem } albo null
+function wlascicielPo(id) {
+  if (id?.startsWith("npc:")) {
+    const n = stan.npc?.[id.slice(4)], z = frakcjaPo(n?.zwierzchnik); if (!n) return null;
+    return { nazwa: n.nazwa, kolor: kolorNpc(id.slice(4)), opis: `kraj NPC — ${RODZAJE_NPC[n.rodzaj] || "wasal"}${z ? ` ${z.nazwa}` : ""}` };
+  }
+  const f = frakcjaPo(id); return f && { nazwa: f.nazwa, kolor: f.kolor, opis: "" };
+}
+const nazwaProwincji = p => stan.prowincje?.[p.id]?.nazwa || `Prowincja ${p.id}`;
+function kolorujMape() {
+  mapa.ustawKolory(PROWINCJE.map(p => { const w = wlascicielPo(stan.prowincje?.[p.id]?.wlasciciel); return w && rgb(w.kolor); }));
+}
+function pokazProwincje(i, zostanPrzewiniecie) {
+  const p = PROWINCJE[i - 1]; widok = "p:" + i; mapa.wybierz(i);
+  [...lista.children].forEach(b => b.setAttribute("aria-current", false));
+  const d = stan.prowincje?.[p.id] || {}, wl = wlascicielPo(d.wlasciciel);
+  wl ? glowny.style.setProperty("--kolor", wl.kolor) : glowny.style.removeProperty("--kolor");
+  const sas = [...p.sasiedzi].sort((a, b) => (a[1] !== "zwykła") - (b[1] !== "zwykła") || PROWINCJE[a[0] - 1].id.localeCompare(PROWINCJE[b[0] - 1].id, "pl", { numeric: true }));
+  const zablokowane = sas.filter(([, t]) => t !== "zwykła").length;
+  const opcja = (v, w) => `<option value="${esc(v)}"${v === (d.wlasciciel || "") ? " selected" : ""}>${esc(w)}</option>`;
+  const npc = Object.entries(stan.npc || {}).sort((a, b) => a[1].nazwa.localeCompare(b[1].nazwa, "pl"));
+  const opcjeWl = opcja("", "— ziemia niczyja —") + `<optgroup label="Frakcje">${stan.frakcje.map(f => opcja(f.id, f.nazwa)).join("")}</optgroup>`
+    + (npc.length ? `<optgroup label="Kraje NPC">${npc.map(([id, n]) => opcja("npc:" + id, `${n.nazwa} (${RODZAJE_NPC[n.rodzaj] || "wasal"} ${frakcjaPo(n.zwierzchnik)?.nazwa || "?"})`)).join("")}</optgroup>` : "");
+  const wlasciciel = wl ? `<b>${esc(wl.nazwa)}</b>${wl.opis ? ` — ${esc(wl.opis)}` : ""}` : "ziemia niczyja";
+  glowny.innerHTML = `<article class="karta prowincja"><h2>${esc(nazwaProwincji(p))}</h2>
+    <p class="rasa">${wlasciciel}${d.nazwa ? ` · nr ${esc(p.id)}` : ""}</p>
+    ${gm ? `<form class="edycja-prowincji">
+      <label class="szeroko">Właściciel <select name="wlasciciel">${opcjeWl}</select>${npc.length ? "" : `<small>Kraje NPC (wasale, marionetki) zakładasz w Panelu GM.</small>`}</label>
+      <label class="szeroko">Nazwa <input name="nazwa" maxlength="80" value="${esc(d.nazwa || "")}" placeholder="Prowincja ${esc(p.id)}"></label>
+      <label class="szeroko">Opis <textarea name="opis" rows="4" maxlength="4000">${esc(d.opis || "")}</textarea></label></form>`
+      : d.opis ? `<div class="opis">${tekst(d.opis)}</div>` : ""}
+    <section><h3>Sąsiedzi</h3>
+      ${sas.length ? `<p class="opis-sekcji">${zablokowane ? `Przez góry i rzekę bez mostu armia przejdzie tylko z umiejętnością frakcji (${zablokowane} z ${sas.length} granic).` : "Wszystkie granice zwykłe."}</p>
+      <ul class="sasiedzi">${sas.map(([j, t]) => { const q = PROWINCJE[j - 1], f = wlascicielPo(stan.prowincje?.[q.id]?.wlasciciel);
+        return `<li><button type="button" data-i="${j}"><span>${esc(nazwaProwincji(q))}${f ? `<small>${esc(f.nazwa)}</small>` : ""}</span><span class="granica ${NAZWY_GRANIC[t][1]}">${NAZWY_GRANIC[t][0]}</span></button></li>`; }).join("")}</ul>`
+      : `<p class="opis-sekcji">Brak sąsiadów lądowych — wyspa.</p>`}</section></article>`;
+  glowny.querySelectorAll(".sasiedzi button").forEach(b => b.onclick = () => { const q = PROWINCJE[b.dataset.i - 1]; pokazProwincje(+b.dataset.i); mapa.pokaz(q.x, q.y); });
+  const form = glowny.querySelector(".edycja-prowincji");
+  if (form) form.onchange = () => {
+    const v = Object.fromEntries(new FormData(form)), n = { wlasciciel: v.wlasciciel, nazwa: v.nazwa.trim(), opis: v.opis.trim() };
+    stan.prowincje ??= {};
+    if (Object.values(n).some(Boolean)) stan.prowincje[p.id] = Object.fromEntries(Object.entries(n).filter(([, w]) => w)); else delete stan.prowincje[p.id];
+    zapiszProwincje([["p", p.id]]); kolorujMape(); pokazProwincje(i, true);
+  };
+  if (!zostanPrzewiniecie) glowny.scrollTop = 0;
+  otworzSzuflade();
+  requestAnimationFrame(() => mapa.doWidoku(p.x, p.y));   // po zwężeniu mapy przez szufladę
 }
 // edycję (zasoby, stany, tury, jednostki, statusy bohaterów) widzą tylko GM i admin; w DEMO każdy — ustawiane po zalogowaniu
 let gm = !CHMURA;
@@ -283,7 +371,7 @@ const statusTekst = h => STATUSY[h.status] + (h.status === "misja" && h.misja ? 
 const inicjaly = imie => imie.replace(/[„”"]/g, "").split(/\s+/).filter(s => /^\p{Lu}/u.test(s)).slice(0, 2).map(s => s[0]).join("") || imie[0];
 // pixel art 128 px, a gdy go nie ma — inicjały na tle w kolorze frakcji
 const portret = (h, duzy) => {
-  const url = plikPortretu(h.imie);
+  const url = plikPortretu(h);
   return `<div class="portret${duzy ? " duzy" : ""}" aria-hidden="true">${url ? `<img src="${url}" alt="">` : esc(inicjaly(h.imie))}</div>`;
 };
 const bohaterowie = f => {
@@ -316,13 +404,13 @@ function pokazBohatera(h, f) {
 okno.onclick = e => { if (e.target === okno) okno.close(); }; // klik w tło zamyka
 let widok = null; // co jest otwarte: id frakcji albo "gm" — do odświeżenia po zmianach od innych osób
 function wybierz(id, zostanPrzewiniecie) {
-  const f = stan.frakcje.find(x => x.id === id) || stan.frakcje[0]; widok = f.id;
+  const f = stan.frakcje.find(x => x.id === id) || stan.frakcje[0]; widok = f.id; mapa.wybierz(0);
   [...lista.children].forEach(b => b.setAttribute("aria-current", b.dataset.id === f.id));
   glowny.style.setProperty("--kolor", f.kolor);
   const pola = [["Stolica", f.stolica], ["Ustrój", f.ustroj], ["Władca", f.wladca], ["Godło", f.godlo],
     ["Specjalizacja", f.specjalizacja], ["Tereny", f.tereny]].filter(([, w]) => w);
   glowny.innerHTML = `<article class="karta">
-    <header class="naglowek">${herby[`../assets/herby/${f.id}.png`] ? `<img class="herb-obraz" src="${herby[`../assets/herby/${f.id}.png`]}" alt="">` : `<div class="herb" aria-hidden="true">${esc(f.nazwa[0])}</div>`}
+    <header class="naglowek">${herbFrakcji(f) ? `<img class="herb-obraz" src="${herbFrakcji(f)}" alt="">` : `<div class="herb" aria-hidden="true">${esc(f.nazwa[0])}</div>`}
       <div><h2>${esc(f.nazwa)}</h2><p class="rasa">${esc([f.przydomek, f.rasa].filter(Boolean).join(" · "))}</p>
       ${mozeEdytowac(f) ? `<button type="button" class="cofnij edytuj-opis">${gm ? "✎ Edytuj opis" : "✎ Zaproponuj zmiany"}</button>` : ""}</div></header>
     ${f.motto ? `<blockquote class="motto">„${esc(f.motto)}”</blockquote>` : ""}
@@ -340,13 +428,13 @@ function wybierz(id, zostanPrzewiniecie) {
   const edytuj = glowny.querySelector(".edytuj-opis"); if (edytuj) edytuj.onclick = () => edytujFrakcje(f);
   glowny.querySelectorAll(".bohater").forEach(b => b.onclick = () => pokazBohatera(stan.bohaterowie.find(h => h.id === b.dataset.id), f));
   if (!zostanPrzewiniecie) glowny.scrollTop = 0;
-  try { localStorage.setItem("frakcja", f.id); } catch {}
+  otworzSzuflade();
 }
 // Panel GM: globalne typy zasobów; w DEMO edytuje każdy, w etapie 4 tylko GM/admin
 const ikonaZasobu = z => ikony[`../assets/ikony/${z.ikona}.png`]
   ? `<img class="ikona" src="${ikony[`../assets/ikony/${z.ikona}.png`]}" alt="">` : `<span class="ikona litera" aria-hidden="true">${esc(z.nazwa[0] || "?")}</span>`;
 function pokazPanelGM(zostanPrzewiniecie) {
-  widok = "gm";
+  widok = "gm"; mapa.wybierz(0);
   [...lista.children].forEach(b => b.setAttribute("aria-current", false));
   glowny.style.removeProperty("--kolor");
   const z = stan.zasoby, ost = z.length - 1;
@@ -366,6 +454,7 @@ function pokazPanelGM(zostanPrzewiniecie) {
       <p class="przyciski-tur"><button type="button" class="dodaj" id="zamknij-ture">Zamknij turę ${stan.tury.length + 1}</button>
       ${ostatniaTura() ? `<button type="button" class="cofnij" id="cofnij-ture">Cofnij zamknięcie tury ${ostatniaTura().nr}</button>` : ""}</p>
       ${stan.tury.length ? `<ul class="lista-tur">${stan.tury.map(t => `<li>Tura ${t.nr} — zamknięta ${esc(new Date(t.data).toLocaleString("pl-PL"))}</li>`).reverse().join("")}</ul>` : ""}</section>
+    ${npcSekcja()}
     ${uzytkownicySekcja()}
     ${logiSekcja()}
     ${diagnostykaSekcja()}
@@ -411,17 +500,62 @@ function pokazPanelGM(zostanPrzewiniecie) {
     z.push({ id, nazwa, jednostka: d.get("jednostka").trim(), ikona: "" }); odswiez();
     glowny.querySelector(".dodaj-zasob input").focus();
   };
-  podepnijUzytkownikow(); podepnijPropozycje(); podepnijLogi(); podepnijDiagnostyke(); podepnijPorzadki(); podepnijKopie();
+  podepnijNpc(); podepnijUzytkownikow(); podepnijPropozycje(); podepnijLogi(); podepnijDiagnostyke(); podepnijPorzadki(); podepnijKopie();
   if (!zostanPrzewiniecie) glowny.scrollTop = 0;
+  otworzSzuflade();
 }
-document.getElementById("panel-gm").onclick = () => pokazPanelGM();
+// kraje NPC (wasale, marionetki): nazwa, rodzaj, zwierzchnik, opis; kolor = odcień zwierzchnika
+const opcjeZwierzchnika = w => stan.frakcje.map(f => `<option value="${esc(f.id)}"${f.id === w ? " selected" : ""}>${esc(f.nazwa)}</option>`).join("");
+const opcjeRodzaju = w => Object.entries(RODZAJE_NPC).map(([k, n]) => `<option value="${k}"${k === w ? " selected" : ""}>${n}</option>`).join("");
+const ileProwincji = wl => Object.values(stan.prowincje || {}).filter(d => d.wlasciciel === wl).length;
+const npcSekcja = () => `<section class="npc"><h3>Kraje NPC</h3><p class="opis-sekcji">Wasale i marionetki frakcji. Na mapie mają kolor w odcieniu zwierzchnika; prowincje przypisujesz w karcie prowincji (klik w mapę).</p>
+  <ul class="lista-npc">${Object.entries(stan.npc || {}).sort((a, b) => a[1].nazwa.localeCompare(b[1].nazwa, "pl")).map(([id, n]) => `<li data-id="${esc(id)}">
+    <span class="probka" style="background:${kolorNpc(id)}" title="Kolor na mapie"></span>
+    <input name="nazwa" required maxlength="60" value="${esc(n.nazwa)}" aria-label="Nazwa kraju NPC">
+    <select name="rodzaj" aria-label="Rodzaj: ${esc(n.nazwa)}">${opcjeRodzaju(n.rodzaj)}</select>
+    <select name="zwierzchnik" aria-label="Zwierzchnik: ${esc(n.nazwa)}">${opcjeZwierzchnika(n.zwierzchnik)}</select>
+    <span class="ile">${ileProwincji("npc:" + id)} prow.</span>
+    <button type="button" class="usun" aria-label="Usuń kraj ${esc(n.nazwa)}" title="Usuń">×</button>
+    <textarea name="opis" rows="2" maxlength="2000" placeholder="Opis (opcjonalnie)" aria-label="Opis: ${esc(n.nazwa)}">${esc(n.opis || "")}</textarea></li>`).join("")
+    || `<li class="puste">Brak — dodaj pierwszy kraj NPC.</li>`}</ul>
+  <form class="dodaj-npc"><input name="nazwa" required maxlength="60" placeholder="Nazwa kraju NPC" aria-label="Nazwa nowego kraju NPC">
+    <select name="rodzaj" aria-label="Rodzaj">${opcjeRodzaju("wasal")}</select><select name="zwierzchnik" aria-label="Zwierzchnik">${opcjeZwierzchnika("")}</select>
+    <button class="dodaj">Dodaj</button></form></section>`;
+function podepnijNpc() {
+  const odswiez = zmiany => { zapiszProwincje(zmiany); kolorujMape(); pokazPanelGM(true); };
+  glowny.querySelectorAll(".lista-npc li[data-id]").forEach(li => {
+    const id = li.dataset.id, n = stan.npc[id];
+    li.querySelectorAll("input, select, textarea").forEach(p => p.onchange = () => {
+      const w = p.value.trim();
+      if (p.name === "nazwa" && !w) { p.value = n.nazwa; return; }
+      n[p.name] = w; if (!n.opis) delete n.opis;
+      p.name === "zwierzchnik" ? odswiez([["npc", id]]) : (zapiszProwincje([["npc", id]]), kolorujMape());   // zmiana zwierzchnika zmienia kolory kilku krajów
+    });
+    li.querySelector(".usun").onclick = () => {
+      const ile = ileProwincji("npc:" + id);
+      if (!confirm(`Usunąć kraj NPC „${n.nazwa}”?${ile ? ` Jego prowincje (${ile}) staną się ziemią niczyją.` : ""}`)) return;
+      const zmiany = [["npc", id]];
+      for (const [pid, d] of Object.entries(stan.prowincje || {})) if (d.wlasciciel === "npc:" + id) { delete d.wlasciciel; if (!Object.keys(d).length) delete stan.prowincje[pid]; zmiany.push(["p", pid]); }
+      delete stan.npc[id]; odswiez(zmiany);
+    };
+  });
+  glowny.querySelector(".dodaj-npc").onsubmit = e => {
+    e.preventDefault(); const d = new FormData(e.target), nazwa = d.get("nazwa").trim(); if (!nazwa) return;
+    const baza = nazwa.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ł/g, "l").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "kraj";
+    let id = baza, k = 2; while (stan.npc?.[id]) id = `${baza}-${k++}`;   // id stały — nie zmienia się przy zmianie nazwy
+    (stan.npc ??= {})[id] = { nazwa, rodzaj: d.get("rodzaj"), zwierzchnik: d.get("zwierzchnik") }; odswiez([["npc", id]]);
+    glowny.querySelector(".dodaj-npc input").focus();
+  };
+}
+document.getElementById("panel-gm").onclick = () => widok === "gm" ? zamknijSzuflade() : pokazPanelGM();
 // sprawy techniczne (logi, diagnostyka, porządki, kopie) — tylko admin (decyzja użytkownika: GM tego nie potrzebuje)
 const jestAdmin = () => profil?.rola === "admin";
 // logi: wczytywane na żądanie (oszczędność odczytów); stare kasowane przy logowaniu admina
 const NAZWY_KOLEKCJI = { frakcje: "Frakcja", bohaterowie: "Bohater", gra: "Ustawienia gry", tajne_zasoby: "Zasoby", tajne_jednostki: "Jednostki",
-  tajne_statusy: "Statusy bohaterów", notatki_gracza: "Notatki gracza", notatki_gm: "Notatki GM" };
+  tajne_statusy: "Statusy bohaterów", notatki_gracza: "Notatki gracza", notatki_gm: "Notatki GM", uzytkownicy: "Konto" };
 const opisSciezki = sc => {
   const [k, id] = sc.split("/"), nazwa = stan.frakcje.find(f => f.id === id)?.nazwa || stan.bohaterowie.find(h => h.id === id)?.imie || id;
+  if (sc === "gra/prowincje") return "Prowincje";
   return k === "gra" ? NAZWY_KOLEKCJI.gra : `${NAZWY_KOLEKCJI[k] || k}: ${nazwa}`;
 };
 let logi = null, sprzatanie = null; // logi = ostatnio pobrana lista; sprzatanie = { czas, ile } z ostatniego automatycznego sprzątania
@@ -496,7 +630,7 @@ function podepnijPorzadki() {
   };
 }
 // kopia zapasowa (admin; w DEMO każdy): cała gra do pliku .json i z powrotem
-const POLA_KOPII = ["frakcje", "bohaterowie", "zasoby", "tury", "ustawienia"];
+const POLA_KOPII = ["frakcje", "bohaterowie", "zasoby", "tury", "ustawienia", "prowincje", "npc"];   // starsze kopie nie mają prowincji — wtedy zostają obecne
 const bezBraku = x => JSON.parse(JSON.stringify(x, (k, v) => k === "_brak" ? undefined : v));
 const kopiaSekcja = () => CHMURA && !jestAdmin() ? "" : `<section class="kopia"><h3>Kopia zapasowa${CHMURA ? ` <span class="znacznik">tylko admin</span>` : ""}</h3>
   <p class="opis-sekcji">Pobiera całą grę (frakcje, bohaterów, zasoby, tury, jednostki, notatki) do pliku na dysk. Wczytanie kopii nadpisuje obecne dane gry — konta i role zostają bez zmian.</p>
@@ -515,7 +649,8 @@ function podepnijKopie() {
     let d;
     try { if (plik.size > 10e6) throw 0; d = JSON.parse(await plik.text()); } catch { return alert("To nie jest poprawny plik kopii."); }
     const dobra = d?.aplikacja === "fantasy-rp" && ["frakcje", "bohaterowie", "zasoby", "tury"].every(k => Array.isArray(d[k]))
-      && d.frakcje.every(f => typeof f?.id === "string" && typeof f?.nazwa === "string") && d.bohaterowie.every(h => typeof h?.id === "string");
+      && d.frakcje.every(f => typeof f?.id === "string" && typeof f?.nazwa === "string") && d.bohaterowie.every(h => typeof h?.id === "string")
+      && (d.prowincje === undefined || (typeof d.prowincje === "object" && !Array.isArray(d.prowincje)));
     if (!dobra) return alert("Ten plik nie wygląda na kopię Fantasy RP.");
     if (!confirm(`Wczytać kopię z ${new Date(d.czas).toLocaleString("pl-PL")}? Obecne dane gry zostaną nadpisane (${d.frakcje.length} frakcji, ${d.bohaterowie.length} bohaterów).`)) return;
     Object.assign(stan, Object.fromEntries(POLA_KOPII.filter(k => d[k] !== undefined).map(k => [k, d[k]])));
@@ -549,7 +684,8 @@ function podepnijUzytkownikow() {
   glowny.querySelectorAll(".uzytkownicy li[data-uid]").forEach(li => li.onchange = () => {
     const rola = li.querySelector("[name=rola]").value, frakcja = li.querySelector("[name=frakcja]").value;
     const zmiany = li.dataset.uid === zalogowany.uid ? { frakcja } : { rola, frakcja: ROLE_Z_PANSTWEM.includes(rola) ? frakcja : "" };
-    ustawUzytkownika(li.dataset.uid, zmiany)
+    const email = (li.querySelector(".kto small") || li.querySelector(".kto b")).textContent, f = stan.frakcje.find(x => x.id === (zmiany.frakcja ?? ""));
+    ustawUzytkownika(li.dataset.uid, zmiany, `${email} → ${ROLE[zmiany.rola] || "państwo"}${f ? ", " + f.nazwa : ""}`)
       .catch(e => { alert("Nie udało się zmienić roli: " + komunikat(e)); odswiezWidok(); });
   });
 }
@@ -566,15 +702,15 @@ function odswiezWidok() {
     if (!czekaOdswiezenie) { czekaOdswiezenie = true; pole.addEventListener("blur", () => { czekaOdswiezenie = false; setTimeout(odswiezWidok); }, { once: true }); }
     return;
   }
-  zbudujListe();
+  zbudujListe(); kolorujMape();
   if (widok === null) return; // jeszcze w Sali Tronów
   if (okno.open && !okno.querySelector("form.edycja")) okno.close(); // okno bohatera mogło dostać nieaktualne dane; formularza w trakcie pisania nie zamykamy
-  widok === "gm" ? (gm ? pokazPanelGM(true) : wybierz(null)) : wybierz(widok, true);
+  if (widok.startsWith("p:")) return pokazProwincje(+widok.slice(2), true);
+  widok === "gm" ? (gm ? pokazPanelGM(true) : zamknijSzuflade()) : wybierz(widok, true);
 }
 function wejdz() {
   if (aktualizacjaBlokuje()) return;
-  let id = profil?.frakcja; try { id ||= localStorage.getItem("frakcja"); } catch {}
-  zbudujListe(); wybierz(id); przelacz(true);
+  zamknijSzuflade(); zbudujListe(); kolorujMape(); przelacz(true);   // start: sama mapa, karty otwiera klik w herb
 }
 const blad = document.getElementById("blad-logowania");
 const pokazBlad = (t, info) => { blad.textContent = t; blad.hidden = !t; blad.classList.toggle("info", Boolean(info)); };
@@ -649,29 +785,47 @@ async function ustawRole() {
   if (wejdzPoWczytaniu) { wejdzPoWczytaniu = false; wejdz(); } // zapamiętana sesja: zostajemy w Sali Tronów
 }
 document.getElementById("wyjdz").onclick = () => przelacz(false);
-// aktualizacje (tylko program na komputer, window.aktualizacje z electron/preload.cjs): nowsza wersja blokuje logowanie i wejście,
-// dopóki gracz nie zaktualizuje; brak sieci/GitHuba nie blokuje, a sprawdzanie dłuższe niż 10 s też nie
-const BLOKUJA = ["sprawdzam", "dostepna", "pobieram", "instaluje", "blad-pobierania"];
+// „Co nowego” raz po pierwszym uruchomieniu nowej wersji; bez zapamiętanej wersji (nowa instalacja albo 0.1.1 bez tej funkcji) tylko wpis bieżącej
+const nowsza = (a, b) => { const x = a.split(".").map(Number), y = b.split(".").map(Number); const i = x.findIndex((v, k) => v !== y[k]); return i >= 0 && x[i] > y[i]; };
+const oknoZmian = document.getElementById("zmiany");
+function coNowego() {
+  let byla = null; try { byla = localStorage.getItem("wersja"); localStorage.setItem("wersja", pakiet.version); } catch {}
+  if (byla === pakiet.version) return;
+  const wpisy = ZMIANY.filter(z => !nowsza(z.wersja, pakiet.version) && (byla ? nowsza(z.wersja, byla) : z.wersja === pakiet.version));
+  if (!wpisy.length) return;
+  oknoZmian.innerHTML = `<div class="okno-glowa"><div><h2>Co nowego</h2><p class="rasa">wersja ${esc(pakiet.version)}</p></div><button type="button" class="zamknij" aria-label="Zamknij">×</button></div>`
+    + wpisy.map(z => `<h3>Wersja ${esc(z.wersja)} <span>${esc(z.data)}</span></h3><ul>${z.zmiany.map(t => `<li>${esc(t)}</li>`).join("")}</ul>`).join("");
+  oknoZmian.querySelector(".zamknij").onclick = () => oknoZmian.close();
+  oknoZmian.showModal();
+}
+// aktualizacje (tylko program na komputer, window.aktualizacje z electron/preload.cjs) — obowiązkowe:
+// znaleziona nowsza wersja (przy starcie albo w sprawdzaniu co 15 min) zasłania cały program nakładką, dopóki gracz nie zaktualizuje;
+// przy starcie samo sprawdzanie tylko blokuje logowanie; brak sieci/GitHuba i sprawdzanie dłuższe niż 10 s nie blokują
+const NAKLADKA = ["dostepna", "pobieram", "instaluje", "blad-pobierania"];
 let aktualizacja = { stan: "brak" };
-const aktualizacjaBlokuje = () => BLOKUJA.includes(aktualizacja.stan);
+const aktualizacjaBlokuje = () => aktualizacja.stan === "sprawdzam" || NAKLADKA.includes(aktualizacja.stan);
 function pokazAktualizacje(s) {
   aktualizacja = s;
-  const el = document.getElementById("aktualizacja"), blokuje = aktualizacjaBlokuje(), w = esc(s.wersja || "");
-  formularz.querySelectorAll("input, button").forEach(x => x.disabled = blokuje);
-  el.hidden = !blokuje;
-  el.innerHTML = {
-    sprawdzam: "Sprawdzam, czy jest nowsza wersja…",
-    dostepna: `<b>Dostępna nowa wersja ${w}.</b> Zaktualizuj program, żeby wejść do gry.<button type="button" class="wejdz" id="aktualizuj">Aktualizuj</button>`,
-    pobieram: `Pobieram wersję ${w}… ${s.procent ?? 0}%<progress max="100" value="${s.procent ?? 0}"></progress>`,
-    instaluje: `Instaluję wersję ${w} — program sam uruchomi się ponownie.`,
-    "blad-pobierania": `Nie udało się pobrać aktualizacji. Sprawdź internet i spróbuj jeszcze raz.<button type="button" class="wejdz" id="aktualizuj">Spróbuj ponownie</button>`,
+  const w = esc(s.wersja || ""), nakladka = document.getElementById("nakladka-aktualizacji"), pelna = NAKLADKA.includes(s.stan);
+  formularz.querySelectorAll("input, button").forEach(x => x.disabled = aktualizacjaBlokuje());
+  const pasek = document.getElementById("aktualizacja");
+  pasek.hidden = s.stan !== "sprawdzam"; pasek.textContent = "Sprawdzam, czy jest nowsza wersja…";
+  // reszta programu nieklikalna i niedostępna z klawiatury, otwarte okna zamknięte (okno dialogowe byłoby nad nakładką)
+  ["menu", "aplikacja"].forEach(id => document.getElementById(id).inert = pelna);
+  if (pelna) [okno, oknoZmian].forEach(o => o.open && o.close());
+  nakladka.hidden = !pelna;
+  document.getElementById("nakladka-tresc").innerHTML = {
+    dostepna: `<p>Jest nowa wersja <b>${w}</b>. Gra wymaga aktualizacji — do tego czasu nie można z niej korzystać.</p><button type="button" class="wejdz" id="aktualizuj">Aktualizuj</button>`,
+    pobieram: `<p>Pobieram wersję <b>${w}</b>… ${s.procent ?? 0}%</p><progress max="100" value="${s.procent ?? 0}"></progress>`,
+    instaluje: `<p>Instaluję wersję <b>${w}</b> — program sam uruchomi się ponownie.</p>`,
+    "blad-pobierania": `<p>Nie udało się pobrać aktualizacji. Sprawdź internet i spróbuj jeszcze raz.</p><button type="button" class="wejdz" id="aktualizuj">Spróbuj ponownie</button>`,
   }[s.stan] || "";
   const b = document.getElementById("aktualizuj");
-  if (b) b.onclick = () => { b.disabled = true; window.aktualizacje.pobierz(); };
-  if (blokuje && !document.getElementById("aplikacja").hidden) przelacz(false);
+  if (b) { b.onclick = () => { b.disabled = true; window.aktualizacje.pobierz(); }; b.focus(); }
 }
 if (window.aktualizacje) {
   window.aktualizacje.naZmiane(pokazAktualizacje);
   window.aktualizacje.stan().then(pokazAktualizacje);
   setTimeout(() => { if (aktualizacja.stan === "sprawdzam") pokazAktualizacje({ stan: "brak" }); }, 10000);
 }
+coNowego();

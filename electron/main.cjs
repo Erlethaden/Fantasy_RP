@@ -49,6 +49,9 @@ app.whenReady().then(() => serwer.listen(PORT, "localhost", () => {
   okno = new BrowserWindow({ width: 1600, height: 900, backgroundColor: "#0b0c12", autoHideMenuBar: true, title: "Fantasy RP dla autystów",
     icon: path.join(__dirname, "../build/icon.png"), webPreferences: { preload: path.join(__dirname, "preload.cjs") } });
   okno.loadURL(`http://localhost:${PORT}/`);
-  if (app.isPackaged) autoUpdater.checkForUpdates().catch(() => {});
+  if (!app.isPackaged) return;
+  autoUpdater.checkForUpdates().catch(() => {});
+  // potem co 15 minut po cichu (bez stanu „sprawdzam”, żeby nie blokować); znaleziona wersja zasłania program na cały ekran
+  setInterval(() => { if (["brak", "blad"].includes(stanAktualizacji.stan)) autoUpdater.checkForUpdates().catch(() => {}); }, 15 * 60 * 1000);
 }));
 app.on("window-all-closed", () => { serwer.close(); app.quit(); });

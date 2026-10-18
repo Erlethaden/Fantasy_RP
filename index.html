@@ -30,11 +30,21 @@
 <div id="aplikacja" hidden>
   <header class="gora">
     <div class="tytul">Fantasy RP <span>dla autystów</span></div>
+    <nav class="frakcje" id="lista-frakcji" aria-label="Frakcje"></nav>
     <div class="konto"><span id="konto-mail">tryb DEMO</span> <button type="button" id="panel-gm">Panel GM</button> <button type="button" id="wyjdz">Sala Tronów</button> <button type="button" id="wyloguj" hidden>Wyloguj</button></div>
   </header>
-  <nav class="frakcje" id="lista-frakcji" aria-label="Frakcje"></nav>
-  <main class="glowny" id="glowny"></main>
+  <div class="obszar">
+    <main class="mapa" id="mapa" aria-label="Mapa świata — przeciągnij, by przesunąć; kółko albo +/- przybliża"></main>
+    <aside class="szuflada" id="szuflada" hidden>
+      <button type="button" class="zamknij zamknij-szuflade" id="zamknij-szuflade" aria-label="Zamknij panel">×</button>
+      <div class="glowny" id="glowny"></div>
+    </aside>
+  </div>
   <dialog class="okno" id="bohater" aria-label="Bohater"></dialog>
+</div>
+<dialog class="okno zmiany" id="zmiany" aria-label="Co nowego"></dialog>
+<div class="nakladka" id="nakladka-aktualizacji" role="alertdialog" aria-modal="true" aria-labelledby="nakladka-tytul" hidden>
+  <div class="nakladka-okno"><h2 id="nakladka-tytul">Nowa wersja programu</h2><div id="nakladka-tresc"></div></div>
 </div>
 <script type="module" src="/src/main.js"></script>
 </body></html>

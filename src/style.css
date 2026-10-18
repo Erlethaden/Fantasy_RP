@@ -26,17 +26,50 @@ button{font:600 15px Cinzel,Georgia,serif;letter-spacing:.06em;cursor:pointer}
 
 /* powłoka aplikacji */
 [hidden]{display:none!important}
-#aplikacja{position:fixed;inset:0;display:grid;grid-template:auto 1fr/260px 1fr;background:radial-gradient(ellipse at 70% 0%,#1a1626,var(--tlo) 60%)}
-.gora{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;padding:12px 24px;border-bottom:1px solid #3a3020;background:rgba(5,5,10,.6)}
+#aplikacja{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--tlo)}
+.gora{position:relative;z-index:2;display:flex;align-items:center;gap:20px;padding:8px 20px;border-bottom:1px solid #3a3020;background:#08090e;box-shadow:0 2px 12px rgba(0,0,0,.6)}
+.gora .tytul{flex:0 0 auto}
+.obszar{flex:1;min-height:0;display:flex}
+/* mapa: rysunek tuszem na pergaminie (multiply zabiera białe tło) */
+.mapa{flex:1;min-width:0;position:relative;overflow:hidden;background:radial-gradient(ellipse at 50% 45%,#e9dcbc,#cdb98d);cursor:grab;touch-action:none;user-select:none;-webkit-user-drag:none}
+.mapa.ciagnie{cursor:grabbing}
+.mapa:focus-visible{outline:2px solid var(--zloto);outline-offset:-2px}
+.mapa-warstwa{position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none;mix-blend-mode:multiply}
+.mapa-obraz{display:block;user-select:none;max-width:none}
+.mapa-kafle{position:absolute;inset:0}.mapa-kafle img{position:absolute;display:block;max-width:none}
+.mapa-nakladka{position:absolute;inset:0;width:100%;height:100%;mix-blend-mode:multiply}
+.mapa.nad-prowincja:not(.ciagnie){cursor:pointer}
+/* karta prowincji */
+.sasiedzi{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(200px,100%),1fr));gap:6px 16px}
+.sasiedzi button{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;padding:6px 10px;background:#0b0c12;border:1px solid #2a2418;color:var(--tekst);font:inherit;letter-spacing:0;text-align:left}
+.sasiedzi button:hover,.sasiedzi button:focus-visible{border-color:var(--zloto2)}
+.sasiedzi small{display:block;font-size:12px;color:#bfae86}
+.edycja-prowincji{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(200px,100%),1fr));gap:10px 14px;margin:16px 0 4px}
+.edycja-prowincji label{margin:0;display:flex;flex-direction:column;gap:4px;font-size:13px;color:#bfae86}
+.edycja-prowincji .szeroko{grid-column:1/-1}
+.edycja-prowincji input,.edycja-prowincji textarea{padding:8px 10px;background:rgba(5,5,10,.7);border:1px solid var(--zloto2);color:var(--tekst);font:inherit;resize:vertical}
+.edycja-prowincji select:disabled{opacity:.45}
+.granica{font-size:13px;padding:0 8px;border:1px solid currentColor;white-space:nowrap}
+.granica.g-zwykla{color:#bfae86}.granica.g-gory{color:#d08a4a}.granica.g-rzeka{color:#6aa8ff}
+.szuflada{position:relative;flex:0 0 min(760px,46vw);display:flex;flex-direction:column;min-height:0;border-left:1px solid #3a3020;background:radial-gradient(ellipse at 70% 0%,#1a1626,var(--tlo) 60%);box-shadow:-4px 0 16px rgba(0,0,0,.5);animation:wysun .18s ease-out}
+@keyframes wysun{from{transform:translateX(24px);opacity:.4}}
+@media (prefers-reduced-motion:reduce){.szuflada{animation:none}}
+/* ✕ w wierszu nad kartą: nie zasłania treści po przewinięciu */
+.zamknij-szuflade{flex:0 0 auto;align-self:flex-end;margin:8px 12px -4px}
+.szuflada .glowny{padding-top:4px}
 .tytul{font:900 22px Cinzel,Georgia,serif;color:var(--zloto);letter-spacing:.04em}.tytul span{font-weight:500;font-size:15px;color:#bfae86}
 .konto{display:flex;gap:16px;align-items:center;font-size:13px;color:#8f8268}
 .konto button{padding:7px 14px;background:#07080d;border:1px solid var(--zloto2);color:var(--tekst)}.konto button:hover{border-color:var(--zloto)}
-.frakcje{display:flex;flex-direction:column;gap:6px;padding:16px 12px;overflow-y:auto;border-right:1px solid #3a3020;background:rgba(5,5,10,.4)}
-.frakcje button{display:flex;flex-direction:column;text-align:left;padding:10px 12px 10px 16px;background:#0e0f17;border:1px solid #2a2418;border-left:4px solid var(--kolor);color:var(--tekst)}
-.frakcje button:hover{border-color:var(--zloto2);border-left-color:var(--kolor)}
-.frakcje button[aria-current=true]{background:linear-gradient(90deg,color-mix(in srgb,var(--kolor) 30%,#0e0f17),#0e0f17);border-color:var(--zloto);border-left-color:var(--kolor)}
-.frakcje .nazwa{font-size:15px}.frakcje .rasa{font:13px Spectral,Georgia,serif;letter-spacing:0;color:#bfae86}
-.glowny{overflow-y:auto;padding:32px 40px}
+.frakcje{flex:1;min-width:0;display:flex;gap:4px;justify-content:center;overflow-x:auto;scrollbar-width:thin}
+.frakcje button{flex:0 0 auto;display:grid;place-items:center;width:52px;height:52px;padding:2px;background:transparent;border:2px solid transparent;border-bottom:3px solid var(--kolor)}
+.frakcje button img{width:44px;height:44px;image-rendering:pixelated;transition:transform .15s}
+.frakcje button:hover img,.frakcje button:focus-visible img{transform:translateY(-2px) scale(1.06)}
+.frakcje button:focus-visible{outline:2px solid var(--zloto);outline-offset:0}
+.frakcje button.moja{border-color:var(--zloto2);border-bottom-color:var(--kolor);background:rgba(217,178,90,.08)}
+.frakcje button[aria-current=true]{border-color:var(--zloto);border-bottom-color:var(--kolor);background:color-mix(in srgb,var(--kolor) 25%,transparent)}
+.herb-maly{display:grid;place-items:center;width:36px;height:42px;background:var(--kolor);color:#f6e7bf;font:900 20px Cinzel,Georgia,serif;clip-path:polygon(0 0,100% 0,100% 62%,50% 100%,0 62%)}
+.glowny{flex:1;overflow-y:auto;padding:24px 28px}
+.szuflada .karta{max-width:none}
 /* schodkowe narożniki jak w pixel arcie */
 .karta{max-width:900px;padding:22px 26px;background:#0e0f17 padding-box;border:24px solid transparent;border-image:url("../assets/ramki/panel.png") 12/24px;image-rendering:pixelated;box-shadow:inset 0 3px 0 var(--kolor)}
 .karta{line-height:1.65}
@@ -52,7 +85,8 @@ button{font:600 15px Cinzel,Georgia,serif;letter-spacing:.06em;cursor:pointer}
 .karta p{margin:0 0 10px}.karta ul{margin:0 0 10px;padding-left:22px}.karta li{margin-bottom:4px}.karta li::marker{color:var(--kolor)}
 .unikalne{margin-top:24px;padding:4px 20px 8px;background:color-mix(in srgb,var(--kolor) 12%,#0b0c12);border:1px solid color-mix(in srgb,var(--kolor) 50%,#2a2418)}
 .unikalne h3{margin-top:14px;font-size:16px}
-@media (max-width:700px){#aplikacja{grid-template:auto auto 1fr/1fr}.frakcje{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid #3a3020}.frakcje button{flex:0 0 auto}.glowny{padding:20px 16px}}
+@media (max-width:900px){.gora{flex-wrap:wrap;gap:8px 16px;padding:8px 12px}.gora .tytul span{display:none}.frakcje{order:3;flex-basis:100%;justify-content:flex-start}}
+@media (max-width:700px){.szuflada{position:absolute;inset:0;flex:none;z-index:3}.obszar{position:relative}.glowny{padding:20px 16px}}
 .zasoby{list-style:none;padding:0!important}.zasoby li{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:6px 0;border-bottom:1px solid #2a2418}
 .zasoby li.puste{color:#8f8268;font-style:italic;border:0}
 .usun{flex:0 0 auto;width:28px;height:28px;padding:0;background:transparent;border:1px solid #4a3c1e;color:#bfae86;font:16px/1 Spectral,Georgia,serif}.usun:hover{border-color:#c0392b;color:#ff8a7a}
@@ -87,14 +121,14 @@ select{padding:6px 10px;background:#05050a;border:1px solid var(--zloto2);color:
 .typy-zasobow .usun:disabled{opacity:.3;cursor:default}
 .ikona{flex:0 0 auto;width:32px;height:32px;image-rendering:pixelated}
 .ikona.litera{display:grid;place-items:center;border:2px solid var(--zloto2);color:var(--zloto);font:700 16px Cinzel,Georgia,serif}
-.tabela-zasobow{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:4px 24px}
+.tabela-zasobow{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(320px,100%),1fr));gap:4px 24px}
 .tabela-zasobow li{display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid #2a2418}
-.tabela-zasobow .nazwa{flex:1;min-width:0}
-.tabela-zasobow input{width:92px;padding:5px 8px;text-align:right;font-variant-numeric:tabular-nums}
+.tabela-zasobow .nazwa{flex:1;min-width:0;overflow-wrap:anywhere;hyphens:auto;line-height:1.3}
+.tabela-zasobow input{flex:0 0 92px;width:92px;padding:5px 8px;text-align:right;font-variant-numeric:tabular-nums}
 .tabela-zasobow input[aria-invalid=true]{outline:2px solid #c0392b}
-.tabela-zasobow .jednostka{width:44px;color:#bfae86;font-size:14px}
+.tabela-zasobow .jednostka{flex:0 0 44px;width:44px;color:#bfae86;font-size:14px}
 .dodaj-zasob .krotkie{flex:0 1 120px}
-.tabela-zasobow .miejsce-zmiany{width:52px;font:600 13px Spectral,Georgia,serif;font-variant-numeric:tabular-nums}
+.tabela-zasobow .miejsce-zmiany{flex:0 0 52px;width:52px;font:600 13px Spectral,Georgia,serif;font-variant-numeric:tabular-nums}
 .zmiana.plus{color:#7fd17a}.zmiana.minus{color:#ff8a7a}
 .stany h3 .tura{margin-left:8px;font:500 14px Spectral,Georgia,serif;color:#bfae86;letter-spacing:0}
 .stany .opis-sekcji{margin:0 0 8px;color:#bfae86;font-size:14px}
@@ -114,7 +148,7 @@ select{padding:6px 10px;background:#05050a;border:1px solid var(--zloto2);color:
 #zaloz-konto{margin-top:8px}
 .panel.zalogowany label,.panel.zalogowany input,.panel.zalogowany .lub,.panel.zalogowany .google{display:none}
 .panel .blad.info{border-color:var(--zloto2);background:rgba(40,30,10,.6);color:#f0dfb0}
-.tabela-zasobow .wartosc{width:92px;text-align:right;font-variant-numeric:tabular-nums}
+.tabela-zasobow .wartosc{flex:0 0 92px;width:92px;text-align:right;font-variant-numeric:tabular-nums}
 .status-tekst{margin:16px 0 0}
 .uzytkownicy{list-style:none;margin:0;padding:0}
 .uzytkownicy li{display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #2a2418}
@@ -167,3 +201,19 @@ select{padding:6px 10px;background:#05050a;border:1px solid var(--zloto2);color:
 .aktualizacja{margin:0 0 14px;padding:12px 14px;border:1px solid var(--zloto);background:rgba(40,30,10,.75);color:#f0dfb0;font-size:14px;line-height:1.5}
 .aktualizacja .wejdz{margin-top:10px}
 .aktualizacja progress{display:block;width:100%;margin-top:8px;accent-color:var(--zloto)}
+.nakladka{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:16px;background:rgba(5,5,10,.92);backdrop-filter:blur(4px)}
+.nakladka[hidden]{display:none}
+.nakladka-okno{width:min(520px,100%);padding:28px 32px;background:#0e0f17;border:24px solid transparent;border-image:url("../assets/ramki/panel.png") 12/24px;image-rendering:pixelated;color:var(--tekst);text-align:center}
+.nakladka-okno h2{margin:0 0 12px;font:700 28px Cinzel,Georgia,serif;color:var(--zloto)}
+.nakladka-okno .wejdz{margin-top:16px}
+.nakladka-okno progress{width:100%;accent-color:var(--zloto)}
+.zmiany h3{margin:18px 0 4px;font:700 18px Cinzel,Georgia,serif;color:var(--zloto)}.zmiany h3 span{font:400 14px Georgia,serif;color:#8f8268}.zmiany ul{margin:0;padding-left:22px}
+.lista-npc{list-style:none;margin:0 0 12px;padding:0}
+.lista-npc li{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #2a2418}
+.lista-npc li.puste{color:#8f8268;font-style:italic;border:0}
+.lista-npc input{flex:2 1 160px;width:auto;padding:6px 8px}.lista-npc select{flex:1 1 120px}
+.lista-npc textarea{flex:1 1 100%;padding:6px 8px;background:rgba(5,5,10,.7);border:1px solid var(--zloto2);color:var(--tekst);font:inherit;resize:vertical}
+.lista-npc .ile{font-size:13px;color:#bfae86;white-space:nowrap}
+.probka{flex:0 0 auto;width:22px;height:22px;border:2px solid #0b0c12;box-shadow:0 0 0 1px var(--zloto2)}
+.dodaj-npc{display:flex;flex-wrap:wrap;gap:8px}.dodaj-npc input{flex:2 1 180px;width:auto;padding:8px 10px}.dodaj-npc select{flex:1 1 120px;padding:8px 10px}
+.edycja-prowincji small{color:#8f8268}
