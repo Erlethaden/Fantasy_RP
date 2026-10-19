@@ -1,0 +1,136 @@
+{
+ "opis": "Ręczne poprawki komórek (7.6e): piksele komórki „z” wewnątrz wielokąta przechodzą do komórki „na”. Wielokąt w px komorki_final.png (5000x5000, skala 1/4 rysunku). Stosuje assets/mapa_poprawki.py. „litery”: {numer: [komórka a, komórka b]} — przypięte a/b, gdy poprawka przesunęła środek komórki (mapa_sasiedztwo.py). „rzeki”: dorysowane odcinki rzek, linia w px teren.png (2500x2500), szer w px (mapa_teren.py).",
+ "poprawki": [
+  {
+   "opis": "63b: część pod górami z napisem 57 → 57b (zostaje górne pole „WEGA 63”)",
+   "z": 312,
+   "na": 364,
+   "wielokat": [
+    [
+     2860,
+     1530
+    ],
+    [
+     3000,
+     1530
+    ],
+    [
+     3060,
+     1560
+    ],
+    [
+     3270,
+     1600
+    ],
+    [
+     3290,
+     1660
+    ],
+    [
+     3270,
+     1760
+    ],
+    [
+     2860,
+     1760
+    ]
+   ]
+  },
+  {
+   "opis": "63b: kawałek pod górami przy 54 → 54b (jak dotąd)",
+   "z": 312,
+   "na": 375,
+   "wielokat": [
+    [
+     3290,
+     1600
+    ],
+    [
+     3330,
+     1585
+    ],
+    [
+     3400,
+     1560
+    ],
+    [
+     3480,
+     1570
+    ],
+    [
+     3480,
+     1760
+    ],
+    [
+     3270,
+     1760
+    ],
+    [
+     3290,
+     1660
+    ]
+   ]
+  },
+  {
+   "opis": "50b: płat z napisem 53 nad przerywaną kreską → 53a",
+   "z": 385,
+   "na": 343,
+   "wielokat": [
+    [
+     3540,
+     1560
+    ],
+    [
+     3777,
+     1560
+    ],
+    [
+     3778,
+     1689
+    ],
+    [
+     3736,
+     1705
+    ],
+    [
+     3674,
+     1731
+    ],
+    [
+     3569,
+     1696
+    ],
+    [
+     3540,
+     1696
+    ]
+   ]
+  }
+ ],
+ "litery": {
+  "53": [
+   343,
+   320
+  ]
+ },
+ "rzeki": [
+  {
+   "opis": "143a/167a: przerwa w zakręcie rzeki (brzegi za daleko od siebie, w warstwie rzek brak obu brzegów)",
+   "linia": [
+    [
+     412,
+     505
+    ],
+    [
+     440,
+     501
+    ],
+    [
+     472,
+     492
+    ]
+   ],
+   "szer": 7
+  }
+ ]
+}

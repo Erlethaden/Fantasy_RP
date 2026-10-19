@@ -18,7 +18,8 @@ export function utworzMape(kontener, { rysunek, rozmiar, teren, indeksy, ramki, 
   const ramka = document.createElement("div"); ramka.className = "mapa-ramka";
   const mgla = document.createElement("div"); mgla.className = "mapa-mgla";
   const roza = new Image(); roza.className = "mapa-roza"; roza.alt = ""; roza.draggable = false; if (ikony.roza) roza.src = ikony.roza;
-  warstwa.append(img, ter, fale, mgla, ostre, kol, nak, ramka, ...(ikony.roza ? [roza] : []));
+  const herbyW = document.createElement("div"); herbyW.className = "mapa-herby"; herbyW.setAttribute("aria-hidden", "true");   // 7.6d: herby krajów graczy przy oddaleniu
+  warstwa.append(img, ter, fale, mgla, ostre, kol, herbyW, nak, ramka, ...(ikony.roza ? [roza] : []));
   let SZ = 0, WY = 0;   // rozmiar mapy w px mapa.png
   const plotnoGranic = document.createElement("canvas"); plotnoGranic.className = "mapa-granice"; plotnoGranic.setAttribute("aria-hidden", "true");
   const sciezka = new Path2D();
@@ -27,7 +28,8 @@ export function utworzMape(kontener, { rysunek, rozmiar, teren, indeksy, ramki, 
   kontener.append(warstwa, plotnoGranic, znaczniki);
   const w = { s: 1, x: 0, y: 0 };
   let ramkaKafli = 0;
-  const ustaw = () => { warstwa.style.transform = `translate(${w.x}px,${w.y}px) scale(${w.s})`; if (!ramkaKafli) ramkaKafli = requestAnimationFrame(() => { ramkaKafli = 0; odswiezKafle(); rysujGranice(); odswiezOsady(); }); };
+  // herby: pełne do przybliżenia 0.3, znikają do 0.5 (wtedy widać stolice i armie)
+  const ustaw = () => { warstwa.style.transform = `translate(${w.x}px,${w.y}px) scale(${w.s})`; herbyW.style.opacity = Math.min(1, Math.max(0, (0.5 - w.s) / 0.2)); if (!ramkaKafli) ramkaKafli = requestAnimationFrame(() => { ramkaKafli = 0; odswiezKafle(); rysujGranice(); odswiezOsady(); }); };
   function rysujGranice() {   // w pikselach ekranu, więc kreska ma stałą grubość przy każdym przybliżeniu
     const d = devicePixelRatio || 1, cw = kontener.clientWidth, ch = kontener.clientHeight;
     if (plotnoGranic.width !== Math.round(cw * d) || plotnoGranic.height !== Math.round(ch * d)) { plotnoGranic.width = Math.round(cw * d); plotnoGranic.height = Math.round(ch * d); }
@@ -47,6 +49,7 @@ export function utworzMape(kontener, { rysunek, rozmiar, teren, indeksy, ramki, 
         c.setLineDash({ lad: [8, 5], morze: [], sojusz: [2, 6] }[t.styl].map(v => v / w.s)); c.lineWidth = 2.5 / w.s; c.strokeStyle = t.kolor; c.stroke();
         continue;
       }
+      c.globalAlpha = t.proponowana ? 0.55 : 1;   // propozycja gracza (7.14) — blada, dopóki GM nie zaakceptuje
       const linia = (od, doo) => { c.beginPath(); c.moveTo(...p[od]); for (let k = od + 1; k <= doo; k++) c.lineTo(...p[k]); c.stroke(); };
       const b = Math.min(t.przebyte || 0, p.length - 1);
       if (b > 0) { c.setLineDash([]); c.lineWidth = 3 / w.s; c.strokeStyle = "rgba(40, 25, 10, .85)"; linia(0, b); }
@@ -60,6 +63,7 @@ export function utworzMape(kontener, { rysunek, rozmiar, teren, indeksy, ramki, 
         c.font = `600 ${13 / w.s}px Spectral, Georgia, serif`; c.lineWidth = 4 / w.s; c.strokeStyle = "rgba(243, 231, 198, .95)";
         c.strokeText(t.napis, ex + 8 / w.s, ey - 8 / w.s); c.fillStyle = "#2a1c08"; c.fillText(t.napis, ex + 8 / w.s, ey - 8 / w.s);
       }
+      c.globalAlpha = 1;
     }
   }
   let trasy = [];   // [{punkty: [[x, y] px mapa.png], przebyte: ile odcinków już przebytych, kolor, napis, styl?: "lad" | "morze" | "sojusz"}]
@@ -79,6 +83,9 @@ export function utworzMape(kontener, { rysunek, rozmiar, teren, indeksy, ramki, 
     });
     for (const [i, el] of osadyWDom) if (!chce.has(i)) { el.remove(); osadyWDom.delete(i); }
   }
+  // herby: [{x, y (środek, px mapa.png), rozmiar (px mapa.png — skaluje się z mapą), url}]
+  const ustawHerby = l => { herbyW.replaceChildren(...l.map(h => Object.assign(new Image(), { src: h.url, alt: "", draggable: false,
+    style: `left:${h.x - h.rozmiar / 2}px;top:${h.y - h.rozmiar / 2}px;width:${h.rozmiar}px;height:${h.rozmiar}px` }))); };
   const ustawOsady = l => { osady = l; for (const el of osadyWDom.values()) el.remove(); osadyWDom.clear(); odswiezOsady(); };
   // kafle: poziom dobrany do przybliżenia (rysunek podstawowy ma 1/4 oryginału); w DOM tylko widoczne, reszta usuwana
   const istnieje = Object.fromEntries(Object.entries(kafle?.kafle || {}).map(([p, l]) => [p, new Set(l)])), wDom = new Map();
@@ -274,5 +281,5 @@ export function utworzMape(kontener, { rysunek, rozmiar, teren, indeksy, ramki, 
   const doWidoku = (x, y) => { const sx = w.x + x * w.s, sy = w.y + y * w.s, m = 40;
     if (sx < m || sy < m || sx > kontener.clientWidth - m || sy > kontener.clientHeight - m) pokaz(x, y); };
   const kursor = k => kontener.classList.toggle("stawianie", Boolean(k));   // tryb stawiania osady: kursor celownika
-  return { dopasuj, wybierz, pokaz, doWidoku, ustawKolory, ustawOsady, ustawTrasy, ustawTereny, kursor, wokol };
+  return { dopasuj, wybierz, pokaz, doWidoku, ustawKolory, ustawOsady, ustawTrasy, ustawTereny, ustawHerby, kursor, wokol };
 }

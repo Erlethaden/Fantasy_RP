@@ -39,12 +39,42 @@ for p in sas["prowincje"].values():
     for c in p["komorki"]:
         if c <= k.max(): lad_kom[c] = True
 woda = ~lad_kom[k]
-gory = (P == 0) & ~woda                                    # pasma gór = ląd poza prowincjami (mapa_dane.py wycina je z prowincji)
+rz2 = np.array(Image.open(M + "warstwy_2.png"))[..., 0] > 0  # brzegi rzek, 1/2
+rz = rz2.reshape(N, 4, N, 4).max((1, 3))
+yy, xx = np.mgrid[-9:10, -9:10]
+rzeka = ndi.binary_closing(np.pad(rz, 10), structure=yy ** 2 + xx ** 2 <= 81)[10:-10, 10:-10] & ~woda   # skleja przerwy po mostach
+# 7.6e: warstwa rzek urywa się zwykle za ostatnim mostem przed morzem (brzeg zlewa się z wybrzeżem) — dociągamy koryto po rysunku:
+# wąski pas między dwiema liniami (domknięcie tuszu mapa.png, 1/4) blisko istniejącej rzeki i dochodzący do morza
+ink = np.array(Image.open("assets/mapa/mapa.png")) < 128
+k4 = np.array(Image.open(M + "komorki_final.png").convert("RGB")).astype(np.int32); woda4 = ~lad_kom[k4[..., 0] * 256 + k4[..., 1]]
+rz4 = rz2.reshape(5000, 2, 5000, 2).max((1, 3))
+R4, S4 = 8, 7   # px 1/4: promień domknięcia brzegów, maks. połowa szerokości koryta
+y4, x4 = np.mgrid[-R4:R4 + 1, -R4:R4 + 1]
+pas = ndi.binary_closing(np.pad(ink, R4 + 1), y4 ** 2 + x4 ** 2 <= R4 * R4)[R4 + 1:-R4 - 1, R4 + 1:-R4 - 1] & ~ink & ~woda4
+pas &= ~ndi.binary_dilation(ndi.distance_transform_edt(pas) > S4, iterations=S4 + 1)
+od_wody4, od_rz4 = ndi.distance_transform_edt(~woda4), ndi.distance_transform_edt(~rz4)
+# a) koryto stykające się z brzegiem z warstwy (drugi brzeg nie wykryty) — też przez maskę gór, bo bywa zamalowana na rzece
+lab4, _ = ndi.label(pas & (od_wody4 > 3), np.ones((3, 3)))   # bez pasa wzdłuż wybrzeża
+ujscia = np.isin(lab4, np.unique(lab4[od_rz4 <= 2])[1:])
+# b) ujście za mostem: blisko rzeki i dochodzi do morza — bez gór (kreski szczytów obok siebie wyglądają jak koryto)
+lab4, _ = ndi.label(pas & (od_wody4 > 3) & ~ndi.binary_dilation(np.array(Image.open(M + "gory_final.png").convert("L")) > 127, iterations=2), np.ones((3, 3)))
+dot = np.intersect1d(np.unique(lab4[od_rz4 <= 14]), np.unique(lab4[od_wody4 <= 8])); dot = dot[dot > 0]
+ujscia |= np.isin(lab4, dot)
+ujscia |= pas & ndi.binary_dilation(ujscia, iterations=5)                                                # dociągnięcie do brzegu morza
+rzeka |= ndi.binary_closing(ujscia.reshape(N, 2, N, 2).max((1, 3)) | rzeka, iterations=2) & ~woda
+# przerwy w środku rzeki (brzeg zlany z kreskami gór albo zakręt): domknięcie do ~20 px, ale tylko po korycie z rysunku
+koryto = ndi.binary_dilation(pas.reshape(N, 2, N, 2).max((1, 3)), iterations=1)
+yr, xr = np.mgrid[-10:11, -10:11]
+rzeka |= ndi.binary_closing(np.pad(rzeka, 11), yr ** 2 + xr ** 2 <= 100)[11:-11, 11:-11] & (koryto | ((P == 0) & (ndi.distance_transform_edt(~rzeka) <= 5))) & ~woda   # P == 0: koryto przy górach, wąsko
+del ink, koryto, k4, woda4, rz4, pas, od_wody4, od_rz4, lab4
+# ręczne odcinki z materialy/mapa/poprawki.json („rzeki”) — tam, gdzie rysunek nie daje koryta
+from PIL import ImageDraw
+dorys = Image.new("1", (N, N)); dr = ImageDraw.Draw(dorys)
+for o in json.load(open(M + "poprawki.json", encoding="utf-8")).get("rzeki", []): dr.line([tuple(x) for x in o["linia"]], fill=1, width=o["szer"], joint="curve")
+rzeka |= np.array(dorys) & ~woda
+gory = (P == 0) & ~woda & ~ndi.binary_dilation(rzeka, iterations=2)   # pasma gór = ląd poza prowincjami (mapa_dane.py wycina je z prowincji)
 gory = ndi.binary_opening(gory, iterations=1)
-rz = np.array(Image.open(M + "warstwy_2.png"))[..., 0] > 0  # 10000² → 2500²
-rz = rz.reshape(N, 4, N, 4).max((1, 3))
-yy, xx = np.mgrid[-6:7, -6:7]
-rzeka = ndi.binary_closing(np.pad(rz, 7), structure=yy ** 2 + xx ** 2 <= 36)[7:-7, 7:-7] & ~woda   # skleja przerwy po mostach
+lab_g, _ = ndi.label(gory); gory &= (np.bincount(lab_g.ravel()) >= 150)[lab_g]   # skrawki koryt przy mostach i ujściach to nie góry
 od_wody = ndi.distance_transform_edt(~woda); od_ladu = ndi.distance_transform_edt(woda)
 plaza = ~woda & (od_wody <= 4) & ~gory
 podgorze = ndi.binary_dilation(gory, iterations=5) & ~woda & ~gory
@@ -71,11 +101,20 @@ img[obrys] = (img[obrys] * 0.45 + np.array([60, 42, 24]) * 0.55).astype(np.uint8
 # góry: sprite'y 24 px (70%) i 18 px, gęsto na paśmie, od tylnych do przednich
 SPR = [np.array(Image.open(T + f"gora_{s}.png").convert("RGBA")) for s in (1000, 1001, 1002)]
 r = np.random.default_rng(3); wnetrze = ndi.binary_erosion(gory, iterations=1)
-pkt = sorted((y + r.integers(-3, 4), x + r.integers(-3, 4)) for y in range(0, N, 9) for x in range(0, N, 11))
-for y, x in pkt:
-    if not (0 <= y < N and 0 <= x < N and wnetrze[y, x]): continue
+# rozrzut punktów + przy dolnej krawędzi pasma szczyty losowo wyżej i mniejsze — brzeg postrzępiony zamiast prostej linii rzędu siatki
+pod_krawedzia = wnetrze & ~np.roll(ndi.binary_erosion(gory, iterations=1), -7, 0)
+pkt = []
+od_rzeki = ndi.distance_transform_edt(~rzeka)   # 7.6e: szczyt (24 px) nie może wejść na rzekę płynącą przy paśmie
+for y in range(0, N, 9):
+    for x in range(0, N, 11):
+        yy_, xx_ = y + r.integers(-5, 6), x + r.integers(-5, 6)
+        if not (0 <= yy_ < N and 0 <= xx_ < N and wnetrze[yy_, xx_]) or od_rzeki[yy_, xx_] < 12: continue
+        brzeg = pod_krawedzia[yy_, xx_]
+        if brzeg: yy_ -= r.integers(0, 7)
+        pkt.append((yy_, xx_, brzeg))
+for y, x, brzeg in sorted(pkt):
     sp = SPR[r.integers(0, 3)]
-    if r.random() >= 0.7: sp = np.array(Image.fromarray(sp).resize((18, 18), Image.NEAREST))
+    if r.random() >= (0.4 if brzeg else 0.7): sp = np.array(Image.fromarray(sp).resize((18, 18), Image.NEAREST))
     sh, sw = sp.shape[:2]; y0, x0 = y - sh + 3, x - sw // 2
     ys, xs = slice(max(0, y0), min(N, y0 + sh)), slice(max(0, x0), min(N, x0 + sw))
     cz = sp[ys.start - y0:ys.stop - y0, xs.start - x0:xs.stop - x0]

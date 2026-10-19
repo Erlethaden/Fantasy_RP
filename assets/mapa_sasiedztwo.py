@@ -33,8 +33,10 @@ def prowincje_komorek(w, p):
     ids = np.unique(w); ids = ids[(ids > 0)]
     srodki = dict(zip(map(int, ids), ndi.center_of_mass(np.ones_like(w), w, ids)))
     kom = {}
+    # 7.6e: po poprawkach komórek środek może się przesunąć — litery przypięte, żeby id (i zapisane dane gry) zostały te same
+    litery = json.load(open(M + "poprawki.json", encoding="utf-8")).get("litery", {})
     for n, cs in p["prowincje"].items():
-        cs = sorted(map(int, cs), key=lambda c: (round(srodki[c][0] / 250), srodki[c][1]))
+        cs = litery.get(n) or sorted(map(int, cs), key=lambda c: (round(srodki[c][0] / 250), srodki[c][1]))
         for k, c in enumerate(cs): kom[c] = n if len(cs) == 1 else n + "ab"[k]
     srodki = [srodki[int(c)] for c in ids]
     bez = sorted((int(round(y / 250)), x, int(c)) for c, (y, x) in zip(ids, srodki) if int(c) not in kom and int(c) not in jez)

@@ -8,6 +8,8 @@ rules_version = '2';
 //   pozostali członkowie tylko wtedy, gdy GM ustawił w dokumencie frakcji jawne.<rodzaj> = true
 // - notatki_gracza: czyta i pisze gracz tej frakcji + GM; notatki_gm: tylko GM/admin
 // - nazwy_osad/{prowincja} (6.2, 2026-10-19): nazwy osad zmienia GM albo gracz, którego frakcja ma tę prowincję (gra/prowincje)
+// - propozycje (4.4, 7.12–7.15): gracz proponuje opis państwa i bohaterów, stolicę i budynki we własnych prowincjach, cel własnej armii, traktat
+//   (najpierw zgoda graczy-stron) i zerwanie swojego traktatu; GM akceptuje — przyjęta jest od razu kasowana
 service cloud.firestore {
   match /databases/{database}/documents {
     function zalogowany() { return request.auth != null; }
@@ -63,6 +65,8 @@ service cloud.firestore {
     match /bitwy/{id} { allow read: if gm() || (czlonek() && mojaFrakcja() in resource.data.uczestnicy); allow write: if gm(); }
     // traktaty (7.4): jawne czytają wszyscy, tajne tylko strony i GM; pisze GM
     match /traktaty/{id} { allow read: if gm() || (czlonek() && (resource.data.tajny == false || mojaFrakcja() in resource.data.strony)); allow write: if gm(); }
+    // kronika (7.2): jawne wpisy czytają wszyscy, tajne — kraje z listy „widza” i GM; pisze GM
+    match /kronika/{id} { allow read: if gm() || (czlonek() && (resource.data.tajny == false || mojaFrakcja() in resource.data.widza)); allow write: if gm(); }
     match /tajne_statusy/{f} { allow read: if gm() || wlasciciel(f) || jawne(f, "statusy"); allow write: if gm(); }
     match /notatki_gracza/{f} {
       allow read: if gm() || wlasciciel(f);
@@ -75,15 +79,36 @@ service cloud.firestore {
       let d = request.resource.data;
       return czlonek() && d.uid == request.auth.uid && d.frakcja == mojaFrakcja() && d.status == "czeka"
         && d.komentarz == "" && d.rozpatrzono == "" && d.rozpatrzyl == ""
-        && d.keys().hasOnly(["czas", "uid", "email", "frakcja", "cel", "celId", "nazwa", "zmiany", "przed", "status", "komentarz", "rozpatrzono", "rozpatrzyl"])
+        && d.keys().hasOnly(["czas", "uid", "email", "frakcja", "cel", "celId", "nazwa", "zmiany", "przed", "status", "komentarz", "rozpatrzono", "rozpatrzyl", "strony", "zgody"])
         && ((d.cel == "frakcja" && d.celId == mojaFrakcja()
               && d.zmiany.keys().hasOnly(["stolica", "ustroj", "wladca", "godlo", "motto", "specjalizacja", "tereny", "opis"]))
           || (d.cel == "bohater" && get(/databases/$(database)/documents/bohaterowie/$(d.celId)).data.frakcja == mojaFrakcja()
-              && d.zmiany.keys().hasOnly(["tytul", "funkcja", "wiek", "bron", "opis"])));
+              && d.zmiany.keys().hasOnly(["tytul", "funkcja", "wiek", "bron", "opis"]))
+          // 7.12–7.13: stolica i budynki tylko we własnej prowincji (celId = id prowincji)
+          || (d.cel == "stolica" && mojaProwincja(d.celId) && d.zmiany.keys().hasOnly(["osada"]) && d.zmiany.osada is int)
+          || (d.cel == "budynki" && mojaProwincja(d.celId) && d.zmiany.keys().hasOnly(["budynki"])
+              && d.zmiany.budynki.keys().hasOnly(["sloty", "zloze"]) && d.zmiany.budynki.sloty is list
+              && d.zmiany.budynki.sloty.size() <= 30 && d.zmiany.budynki.zloze is string)
+          // 7.14: cel własnej armii (celId = id armii z gra/armie)
+          || (d.cel == "ruch" && get(/databases/$(database)/documents/gra/armie).data.a.get(d.celId, {}).get("f", "") == mojaFrakcja()
+              && d.zmiany.keys().hasOnly(["cel"]) && d.zmiany.cel is map && d.zmiany.cel.keys().hasOnly(["p", "o", "armia"]))
+          // 7.15: nowy traktat — autor jest stroną i od razu się zgadza; strony propozycji = strony traktatu (po nich czytają i dają zgodę)
+          || (d.cel == "traktat" && d.celId == "" && d.strony is list && mojaFrakcja() in d.strony && d.strony.size() >= 2 && d.strony.size() <= 30
+              && d.zgody.keys().hasOnly([mojaFrakcja()]) && d.zgody[mojaFrakcja()] == true
+              && d.zmiany.keys().hasOnly(["traktat"]) && d.zmiany.traktat.keys().hasOnly(["nazwa", "typ", "strony", "tajny", "opis"])
+              && d.zmiany.traktat.strony == d.strony && d.zmiany.traktat.tajny is bool)
+          // 7.15: zerwanie traktatu, w którym frakcja gracza jest stroną (bez zgody innych)
+          || (d.cel == "zerwanie" && mojaFrakcja() in get(/databases/$(database)/documents/traktaty/$(d.celId)).data.strony
+              && d.strony == [mojaFrakcja()] && d.zgody == {} && d.zmiany.keys().hasOnly(["zerwij"])));
     }
     match /propozycje/{id} {
       allow create: if nowaPropozycja();
-      allow read: if gm() || (zalogowany() && resource.data.uid == request.auth.uid);
+      allow read: if gm() || (zalogowany() && resource.data.uid == request.auth.uid) || (czlonek() && mojaFrakcja() in resource.data.strony);
+      // strona traktatu (7.15) zmienia tylko własny wpis w „zgody” (true = zgoda, false = odmowa), dopóki propozycja czeka
+      allow update: if czlonek() && resource.data.status == "czeka" && mojaFrakcja() in resource.data.strony
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["zgody"])
+        && request.resource.data.zgody.diff(resource.data.zgody).affectedKeys().hasOnly([mojaFrakcja()])
+        && request.resource.data.zgody[mojaFrakcja()] is bool;
       allow update: if gm() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "komentarz", "rozpatrzono", "rozpatrzyl"]);
       allow delete: if gm() || (zalogowany() && resource.data.uid == request.auth.uid && resource.data.status == "czeka");
     }

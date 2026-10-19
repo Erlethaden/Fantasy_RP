@@ -127,7 +127,8 @@ Aplikacja dla grupy grającej tekstowo na Discordzie w fantasy RP w stylu Age of
 - [x] 7.1f Wojny: Panel GM — pary „w stanie wojny” (frakcje + kraje NPC); karta frakcji „w wojnie z: …”
 - [x] 7.1g Bitwy: wykrywanie przy zamknięciu tury (ta sama prowincja / mijanie), zatrzymanie armii, znak bitwy na mapie, „zakończ bitwę” (GM), wymuszenie bitwy dla sąsiadów (GM)
 - [x] 7.1h Ekran bitwy (wywiad 2026-10-19): okno z obiema stronami obok siebie (kraj, armie, dowódcy, bohaterowie, oddziały pogrupowane: Elita / Regularne / Chołota, sumy, porównanie sił). Pełny skład widzą uczestnicy + GM (raport `bitwy/{id}` zapisywany przez GM, reguła: uczestnicy), inni — tylko kto z kim, gdzie i wynik. Otwiera się klikiem w znak bitwy / „Ekran bitwy” przy armii, a uczestnikowi raz sam po wejściu, gdy jego armia jest w nowej bitwie. Bitwa trwa, aż GM wpisze wynik: zwycięzca (strona / remis), opis, opcjonalnie straty przy oddziałach (odejmowane od armii) i polegli bohaterowie (status „martwy”). Zakończone bitwy zostają w historii (wynik jawny).
-- [ ] 7.2 Kronika zdarzeń tury
+- [x] 7.2 Kronika zdarzeń tury (wywiad 2026-10-19): automatycznie bitwy (wybuch, wynik), wojny, pokoje, traktaty (zawarte, zerwane), zmiany właścicieli prowincji + wpisy GM tekstem (opcjonalnie tajne dla wybranych krajów). Jedna wspólna kronika, tajne wpisy (tajny traktat, tajny wpis GM) widzą tylko zainteresowane kraje i GM — kolekcja `kronika/{id}` z regułą jak traktaty. Przycisk „Kronika” w pasku (szuflada, tury od najnowszej, znaczek „nowe”) + zdarzenia frakcji na jej karcie. Przy turze „Kopiuj na Discorda” (jawna część jako gotowy tekst). Cofnięcie tury usuwa wpisy z jej zamknięcia.
+- [ ] 7.8 Floty i bitwy morskie (użytkownik 2026-10-19; najpierw wywiad: jak flota porusza się po morzu — mapa nie dzieli morza na pola, skład floty, przewóz armii, bitwy morskie na wzór bitew lądowych z ekranem bitwy)
 - [ ] 7.3 Krótkie animacje portretów (oddech, mrugnięcie, błysk)
 
 ### Etap 7b — handel i dyplomacja (użytkownik 2026-10-19: PRZED samouczkami, „jak w WorldWatch”)
@@ -135,13 +136,29 @@ Aplikacja dla grupy grającej tekstowo na Discordzie w fantasy RP w stylu Age of
 - [x] 7.4 Traktaty: dane `traktaty/{id}` (reguły: jawne albo strona), Panel GM (dodaj, zerwij, usuń), lista na karcie frakcji, pokój kończy wojnę, wojna pyta o zerwanie sojuszu
 - [x] 7.5 Szlaki handlowe i linie sojuszy na mapie + przyciski warstw
 
+- [ ] 7.9 Bloki sojuszy i organizacje międzynarodowe (użytkownik 2026-10-19): wielostronne bloki (np. sojusz kilku krajów, liga handlowa, zakon) z nazwą, członkami, przywódcą, opisem, ewentualnie herbem i kolorem; widoczne na mapie i kartach frakcji. Najpierw krótki wywiad; wzór: WorldWatch `materialy/WorldWatch-stary projekt modern day rp/js/blocs.js`.
+- [x] 7.10 Zwykłe kraje NPC (użytkownik 2026-10-19): w Panelu GM można założyć samodzielny kraj NPC bez zwierzchnika (nie tylko wasala/marionetkę z 6.3) — własna nazwa, opis i własny kolor; dalej działa w wojnach, traktatach i jako właściciel prowincji.
+
+### Etap 7b2 — propozycje graczy w grze (użytkownik 2026-10-19)
+- Gracz-władca proponuje zmiany swojego państwa, GM akceptuje albo odrzuca z komentarzem. Używamy mechanizmu propozycji z 4.4 (`propozycje/{id}`, Panel GM → „Propozycje”, licznik, status u gracza). Zmienia decyzję z 7b: traktaty dalej zapisuje GM, ale gracz może je zaproponować.
+- [x] 7.11 Wywiad 2026-10-19: GM rozpatruje na bieżąco (jak 4.4); traktat najpierw zatwierdzają gracze-strony („Zgadzam się”), kraje NPC — GM, potem GM akceptuje; proponowana trasa armii widoczna dla właściciela i GM w innym stylu („czeka na GM”); GM tylko Akceptuj / Odrzuć z komentarzem (bez edycji propozycji).
+- [x] 7.12 Propozycja przeniesienia stolicy: gracz wybiera swoje miasto na karcie prowincji / mapie → GM akceptuje → zmiana jak w 6.2c.
+- [x] 7.13 Propozycja budynków: gracz wybiera zasób w pustym/zajętym slocie i w złożu swojej prowincji (lista jak w 6.4) → GM akceptuje.
+- [x] 7.14 Propozycja ruchu armii: gracz wybiera cel swojej armii (prowincja, osada, armia — jak w 7.1c) → GM akceptuje → cel i trasa zapisane jak teraz.
+- [x] 7.15 Propozycja traktatu: gracz wypełnia formularz traktatu (typ, nazwa, strony, opis, tajny) i propozycję zerwania swojego traktatu → GM akceptuje → zapis jak w 7.4.
+- [x] 7.16 Reguły Firestore: gracz zapisuje tylko propozycje dotyczące swojej frakcji (swoje miasto, swoje prowincje, swoje armie, traktat, w którym jest stroną) + test.
+
 ### Etap 7c — wygląd mapy (po handlu i dyplomacji)
 - Wygląd mapy — wywiad 2026-10-19: najpierw PRÓBKA wycinka mapy w 4 wariantach do wyboru: styl (pixel art z kafelków / malowany pergamin-akwarela) × kreski (jak teraz / jaśniejsze-cieńsze). Teren prowincji wybiera GM na karcie prowincji (równina, las, pustynia, bagno, tundra…, domyślnie równina) — startowo ustawiam sensowne regiony sam, GM może zmieniać. Dodatki: ozdobna ramka + róża wiatrów, animowana woda, mgła na krawędziach.
 - [x] 7.6a Próbka: wycinek mapy (wybrzeże, rzeka, góry) w 4 wariantach → użytkownik wybiera
 - [x] 7.6b Wybrany styl na całą mapę (warstwa pod kreskami) + typ terenu prowincji (karta prowincji, GM) + startowe regiony
 - [x] 7.6c Ramka i róża wiatrów, animowana woda, mgła na krawędziach
+- [x] 7.6d Herby graczy na mapie (użytkownik 2026-10-19): po oddaleniu mapy wewnątrz terenu każdej frakcji gracza pojawia się jej herb (`assets/herby/<id>.png`), dopasowany wielkością i położeniem do obszaru kraju (np. w środku największego skupiska prowincji), żeby od razu było widać, który kraj należy do którego gracza; przy przybliżeniu herb znika lub blednie, żeby nie zasłaniał prowincji.
+- [x] 7.6e Poprawki mapy (użytkownik 2026-10-19; mosty pominięte — uzgodnione z GM):
+  - [x] 7.6e-1 Połączone prowincje: wykrywacz (prowincje, które oddały sąsiadom duże kawałki + komórki z kilkoma napisami) → złe były 2: 63b (mapa_dane zostawił kawałek pod górami z napisem 57, a „WEGA 63” oddał 64b) i 50b (płat z napisem 53). Poprawki wielokątami w `materialy/mapa/poprawki.json` (+ przypięte litery a/b) przez `assets/mapa_poprawki.py`, potem sasiedztwo → dane → osady → teren. Id prowincji bez zmian.
+  - [x] 7.6e-2 Góry i rzeki (lista użytkownika 2026-10-19): warstwa rzek urywała się za ostatnim mostem przed morzem, a koryto bez prowincji rysowało się jako góry. `mapa_teren.py`: dociąganie koryta po rysunku (wąski pas między brzegami przy rzece: ujścia za mostem bez maski gór, kawałki stykające się z brzegiem), domknięcie przerw do ~20 px, góry bez skrawków < 150 px i bez szczytów bliżej niż 12 px od rzeki; ręczne odcinki w `poprawki.json` („rzeki”: 143a/167a)
 
-### Etap 7d — podgląd na telefon (użytkownik 2026-10-19)
+### Etap 7d — podgląd na telefon (użytkownik 2026-10-19: OSTATNI przed samouczkami)
 - [ ] 7.7 Uproszczony podgląd sytuacji w przeglądarce telefonu przez GitHub Pages (ten sam kod, tryb tylko do czytania: mapa, frakcje, armie, bitwy, traktaty; logowanie jak w programie). Przed startem krótki wywiad: co ma być widać, czy coś da się klikać, kto ma dostęp.
 
 ### Etap 8 — samouczki (na sam koniec, gdy wszystkie funkcje gotowe)

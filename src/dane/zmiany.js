@@ -1,7 +1,26 @@
 // „Co nowego” po aktualizacji: najnowsza wersja na górze; przed każdym wydaniem dopisz wpis z numerem z package.json (INSTRUKCJA-WYDANIE.md)
 export const ZMIANY = [
   {
-    wersja: "0.3.0", data: "tbd", zmiany: [
+    wersja: "0.3.2", data: "tbd", zmiany: [
+    ],
+  },
+  {
+    wersja: "0.3.1", data: "19-10-2026", zmiany: [
+      "Gracz może zaproponować GM przeniesienie stolicy: ★ przy mieście na karcie swojej prowincji. GM akceptuje albo odrzuca w Panelu GM → Propozycje.",
+      "Kraje NPC: nowy rodzaj „samodzielny” — kraj bez zwierzchnika z własnym kolorem na mapie (GM wybiera go w Panelu GM → Kraje NPC). Może mieć prowincje, zawierać traktaty i prowadzić wojny jak wasale i marionetki.",
+      "Mapa: po oddaleniu w środku kraju każdego gracza pojawia się jego herb (wielkość według rozmiaru kraju), więc od razu widać, kto gdzie rządzi. Przy przybliżaniu herb blednie i znika, żeby nie zasłaniał stolic, miast i armii.",
+      "Mapa: rzeki dochodzą do morza (wcześniej urywały się za ostatnim mostem, np. przy D197, D114, 44a, 163a, D299, 167a, D208), a w ich korytach nie wyrastają już góry. Szczyty nie wchodzą na rzeki płynące przy pasmach gór (np. 167b, D110, D35).",
+      "Poprawki mapy: prowincja 63b leży teraz tam, gdzie na rysunku (obok 64b, napis „WEGA 63”) — wcześniej jej pole należało do 64b, a 63b miała kawałek pod górami, który wrócił do 57b. Płat z napisem 53 przeszedł z 50b do 53a.",
+      "Gracz może zaproponować traktat: „Zaproponuj traktat” w sekcji Traktaty na karcie swojego państwa (nazwa, typ, strony, warunki, tajny). Inni gracze-strony widzą go na swojej karcie w „Traktaty do Twojej zgody” i klikają „Zgadzam się” albo „Nie zgadzam się”; potem decyduje GM (za kraje NPC też on). Przy swoim traktacie ✂ proponuje GM zerwanie.",
+      "Przyjęta propozycja od razu wchodzi w życie i znika z listy (nie zaśmieca bazy). Odrzucona zostaje 7 dni, żeby gracz zobaczył komentarz GM.",
+      "Gracz może zaproponować cel swojej armii: „Zaproponuj cel” na karcie armii i klik na mapie (prowincja, osada albo sztandar armii do pościgu). Do decyzji GM trasa jest blada z napisem „czeka na GM”, a po akceptacji staje się zwykłym celem armii.",
+      "Gracz może zaproponować budynki i złoże w swojej prowincji: wybiera zasoby na karcie prowincji i klika „Wyślij propozycję do GM”. GM widzi zmianę przed → po i akceptuje albo odrzuca.",
+      "Budynki i złoża nie mogą już produkować populacji — do wyboru są Broń, Żywność, Drewno, Budulec, Metal, Złoto, Kamienie szlachetne i zasoby własne frakcji.",
+    ],
+  },
+  {
+    wersja: "0.3.0", data: "19-10-2026", zmiany: [
+      "Kronika: przycisk „Kronika” w górnym pasku — zdarzenia każdej tury (bitwy i ich wyniki, wojny, pokoje, traktaty, zmiany właścicieli prowincji) i wpisy GM. Tajne rzeczy widzą tylko zainteresowani. Czerwona kropka oznacza nowe wpisy, a „Kopiuj na Discorda” daje gotowy tekst jawnej części tury. Na karcie frakcji są jej ostatnie zdarzenia.",
       "Kraje są dużo lepiej widoczne: wypełnienie w kolorze kraju i gruby pas w tym kolorze wzdłuż granic państwa.",
       "Mapa ma złotą ramkę, różę wiatrów, mgłę przy krawędziach i lekko migoczące odblaski na wodzie.",
       "Nowy wygląd mapy: pixel art — trawa, morze (płytkie i głębokie), plaże, rzeki i pasma ośnieżonych gór zamiast kresek z rysunku.",
