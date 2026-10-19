@@ -1,5 +1,54 @@
 # DZIENNIK
 
+## 2026-10-20 (cd.) — 7.9e wojna a bloki (etap 7.9 zamknięty)
+Zrobione: podepnijWojny: blok z sojuszem / paktem — wojna między członkami wymaga potwierdzenia (odmowa = brak wojny); napadnięty członek — pytanie „wypowiedzieć wojnę całemu blokowi” (pozostali członkowie, bez już walczących), każda wojna w kronice z dopiskiem „(blok …)”. Test `materialy/test_bloki_wojna.mjs` OK; test_bitwy OK; test_traktaty — poprawiona asercja liczby przycisków warstw (3 od 7.9d; zapomniałem go puścić w 7.9d). Changelog 0.3.3. Etap 7.9 (bloki) zamknięty. Użytkownik wydał 0.3.3 → package.json i package-lock 0.4.0, pusty wpis 0.4.0 w zmiany.js, data 0.3.3 = 20-10-2026.
+W toku: nic.
+Do zrobienia: 7.3 animacje portretów, 7.7 podgląd na telefon (wywiad), etap 8 samouczki (najpierw grafika Zgrzyta od użytkownika).
+Następny krok: zapytać użytkownika, czy 7.3 animacje portretów, czy 7.7 podgląd na telefon (krótki wywiad).
+Problemy / pytania do użytkownika: brak (reguły Firestore bez zmian od 7.9b).
+
+## 2026-10-20 (cd.) — 7.9d bloki na mapie
+Zrobione: mapa.js: warstwa canvas `mapa-bloki` (między kolorami krajów a herbami) — `ustawBloki([{kolor, indeksy}])`: linia 3 px wzdłuż granicy ziem członków od środka + poświata na zewnątrz do 26 px obrazu indeksów (słabnie), liczona w ramce prowincji członków; canvas tylko na ramkę wszystkich bloków (pełny 2500² niepotrzebnie obciążał składanie warstw). main.js: przycisk warstwy „🏛 Bloki” (`warstwy.bloki`, domyślnie wyłączona), `blokiNaMapie()` w pokazOsadyNaMapie (przerysowanie tylko przy zmianie klucza), „Pokaż na mapie” / „Ukryj na mapie” przy bloku (`fokusBloku` — tylko ten blok, przesuwa mapę). Po drodze: pierwsza wersja poświaty była za blada przy oddaleniu — pogrubiona. Test `materialy/test_bloki_mapa.mjs` OK; test_bloki, test_bloki_gracze, test_bloki_traktaty, test_herby, test_teren OK. Podgląd `podglad_paneli/18_warstwa_bloki.png`, `19_blok_pokaz_na_mapie.png`. Changelog 0.3.3.
+W toku: nic.
+Do zrobienia: 7.9e wojna z członkiem bloku; 7.3, 7.7, etap 8; wydanie 0.3.3.
+Następny krok: 7.9e — przy wypowiedzeniu wojny członkowi bloku z sojuszem / paktem: ostrzeżenie i przycisk „wojna z całym blokiem” (GM).
+Problemy / pytania do użytkownika: przy pełnym oddaleniu herby państw zasłaniają poświatę małych krajów (1–2 prowincje) — przy przybliżeniu herby znikają.
+
+## 2026-10-20 (cd.) — 7.9c wspólne traktaty bloku
+Zrobione: (użytkownik: firestore z 7.9b wdrożone) `traktatyBlokow()` — każdy zaznaczony typ aktywnego bloku (≥ 2 członków) to wirtualny traktat wielostronny (id `blok:<id>:<typ>`, liczony z bloku, nie zapisywany), dołączony do `aktywneTraktaty()` → szlaki handlowe i linie sojuszy; karta frakcji pokazuje je ze znakiem 🏛 („wspólny traktat bloku”, bez ✂); przy wypowiedzeniu wojny zrywane są tylko zwykłe traktaty (bloki — 7.9e); mapa odświeża się po każdej zmianie bloku. Test `materialy/test_bloki_traktaty.mjs` OK; test_traktaty, test_bloki, test_bloki_gracze OK. Podgląd `podglad_paneli/17_bloki_wspolne_traktaty.png`. Changelog 0.3.3.
+W toku: nic.
+Do zrobienia: 7.9d mapa bloków, 7.9e wojna z członkiem bloku; 7.3, 7.7, etap 8; wydanie 0.3.3.
+Następny krok: 7.9d — warstwa „Bloki” na mapie: poświata w kolorze bloku wokół ziem członków (przycisk obok Szlaki/Sojusze), klik w blok w szufladzie podświetla tylko jego członków.
+Problemy / pytania do użytkownika: brak.
+
+## 2026-10-20 (cd.) — 7.9b bloki: gracze i głosowanie
+Zrobione: (użytkownik: firestore z 7.9a wdrożone) gracz zakłada blok (jedyny członek, lider, tryb głosowania), zaproszenia (Dołącz / Odrzuć), wyjście; wnioski `b.wnioski` (zapros, wyrzuc, zmiana, tryb, rozwiaz) z głosami za/przeciw — przechodzi większość członków (wykonanie drugim zapisem z `wykonano`), odpada przy połowie przeciw; GM głosuje za NPC; tryb lidera (lider zmienia sam, inni tylko wniosek o powrót do głosowania); rozwiązanie przez graczy = `rozwiazany`. Zapis gracza: `zapiszBlokGracza` (magazyn.js). DEMO: „działaj jako” w szufladzie Bloki. Reguły Firestore: bloki (create / dołącz / odrzuć / wyjdź / wnioski / lider / przegłosowany) + gracz może dopisać wpis kroniki typu „blok” ze swoim krajem. Testy: `test_bloki_gracze.mjs` (DEMO, pełna ścieżka) OK; `test_reguly_bloki.mjs` w emulatorze Firestore (25 sprawdzeń) OK; test_bloki, test_kronika, test_traktaty OK. Podgląd `podglad_paneli/16_bloki_glosowanie.png`. Changelog 0.3.3.
+W toku: nic.
+Do zrobienia: 7.9c–e; 7.3, 7.7, etap 8; wydanie 0.3.3.
+Następny krok: 7.9c — wspólne traktaty bloku: zaznaczone typy działają jak traktaty między każdą parą członków (szlaki handlowe, linie sojuszy, kronika), tajne gdy blok tajny.
+Problemy / pytania do użytkownika: wdrożyć nowe firestore.rules (bloki — zapis graczy; kronika — wpisy graczy o blokach). Emulator do testu reguł: firebase-tools w scratchpadzie (instrukcja w nagłówku test_reguly_bloki.mjs).
+
+## 2026-10-20 (cd.) — 7.9 bloki: wywiad + 7.9a
+Zrobione: wywiad (2 partie) → specyfikacja 7.9 w PLAN.md; użytkownik zaakceptował. Uwaga z wywiadu: zarządzanie blokiem domyślnie GŁOSOWANIEM członków (próg: zwykła większość — ustalone przez Claude), członkowie mogą przegłosować tryb lidera. 7.9a: `stan.bloki` + kolekcja `bloki/{id}` (pole `widza` = członkowie + zaproszeni do zapytań i reguł), reguła w firestore.rules (jawne / tajne; pisze GM), przycisk „Bloki” w pasku → szuflada (lista, tarcza ze skrótem, plakietki członków, ★ lider; GM: nowy blok, zmiana, rozwiązanie), sekcja „Bloki” na karcie frakcji (też „zaproszenie”), kronika (🏛 powstanie, dochodzą / odchodzą, rozwiązanie; tajny blok — tajne wpisy dla członków). Test `materialy/test_bloki.mjs` OK; test_traktaty, test_kronika, test_szukaj OK. Podgląd `podglad_paneli/15_bloki.png`. Changelog 0.3.3.
+W toku: nic.
+Do zrobienia: 7.9b–e; 7.3, 7.7, etap 8; wydanie 0.3.3.
+Następny krok: 7.9b — gracz zakłada blok, zaproszenia (akceptuj / odrzuć), wyjście, wnioski i głosowanie (większość), tryb lidera; reguły Firestore dla zapisu przez graczy.
+Problemy / pytania do użytkownika: wdrożyć nowe firestore.rules (kolekcja bloki) — bez tego w chmurze bloków nie widać.
+
+## 2026-10-20 (cd.) — 7.8f bitwy morskie
+Zrobione: bitwa morska = wpis w stan.bitwy z `a` (akwen) i `floty`, `armie: []`; `wykryjBitwyMorskie` (ten sam akwen / mijanie, wojna) przy zamknięciu tury + kronika; floty w bitwie i armie na ich pokładzie stoją (`bitwaFloty`, `bitwaJednostki`); raport: floty + armie na pokładzie (typ, flota); ekran: tytuł „Bitwa morska — akwen”, losy floty (LOSY_FLOT), armii na pokładzie (z flotą / wysadzona na brzeg akwenu), bohater „uratowany”, siły w okrętach; `skutkiBitwyMorskiej`, `odwrotFloty`, wspólne `losyBohaterow`; straty też na okrętach; rozwiązanie floty usuwa ją z bitwy; bitwy lądowe nie kasują morskich przy rozwiązaniu armii. Test `materialy/test_bitwy_morskie.mjs` OK; test_bitwy, test_skutki, test_przeprawa, test_ruch_flot, test_floty, test_kronika OK. Podgląd `podglad_paneli/13_ekran_bitwy_morskiej_w_trakcie.png`, `14_ekran_bitwy_morskiej_po.png`. Changelog 0.3.3. Etap 7.8 (floty) zamknięty.
+W toku: nic.
+Do zrobienia: 7.9 bloki sojuszy (najpierw krótki wywiad), 7.3 animacje portretów, 7.7 podgląd na telefon, etap 8 samouczki; wydanie 0.3.3.
+Następny krok: 7.9 — krótki wywiad o blokach sojuszy (wzór: WorldWatch blocs.js), potem plan kroków.
+Problemy / pytania do użytkownika: brak „Wymuś bitwę” dla flot (tylko armie) — dodać, jeśli potrzebne.
+
+## 2026-10-20 (cd.) — 7.8e przeprawa (trasa + ruch)
+Zrobione: `trasaPrzeprawy()` (Dijkstra po akwenach od brzegów osiągalnych lądem, koszt w turach: ląd + załadunek + akweny + wyładunek + ląd), `przeprawaArmii`, karta armii: „za N tur przez morze: załadunek w …, wyładunek w …”, wybór flot (GM, `a.transport`) z pojemnością i ostrzeżeniem, trasa na mapie (`liniaPrzeprawy`: ląd łukiem, morze po wodzie z prowincji do prowincji, całość wygładzona), też dla propozycji gracza. `liniaFloty` przyjmuje inne końce. Test `materialy/test_przeprawa.mjs` (D154 → D60) OK; test_ruch_flot, test_trasy, test_armie, test_skutki OK. Podgląd `podglad_paneli/11_przeprawa_armii.png`. Changelog 0.3.3. Użytkownik: druga opcja (armia na pokładzie bez znacznika). 7.8e-2: ruchArmii — floty z a.transport płyną do akwenu załadunku (ich cel czeka), załadunek gdy floty na miejscu i armia się mieści, pozycja na pokładzie `{f, a, floty}`, armia płynie z flotami, wyładunek; trasaPrzeprawy liczy też od pokładu; wykryjBitwy pomija armie na pokładzie; Przestaw zdejmuje z pokładu; karta: położenie „na pokładzie”, „czeka na floty”, ładunek na karcie floty, przycisk GM „Floty od razu do załadunku”; nie można rozwiązać floty z armią. test_przeprawa rozszerzony (pełna przeprawa D154→D60 w 5 turach + cofnięcie załadunku) OK; test_ruch_flot, test_trasy, test_armie, test_bitwy, test_skutki, test_floty OK. Podgląd `podglad_paneli/12_przeprawa_na_morzu.png`. Changelog 0.3.3.
+W toku: nic.
+Do zrobienia: 7.8f bitwy morskie; 7.9, 7.3, 7.7, etap 8.
+Następny krok: 7.8f — bitwy morskie: wykrywanie (wrogie floty w akwenie / mijanie przy zamknięciu tury), ekran bitwy z flotami i armiami na pokładzie, skutki wg wywiadu w PLAN.md.
+Problemy / pytania do użytkownika: brak.
+
 ## 2026-10-20 — naturalne trasy na mapie
 Zrobione: (użytkownik: firestore wdrożone) trasa floty po wodzie: `drogaWodna` w mapa.js — A* po siatce 4 px obrazu indeksów, akweny trasy tanie, inna woda 4× droższa (poszarpane akweny łączą się czasem przez sąsiada), blisko brzegu drożej, potem prostowanie i wygładzenie (Chaikin); pamięć tras w `drogiFlot` (main.js). Błąd po drodze: koszty w Float32Array → A* odrzucał węzły (zaokrąglenie > 1e-6) — teraz Float64Array. Trasy armii (też proponowane) i szlaki handlowe: `krzywa()` — lekkie stałe wygięcie odcinka + wygładzenie; szlaki łączone w łańcuchy (`lancuchy()`), więc gładkie aż do rozgałęzień. Testy OK: test_ruch_flot, test_trasy, test_traktaty, podglad_szlakow; bez błędów strony. Nowy `materialy/podglad_tras.mjs` → `podglad_paneli/9_trasa_floty.png`, `10_trasa_armii.png`; odświeżony `8_szlaki_handlowe.png`. Changelog. Użytkownik wydał 0.3.2 → package.json (i package-lock) 0.3.3, pusty wpis 0.3.3 w zmiany.js (puste wpisy program pomija).
 W toku: nic.

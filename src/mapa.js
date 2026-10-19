@@ -25,6 +25,7 @@ export function utworzMape(kontener, { rysunek, rozmiar, teren, indeksy, ramki, 
   const img = new Image(); img.src = rysunek; img.alt = "Mapa świata"; img.draggable = false; img.className = "mapa-obraz";
   const nak = document.createElement("canvas"); nak.className = "mapa-nakladka"; nak.setAttribute("aria-hidden", "true");
   const kol = document.createElement("canvas"); kol.className = "mapa-nakladka mapa-kolory"; kol.setAttribute("aria-hidden", "true");
+  const blk = document.createElement("canvas"); blk.className = "mapa-nakladka mapa-bloki"; blk.setAttribute("aria-hidden", "true");   // 7.9d: poświata bloków
   const ostre = document.createElement("div"); ostre.className = "mapa-kafle";
   const ter = document.createElement("canvas"); ter.className = "mapa-teren"; ter.setAttribute("aria-hidden", "true");
   const fale = document.createElement("canvas"); fale.className = "mapa-fale"; fale.setAttribute("aria-hidden", "true");
@@ -33,7 +34,7 @@ export function utworzMape(kontener, { rysunek, rozmiar, teren, indeksy, ramki, 
   const mgla = document.createElement("div"); mgla.className = "mapa-mgla";
   const roza = new Image(); roza.className = "mapa-roza"; roza.alt = ""; roza.draggable = false; if (ikony.roza) roza.src = ikony.roza;
   const herbyW = document.createElement("div"); herbyW.className = "mapa-herby"; herbyW.setAttribute("aria-hidden", "true");   // 7.6d: herby krajów graczy przy oddaleniu
-  warstwa.append(img, ter, fale, mgla, ostre, kol, herbyW, nak, ramka, ...(ikony.roza ? [roza] : []));
+  warstwa.append(img, ter, fale, mgla, ostre, kol, blk, herbyW, nak, ramka, ...(ikony.roza ? [roza] : []));
   let SZ = 0, WY = 0;   // rozmiar mapy w px mapa.png
   const plotnoGranic = document.createElement("canvas"); plotnoGranic.className = "mapa-granice"; plotnoGranic.setAttribute("aria-hidden", "true");
   const sciezka = new Path2D();
@@ -150,7 +151,7 @@ export function utworzMape(kontener, { rysunek, rozmiar, teren, indeksy, ramki, 
     const c = new OffscreenCanvas(IW, IH), cx = c.getContext("2d", { willReadFrequently: true }); cx.drawImage(b, 0, 0);
     const d = cx.getImageData(0, 0, IW, IH).data; ind = new Uint16Array(IW * IH);
     for (let i = 0; i < ind.length; i++) ind[i] = d[i * 4] * 256 + d[i * 4 + 1];
-    nctx = nak.getContext("2d"); rysujProwincje(pod, wybrana); rysujKolory();
+    nctx = nak.getContext("2d"); rysujProwincje(pod, wybrana); rysujKolory(); rysujBloki();
     if (teren) await wczytajTeren();
   })().catch(e => console.error("mapa prowincji:", e));
   // --- tereny prowincji (7.6b) ---
@@ -312,6 +313,40 @@ export function utworzMape(kontener, { rysunek, rozmiar, teren, indeksy, ramki, 
     c.putImageData(obraz, 0, 0);
   }
   const ustawKolory = k => { kolory = k; rysujKolory(); };
+  // bloki (7.9d): bloki = [{ kolor: [r, g, b], indeksy: [indeks prowincji] }] — poświata na zewnątrz granic ziem członków (do R px obrazu indeksów,
+  // słabnie z odległością) i wyraźna linia LINIA px wzdłuż granicy od środka; liczone tylko w ramce prowincji członków; przy nakładaniu wygrywa mocniejsza
+  let bloki = [];
+  function rysujBloki() {   // canvas tylko na ramkę wszystkich bloków (pełny 2500² spowalniał składanie warstw przy animacji fal)
+    if (!ind) return;
+    const R = 26, LINIA = 3, ramy = bloki.map(({ indeksy }) => indeksy.map(i => ramki[i - 1]).filter(Boolean)).filter(r => r.length);
+    if (!ramy.length) { blk.width = blk.height = 0; blk.hidden = true; return; }
+    const wsz = ramy.flat(), X0 = Math.max(0, Math.min(...wsz.map(q => q[0])) - R), Y0 = Math.max(0, Math.min(...wsz.map(q => q[1])) - R);
+    const X1 = Math.min(IW - 1, Math.max(...wsz.map(q => q[2])) + R), Y1 = Math.min(IH - 1, Math.max(...wsz.map(q => q[3])) + R), CW = X1 - X0 + 1, CH = Y1 - Y0 + 1;
+    blk.hidden = false; blk.width = CW; blk.height = CH;
+    Object.assign(blk.style, { left: X0 / IW * 100 + "%", top: Y0 / IH * 100 + "%", width: CW / IW * 100 + "%", height: CH / IH * 100 + "%" });
+    const c = blk.getContext("2d"), obraz = c.createImageData(CW, CH), u = new Uint32Array(obraz.data.buffer);
+    bloki.forEach(({ kolor: [r, g, b], indeksy }, nr) => {
+      const rr = indeksy.map(i => ramki[i - 1]).filter(Boolean); if (!rr.length) return;
+      const moje = new Set(indeksy), x0 = Math.max(0, Math.min(...rr.map(q => q[0])) - R), y0 = Math.max(0, Math.min(...rr.map(q => q[1])) - R);
+      const x1 = Math.min(IW - 1, Math.max(...rr.map(q => q[2])) + R), y1 = Math.min(IH - 1, Math.max(...rr.map(q => q[3])) + R), W = x1 - x0 + 1, H = y1 - y0 + 1;
+      const d = new Uint8Array(W * H).fill(255), kol = [];
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (moje.has(ind[(y0 + y) * IW + x0 + x])) d[y * W + x] = 0;
+      for (let k = 0; k < d.length; k++) if (d[k] === 0) { const x = k % W; if ((x > 0 && d[k - 1] === 255) || (x < W - 1 && d[k + 1] === 255) || (k >= W && d[k - W] === 255) || (k + W < d.length && d[k + W] === 255)) kol.push(k); }
+      const wew = new Uint8Array(d.length), kw = [...kol]; kw.forEach(k => { wew[k] = 1; });   // linia: LINIA px do środka od granicy
+      for (let n = 0; n < kw.length; n++) { const k = kw[n], x = k % W, v = wew[k] + 1; if (v > LINIA) continue;
+        for (const j of [x > 0 && k - 1, x < W - 1 && k + 1, k - W, k + W]) if (j !== false && j >= 0 && j < d.length && d[j] === 0 && !wew[j]) { wew[j] = v; kw.push(j); } }
+      for (let n = 0; n < kol.length; n++) {   // odległość od granicy na zewnątrz (BFS po pikselach spoza bloku)
+        const k = kol[n], x = k % W, v = d[k] + 1; if (v > R) continue;
+        for (const j of [x > 0 && k - 1, x < W - 1 && k + 1, k - W, k + W]) if (j !== false && j >= 0 && j < d.length && d[j] === 255) { d[j] = v; kol.push(j); }
+      }
+      for (let k = 0; k < d.length; k++) {
+        const a = wew[k] ? 235 : d[k] > 0 && d[k] <= R ? Math.round(200 * (1 - d[k] / R) ** 1.3) : 0; if (!a) continue;
+        const i = (y0 - Y0 + Math.floor(k / W)) * CW + x0 - X0 + k % W; if (a > u[i] >>> 24) u[i] = (a << 24 | b << 16 | g << 8 | r) >>> 0;
+      }
+    });
+    c.putImageData(obraz, 0, 0);
+  }
+  const ustawBloki = l => { bloki = l; rysujBloki(); };
   const ustawPod = i => { if (i === pod) return; const stara = pod; pod = i; rysujProwincje(stara, i); kontener.classList.toggle("nad-prowincja", Boolean(i)); };
   const wybierz = i => { if (i === wybrana) return; const stara = wybrana; wybrana = i; rysujProwincje(stara, i); };
 
@@ -356,5 +391,5 @@ export function utworzMape(kontener, { rysunek, rozmiar, teren, indeksy, ramki, 
   const doWidoku = (x, y) => { const sx = w.x + x * w.s, sy = w.y + y * w.s, m = 40;
     if (sx < m || sy < m || sx > kontener.clientWidth - m || sy > kontener.clientHeight - m) pokaz(x, y); };
   const kursor = k => kontener.classList.toggle("stawianie", Boolean(k));   // tryb stawiania osady: kursor celownika
-  return { dopasuj, wybierz, pokaz, doWidoku, ustawKolory, ustawOsady, ustawTrasy, ustawTereny, ustawHerby, kursor, wokol, drogaWodna };
+  return { dopasuj, wybierz, pokaz, doWidoku, ustawKolory, ustawBloki, ustawOsady, ustawTrasy, ustawTereny, ustawHerby, kursor, wokol, drogaWodna };
 }

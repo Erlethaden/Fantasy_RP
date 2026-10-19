@@ -47,7 +47,7 @@ await traktat("Szlak Siarki i Złota", "handel");
 assert.ok((await tekst("section.traktaty")).includes("Szlak Siarki i Złota"));
 await s.click("#zamknij-szuflade"); await s.waitForTimeout(300);
 await s.locator("#mapa").screenshot({ path: process.argv[2] + "/t_szlak.png" });
-assert.ok((await s.locator("#warstwy-mapy button").count()) === 2, "przyciski warstw");
+assert.ok((await s.locator("#warstwy-mapy button").count()) === 3, "przyciski warstw (szlaki, sojusze, bloki)");
 // pokój kończy wojnę
 await s.click("#panel-gm");
 assert.ok((await tekst("section.wojny")).includes("Rogus Ardens ⚔ Goblandia"));

@@ -15,14 +15,14 @@ export const stan = {}; // jeden wspólny obiekt — moduły go mutują, magazyn
 const KLUCZ = "frp-demo";
 const WERSJA = 3; // podbij, gdy zmienią się dane startowe — stary zapis DEMO zostanie zastąpiony
 const USTAWIENIA = { dniLogow: 30 };
-const start = () => structuredClone({ wersja: WERSJA, frakcje: FRAKCJE, bohaterowie: BOHATEROWIE, zasoby: ZASOBY, tury: [], ustawienia: USTAWIENIA, prowincje: {}, npc: {}, akweny: {}, nazwyOsad: {}, pozycjeArmii: {}, pozycjeFlot: {}, cofnijRuchy: null, wojny: [], bitwy: {}, traktaty: {}, kronika: {} });
+const start = () => structuredClone({ wersja: WERSJA, frakcje: FRAKCJE, bohaterowie: BOHATEROWIE, zasoby: ZASOBY, tury: [], ustawienia: USTAWIENIA, prowincje: {}, npc: {}, akweny: {}, nazwyOsad: {}, pozycjeArmii: {}, pozycjeFlot: {}, cofnijRuchy: null, wojny: [], bitwy: {}, traktaty: {}, kronika: {}, bloki: {} });
 
 // --- DEMO ---
 function zapisDemo() {
   try {
     const s = JSON.parse(localStorage.getItem(KLUCZ));
     // nowe pole dopisywane do starego zapisu zamiast podbijania WERSJA, żeby nie kasować zmian z DEMO
-    if (s?.wersja === WERSJA) { s.zasoby ??= structuredClone(ZASOBY); s.tury ??= []; s.ustawienia ??= { ...USTAWIENIA }; s.prowincje ??= {}; s.npc ??= {}; s.akweny ??= {}; s.nazwyOsad ??= {}; s.pozycjeArmii ??= {}; s.pozycjeFlot ??= {}; s.cofnijRuchy ??= null; s.wojny ??= []; s.bitwy ??= {}; s.traktaty ??= {}; s.kronika ??= {}; return s; }
+    if (s?.wersja === WERSJA) { s.zasoby ??= structuredClone(ZASOBY); s.tury ??= []; s.ustawienia ??= { ...USTAWIENIA }; s.prowincje ??= {}; s.npc ??= {}; s.akweny ??= {}; s.nazwyOsad ??= {}; s.pozycjeArmii ??= {}; s.pozycjeFlot ??= {}; s.cofnijRuchy ??= null; s.wojny ??= []; s.bitwy ??= {}; s.traktaty ??= {}; s.kronika ??= {}; s.bloki ??= {}; return s; }
   } catch {}
   return null;
 }
@@ -97,6 +97,7 @@ const dokumenty = s => {
   d.set("gra/armie", { a: s.pozycjeArmii || {}, fl: s.pozycjeFlot || {}, cofnij: s.cofnijRuchy || null, bitwy: s.bitwy || {} });
   for (const [id, r] of Object.entries(s.raportyBitew || {})) d.set(`bitwy/${id}`, r);
   for (const [id, t] of Object.entries(s.traktaty || {})) d.set(`traktaty/${id}`, t);
+  for (const [id, b] of Object.entries(s.bloki || {})) d.set(`bloki/${id}`, b);   // bloki (7.9): { nazwa, skrot, rodzaj, kolor, opis, czlonkowie, zaproszeni, widza (= członkowie + zaproszeni), tajny, tryb, lider, traktaty, tura }
   for (const [id, k] of Object.entries(s.kronika || {})) d.set(`kronika/${id}`, k);   // kronika (7.2): { tura, czas, typ, tekst, kraje, tajny, widza } — tajne czytają kraje z „widza” i GM   // traktaty (7.4): { nazwa, typ, strony: [wł], tajny, opis, tura, zerwany? } — tajne czytają tylko strony i GM   // raporty bitew (7.1h): skład obu stron — tylko uczestnicy i GM   // bitwy: {id: {p, armie: [id], tura}} — jawne (7.1g)
   for (const [id, n] of Object.entries(s.nazwyOsad || {})) if (Object.keys(n).length) d.set(`nazwy_osad/${id}`, { n });   // jeden dokument (622 prowincje mieszczą się z zapasem w limicie 1 MB), jawny dla wszystkich
   return d;
@@ -119,7 +120,7 @@ export function zapisz(s) {
   const batch = writeBatch(db), co = []; let ile = 0;
   for (const [sciezka, dane] of dokumenty(s)) {
     // niewczytany dokument nie może nadpisać prawdziwego pustką; gracz zapisuje tylko swoje notatki (resztę i tak odrzuciłyby reguły)
-    if (!wgrywanie && !zaladowane.has(sciezka) && !(dostep.gm && /^(bitwy|traktaty|kronika)\//.test(sciezka))) continue;   // raporty bitew, traktaty i kronikę GM zakłada sam
+    if (!wgrywanie && !zaladowane.has(sciezka) && !(dostep.gm && /^(bitwy|traktaty|kronika|bloki)\//.test(sciezka))) continue;   // raporty bitew, traktaty, kronikę i bloki GM zakłada sam
     if (!dostep.gm && !sciezka.startsWith("notatki_gracza/")) continue;
     if ((sciezka === "gra/prowincje" || sciezka.startsWith("nazwy_osad/")) && !wgrywanie) continue;   // te zapisują zapiszProwincje / zapiszNazwyOsad — po kawałku
     const j = json(dane);
@@ -300,7 +301,7 @@ export function polacz(onZmiana) {
         : [sub("jawne", query(collection(db, nazwa), where("tajny", "==", false))),
           ...(dostep.frakcja ? [sub("moje", query(collection(db, nazwa), where(pole, "array-contains", dostep.frakcja)))] : [])];
     };
-    odpiecia = [...widoczne("traktaty", "strony"), ...widoczne("kronika", "widza"), lista("frakcje"), lista("bohaterowie"), onSnapshot(doc(db, "gra/stan"), snap => {
+    odpiecia = [...widoczne("traktaty", "strony"), ...widoczne("kronika", "widza"), ...widoczne("bloki", "widza"), lista("frakcje"), lista("bohaterowie"), onSnapshot(doc(db, "gra/stan"), snap => {
       if (snap.metadata.hasPendingWrites) return;
       licznik.odczyty++; zaladowane.add("gra/stan");
       if (snap.exists()) ostatnio.set("gra/stan", json(snap.data()));
@@ -374,13 +375,21 @@ export const zgodaStrony = (id, frakcja, tak) => updateDoc(doc(db, "propozycje",
 export const rozpatrz = (id, status, komentarz) => updateDoc(doc(db, "propozycje", id),
   { status, komentarz, rozpatrzono: new Date().toISOString(), rozpatrzyl: auth.currentUser?.email || "" });
 export const wycofaj = id => deleteDoc(doc(db, "propozycje", id));
-// usunięcie dokumentu z kolekcji z widocznością (traktaty, kronika) — GM, pomyłka albo cofnięcie tury; z pamięci i z bazy
+// usunięcie dokumentu z kolekcji z widocznością (traktaty, kronika, bloki) — GM, pomyłka albo cofnięcie tury; z pamięci i z bazy
 export function usunWpis(kolekcja, id) {
   delete stan[kolekcja]?.[id];
   if (!CHMURA) return zapisz(stan);
   ostatnio.delete(`${kolekcja}/${id}`); deleteDoc(doc(db, kolekcja, id)).catch(e => { console.error(e); zalogujBlad(e, [`${kolekcja}/${id}`]); bladZapisu(e); });
 }
 export const usunTraktat = id => usunWpis("traktaty", id);
+// zapis przez gracza (7.9b): blok i wpisy kroniki o bloku — po kolei (przegłosowany wniosek wykonuje się drugim zapisem, po głosie);
+// reguły pozwalają graczowi tylko na dozwolone zmiany bloku. W DEMO zwykły zapis.
+export async function zapiszBlokGracza(id, wpisyKroniki = []) {
+  if (!CHMURA) return zapisz(stan);
+  const b = stan.bloki?.[id];
+  if (b) { await setDoc(doc(db, "bloki", id), b); ostatnio.set(`bloki/${id}`, json(b)); zaladowane.add(`bloki/${id}`); }
+  for (const k of wpisyKroniki) { const w = stan.kronika?.[k]; if (w) { await setDoc(doc(db, "kronika", k), w); ostatnio.set(`kronika/${k}`, json(w)); } }
+}
 // rozpatrzone starsze niż `dni` (oczekujące zostają — mają rozpatrzono == "")
 export async function sprzatnijPropozycje(dni) {
   const granica = new Date(Date.now() - dni * 864e5).toISOString();

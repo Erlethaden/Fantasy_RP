@@ -65,8 +65,41 @@ service cloud.firestore {
     match /bitwy/{id} { allow read: if gm() || (czlonek() && mojaFrakcja() in resource.data.uczestnicy); allow write: if gm(); }
     // traktaty (7.4): jawne czytają wszyscy, tajne tylko strony i GM; pisze GM
     match /traktaty/{id} { allow read: if gm() || (czlonek() && (resource.data.tajny == false || mojaFrakcja() in resource.data.strony)); allow write: if gm(); }
-    // kronika (7.2): jawne wpisy czytają wszyscy, tajne — kraje z listy „widza” i GM; pisze GM
-    match /kronika/{id} { allow read: if gm() || (czlonek() && (resource.data.tajny == false || mojaFrakcja() in resource.data.widza)); allow write: if gm(); }
+    // bloki (7.9): jawne czytają wszyscy, tajne — członkowie i zaproszeni (pole widza) oraz GM; GM pisze wszystko.
+    // Gracz (7.9b): zakłada blok (jedyny członek i lider), przyjmuje / odrzuca swoje zaproszenie, wychodzi, zgłasza wnioski i głosuje;
+    // inne zmiany: lider w trybie lidera albo członek wykonujący przegłosowany wniosek (wykonano = id wniosku, który miał większość „za”).
+    // Rozwiązanie przez graczy = pole rozwiazany (usuwa tylko GM).
+    function polaBlokuOk(d) {
+      return d.keys().hasOnly(["nazwa", "skrot", "rodzaj", "kolor", "opis", "czlonkowie", "zaproszeni", "widza", "tajny", "tryb", "lider", "traktaty", "tura", "wnioski", "wykonano", "rozwiazany"])
+        && d.nazwa is string && d.nazwa.size() <= 80 && d.opis is string && d.opis.size() <= 5000 && d.czlonkowie is list && d.zaproszeni is list
+        && d.widza == d.czlonkowie.concat(d.zaproszeni) && d.tajny is bool && d.tryb in ["glosowanie", "lider"] && d.get("wnioski", {}) is map;   // bloki GM z 7.9a mogą nie mieć pola wnioski
+    }
+    function zmienioneBloku() { return request.resource.data.diff(resource.data).affectedKeys(); }
+    function przeglosowany() {
+      return request.resource.data.get("wykonano", "") in resource.data.wnioski && !(request.resource.data.wykonano in request.resource.data.wnioski)
+        && resource.data.wnioski[request.resource.data.wykonano].za.size() * 2 > resource.data.czlonkowie.size();
+    }
+    match /bloki/{id} {
+      allow read: if gm() || (czlonek() && (resource.data.tajny == false || mojaFrakcja() in resource.data.widza));
+      allow write: if gm();
+      allow create: if czlonek() && mojaFrakcja() != "" && polaBlokuOk(request.resource.data) && request.resource.data.czlonkowie == [mojaFrakcja()]
+        && request.resource.data.lider == mojaFrakcja() && request.resource.data.wnioski == {} && !("rozwiazany" in request.resource.data);
+      allow update: if czlonek() && mojaFrakcja() != "" && polaBlokuOk(request.resource.data) && (
+        (mojaFrakcja() in resource.data.zaproszeni && zmienioneBloku().hasOnly(["czlonkowie", "zaproszeni", "widza"])
+          && request.resource.data.czlonkowie == resource.data.czlonkowie.concat([mojaFrakcja()]) && request.resource.data.zaproszeni == resource.data.zaproszeni.removeAll([mojaFrakcja()]))
+        || (mojaFrakcja() in resource.data.zaproszeni && zmienioneBloku().hasOnly(["zaproszeni", "widza"]) && request.resource.data.zaproszeni == resource.data.zaproszeni.removeAll([mojaFrakcja()]))
+        || (mojaFrakcja() in resource.data.czlonkowie && zmienioneBloku().hasOnly(["czlonkowie", "widza", "lider"]) && request.resource.data.czlonkowie == resource.data.czlonkowie.removeAll([mojaFrakcja()]))
+        || (mojaFrakcja() in resource.data.czlonkowie && zmienioneBloku().hasOnly(["wnioski", "wykonano"]))
+        || (resource.data.tryb == "lider" && resource.data.lider == mojaFrakcja())
+        || (mojaFrakcja() in resource.data.czlonkowie && przeglosowany()));
+    }
+    // kronika (7.2): jawne wpisy czytają wszyscy, tajne — kraje z listy „widza” i GM; pisze GM, gracz tylko wpis o bloku ze swoim krajem (7.9b)
+    match /kronika/{id} {
+      allow read: if gm() || (czlonek() && (resource.data.tajny == false || mojaFrakcja() in resource.data.widza));
+      allow write: if gm();
+      allow create: if czlonek() && mojaFrakcja() != "" && request.resource.data.typ == "blok" && mojaFrakcja() in request.resource.data.kraje
+        && request.resource.data.keys().hasOnly(["tura", "czas", "typ", "tekst", "kraje", "tajny", "widza"]) && request.resource.data.tekst is string && request.resource.data.tekst.size() <= 600;
+    }
     match /tajne_statusy/{f} { allow read: if gm() || wlasciciel(f) || jawne(f, "statusy"); allow write: if gm(); }
     match /notatki_gracza/{f} {
       allow read: if gm() || wlasciciel(f);

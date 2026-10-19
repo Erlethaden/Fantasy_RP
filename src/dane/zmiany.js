@@ -1,7 +1,20 @@
 // „Co nowego” po aktualizacji: najnowsza wersja na górze; przed każdym wydaniem dopisz wpis z numerem z package.json (INSTRUKCJA-WYDANIE.md)
 export const ZMIANY = [
   {
-    wersja: "0.3.3", data: "", zmiany: [
+    wersja: "0.4.0", data: "", zmiany: [
+    ],
+  },
+  {
+    wersja: "0.3.3", data: "20-10-2026", zmiany: [
+      "Bloki sojuszy i organizacje: nowy przycisk „Bloki” w górnym pasku — lista sojuszy, lig, zakonów i unii z członkami, zaproszonymi, statutem i znakiem (tarcza w kolorze bloku ze skrótem). GM zakłada blok, zmienia skład, rodzaj, kolor, wspólne traktaty i sposób decydowania (głosowanie albo lider) oraz rozwiązuje blok. Blok może być tajny. Bloki frakcji widać na jej karcie, a powstanie, zmiany składu i rozwiązanie trafiają do kroniki.",
+      "Bloki — gracze: każdy gracz może założyć blok i zaprosić inne kraje; zaproszony klika „Dołącz” albo „Odrzuć”, członek może wyjść. Członkowie decydują wnioskami: zaproszenie, wykluczenie, zmiana nazwy, statutu i wspólnych traktatów, wybór lidera albo rozwiązanie — wniosek przechodzi, gdy „za” jest więcej niż połowa członków (za kraje NPC głosuje GM). Gdy blok ma lidera, lider zmienia go sam, a pozostali mogą przegłosować powrót do głosowania.",
+      "Wspólne traktaty bloku działają: zaznaczony handel rysuje szlaki handlowe między wszystkimi członkami, a sojusz, pakt i prawo przejścia — linie na warstwie „Sojusze”. Na karcie frakcji są w Traktatach ze znakiem 🏛; zmienia się je w bloku (nie zrywa osobno). Traktaty tajnego bloku widzą tylko jego członkowie.",
+      "Bloki na mapie: nowy przycisk warstwy „🏛 Bloki” obok Szlaków i Sojuszy — ziemie członków każdego bloku otacza poświata w kolorze bloku. Przycisk „Pokaż na mapie” przy bloku w szufladzie pokazuje tylko ten blok (także przy wyłączonej warstwie) i przesuwa mapę do jego ziem; „Ukryj na mapie” wyłącza.",
+      "Wojna a bloki: gdy GM wypowiada wojnę członkowi bloku z sojuszem albo paktem, program proponuje jednym kliknięciem wojnę z całym blokiem (wszystkie wojny trafiają do kroniki). Wojna między członkami tego samego takiego bloku wymaga potwierdzenia.",
+      "Przeprawa przez morze: gdy armia ma cel na innym lądzie (wyspa, drugi kontynent), karta armii pokazuje trasę przez morze — gdzie załaduje się na okręty, gdzie zejdzie na ląd i za ile tur dotrze. GM zaznacza floty do przeprawy, a program pilnuje, czy armia się na nich mieści. Trasa ląd–morze–ląd jest widoczna na mapie.",
+      "Przeprawa w ruchu: przy „Zamknij turę” wybrane floty same płyną do miejsca załadunku, armia wchodzi na pokład, gdy floty są na miejscu i armia się mieści, płynie z nimi 1 akwen na turę i schodzi na ląd przy celu. Armii na pokładzie nie widać na mapie — jest jako ładunek na karcie floty. GM może od razu postawić floty w miejscu załadunku („Floty od razu do załadunku”), a „Przestaw” zdejmuje armię z pokładu. Cofnięcie tury cofa też przeprawę.",
+      "Bitwy morskie: floty krajów w wojnie, które spotkają się w jednym akwenie albo miną, stają do bitwy przy „Zamknij turę” (znak bitwy na morzu, wpis w kronice). Armie na pokładzie walczą razem ze swoją flotą. Floty w bitwie stoją, aż GM wpisze wynik.",
+      "Ekran bitwy morskiej: floty z okrętami i armie na pokładzie obu stron, siły liczone w okrętach. GM wybiera los floty — odwrót o 1 akwen w stronę własnego wybrzeża, zostaje, zatopiona albo poddana (okrętów nikt nie przejmuje) — oraz los armii na pokładzie: dzieli los floty albo zostaje wysadzona na wybrany brzeg. Bohater może też zostać „uratowany” i wrócić do stolicy.",
     ],
   },
   {
