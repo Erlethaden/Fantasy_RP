@@ -1,9 +1,71 @@
 # DZIENNIK
 
+## 2026-10-20 — naturalne trasy na mapie
+Zrobione: (użytkownik: firestore wdrożone) trasa floty po wodzie: `drogaWodna` w mapa.js — A* po siatce 4 px obrazu indeksów, akweny trasy tanie, inna woda 4× droższa (poszarpane akweny łączą się czasem przez sąsiada), blisko brzegu drożej, potem prostowanie i wygładzenie (Chaikin); pamięć tras w `drogiFlot` (main.js). Błąd po drodze: koszty w Float32Array → A* odrzucał węzły (zaokrąglenie > 1e-6) — teraz Float64Array. Trasy armii (też proponowane) i szlaki handlowe: `krzywa()` — lekkie stałe wygięcie odcinka + wygładzenie; szlaki łączone w łańcuchy (`lancuchy()`), więc gładkie aż do rozgałęzień. Testy OK: test_ruch_flot, test_trasy, test_traktaty, podglad_szlakow; bez błędów strony. Nowy `materialy/podglad_tras.mjs` → `podglad_paneli/9_trasa_floty.png`, `10_trasa_armii.png`; odświeżony `8_szlaki_handlowe.png`. Changelog. Użytkownik wydał 0.3.2 → package.json (i package-lock) 0.3.3, pusty wpis 0.3.3 w zmiany.js (puste wpisy program pomija).
+W toku: nic.
+Do zrobienia: 7.8e przeprawa, 7.8f bitwy morskie; 7.9, 7.3, 7.7, etap 8.
+Następny krok: 7.8e — przeprawa armii: wykryć, że trasa armii wymaga morza, wybór flot do transportu (pojemność), floty płyną do akwenu załadunku, załadunek i wyładunek automatycznie.
+Problemy / pytania do użytkownika: połączenie rzeczne między akwenami (żegluga) nadal rysowane prostą — rzeka nie jest akwenem w obrazie indeksów.
+
+## 2026-10-19 (cd.) — podgląd szlaków + 7.8d ruch flot
+Zrobione: `materialy/podglad_szlakow.mjs` (DEMO: Rogus Ardens w D154 handluje z 4 krajami na wschodzie: D77, D128, D172, D235) → `materialy/podglad_paneli/8_szlaki_handlowe.png`. Szlaki idą wspólnym pniem i rozchodzą się bliżej celów, bez nakładających się kresek, bez błędów strony. Użytkownik: OK. 7.8d ruch flot: cel klikiem w akwen (GM „Wyznacz cel” / „Usuń cel”, gracz „Zaproponuj cel” → propozycja `rejs`), trasa BFS po akwenach (jeziora i rzeki tylko z żeglugą), „za N tur” na karcie i mapie, 1 akwen przy zamknięciu tury, cofnięcie tury cofa floty. `materialy/test_ruch_flot.mjs` OK, bez błędów strony. Podgląd: `materialy/podglad_paneli/9_ruch_floty_cala_trasa.png`, `10_ruch_floty_zblizenie.png`. Changelog.
+W toku: nic.
+Do zrobienia: 7.8e przeprawa, 7.8f bitwy morskie; 7.9, 7.3, 7.7, etap 8; wydanie 0.3.2 po flotach.
+Następny krok: 7.8e — przeprawa armii: wykryć, że trasa armii wymaga morza, wybór flot do transportu (pojemność), floty płyną do akwenu załadunku, załadunek i wyładunek automatycznie.
+Problemy / pytania do użytkownika: (1) firestore.rules — wdrożone; (2) trasy prostymi — poprawione 2026-10-20; (3) propozycji celu floty nie dało się przetestować w DEMO (tylko chmura).
+
+## 2026-10-19 (noc, cd.) — szlaki handlowe łączone
+Zrobione: prośba użytkownika (mało limitu — mały krok): `szlakiHandlowe(pary)` zamiast `szlak()` — wszystkie umowy handlowe liczone razem, Dijkstra po prowincjach (bez gór), granica już użyta przez wcześniejszy szlak kosztuje 0.4 → wspólny pień i rozgałęzienia; odcinki dedup. (rysowane raz, żeby kreski się nie nakładały), morskie bez zmian (prosta). Pamięć: jeden wynik na zestaw szlaków + granice. test_traktaty OK, build OK. Changelog. Nie oglądałem na mapie układu z kilkoma szlakami (brak gotowego scenariusza w DEMO).
+W toku: nic.
+Do zrobienia: 7.8d ruch flot, 7.8e przeprawa, 7.8f bitwy morskie; 7.9, 7.3, 7.7, etap 8; wydanie 0.3.2 po flotach.
+Następny krok: 7.8d — cel floty (klik w akwen), trasa po akwenach (jeziora i „rzeka” tylko z `przejscia.zegluga`), ruch 1 akwen przy zamknięciu tury, cofnięcie, propozycja gracza.
+Problemy / pytania do użytkownika: sprawdzić na mapie wygląd kilku szlaków z jednego kraju w podobnym kierunku.
+
+## 2026-10-19 (noc, cd.) — 7.1i skutki bitew
+Zrobione: mini-wywiad (armie + floty) → PLAN 7.1i i dopisek do 7.8f. 7.1i: `ustawProwincje(p, n)` wydzielone z karty prowincji (stolica, budynki, kronika — też dla zdobycia), na ekranie bitwy: „Po bitwie” przy armii (`LOSY`: auto / zostaje / odwrót / rozbita / poddana), los bohatera (cały / ranny / poległ / w niewoli), „zwycięzca zdobywa prowincję”; `skutkiBitwy()` + `odwrot()` (BFS do własnych ziem po przejściach frakcji), status `niewola` (misja = u kogo; jeńca nie da się dodać do armii/floty), `statusyArmii` nie nadpisuje rannych/jeńców; raport `koniec.bohaterowie` i `koniec.los`, kronika „Po bitwie”. Testy: test_bitwy OK, nowy `materialy/test_skutki.mjs` OK, build OK. PNG ekranów bitwy w `materialy/podglad_paneli/` odświeżone (+ 7_skutki). Changelog.
+W toku: nic.
+Do zrobienia: 7.8d ruch flot, 7.8e przeprawa, 7.8f bitwy morskie (skutki jak w PLAN, PNG dla użytkownika); 7.9, 7.3, 7.7, etap 8.
+Następny krok: 7.8d — cel floty (klik w akwen), trasa po sąsiedztwie akwenów (jeziora i „rzeka” tylko z `przejscia.zegluga`), ruch 1 akwen przy zamknięciu tury, cofnięcie, propozycja gracza.
+Problemy / pytania do użytkownika: brak.
+
+## 2026-10-19 (noc, cd.) — 7.8c floty + podgląd paneli
+Zrobione: dane floty — pozycje `gra/armie.fl` {id: {f, a: nr akwenu}}, skład w `tajne_armie/{f}.floty` (te same reguły i przełącznik co armie, etykieta „Armie i floty”); ikonka `assets/ikona_floty.py` → `assets/mapa/ikony/flota.png` (okręt, żagiel w kolorach-kluczach); `ikonaKraju(typ, kolor)` wspólne dla armii i flot; `flotyNaMapie()`; sekcja „Floty” (dowódca, bohaterowie — nie naraz w armii i flocie, okręty, „mieści żołnierzy” / `pojemnoscFloty`, Przestaw klikiem w akwen, Rozwiąż — bez automatycznego rozwiązywania: decyzja użytkownika), `akwenStartu`, status „z flotą”. Formularze flot `form.armia[data-fl]`, armii `[data-a]`. Testy: `materialy/test_floty.mjs` OK, test_bitwy OK, build OK. Na prośbę użytkownika (nie mógł wejść do programu) PNG paneli: `materialy/podglad_paneli/` (jednostki, armia, flota, mapa, ekran bitwy w trakcie i po) + skrypt `materialy/podglad_paneli.mjs`. Changelog.
+W toku: nic.
+Do zrobienia: 7.8d ruch flot (cel, trasa, żegluga na jeziora/rzeki, propozycja gracza), 7.8e przeprawa, 7.8f bitwy morskie + PNG ekranu bitwy morskiej dla użytkownika; 7.9, 7.3, 7.7, etap 8.
+Następny krok: 7.8d — cel floty (klik w akwen), trasa po sąsiedztwie akwenów (jeziora i „rzeka” tylko z `przejscia.zegluga`), ruch 1 akwen przy zamknięciu tury, cofnięcie, propozycja gracza.
+Problemy / pytania do użytkownika: brak.
+
+## 2026-10-19 (noc, cd.) — 7.8b okręty
+Zrobione: jednostki `{…, morska?, pojemnosc?}` — w formularzu „okręt” + „mieści żołnierzy” (widoczne tylko przy okręcie, CSS :has), grupa „Okręty” na liście, okręty poza listą oddziałów armii. Poprawka: formularz nazwy akwenu miał klasę `edycja-prowincji` (testy i kod brały morze za prowincję) → `edycja-akwenu`. Test `materialy/test_okrety.mjs` + cały zestaw testów OK, build OK. Changelog.
+W toku: nic.
+Do zrobienia: 7.8c floty, 7.8d ruch, 7.8e przeprawa, 7.8f bitwy morskie; 7.9, 7.3, 7.7, etap 8.
+Następny krok: 7.8c — dane flot (jawne pozycje w gra/armie? osobno gra/floty + tajne_floty jak armie), ikonka pixel art floty, znaczniki, karta floty.
+Akwen A66 (długi pas na środku) podzielony na dwa na prośbę użytkownika: `akweny_podziel` w poprawki.json (punkt 1406,1478) — 120 akwenów, numery od 67 przesunięte (nazw jeszcze nie było).
+Problemy / pytania do użytkownika: brak.
+
+## 2026-10-19 (noc, cd.) — floty: wywiad i 7.8a akweny
+Zrobione: wywiad 7.8 (2 partie) → specyfikacja i kroki 7.8a–f w PLAN (akweny, skład jak armia, pojemność z okrętów albo GM, ruch 1 akwen/turę, przeprawa z wyborem flot i dopłynięciem do załadunku, bitwy jak lądowe z armią na pokładzie, widoczność jak armie). 7.8a: `assets/mapa_akweny.py` (k-średnie + wzrost po wodzie; też morza śródlądowe — „jeziora” z edytora; małe < 12000 px pominięte) → akweny jako indeksy NP+1… w `prowincje.png` + `akweny.json` + `akweny_granice.json`; `mapa_dane.py` kasuje akweny — potem znowu `mapa_akweny.py` (zapisane w nagłówkach). Program: `pokazAkwen` (karta: nazwa — GM, sąsiednie akweny, wybrzeże), nazwy w `gra/prowincje` pole `a` (`zapiszProwincje([["a", id]])`), granice akwenów od przybliżenia 0.5, złote podświetlenie akwenu (`morzeOd`), klik w morze przy celowaniu armii = jak woda. Test `materialy/test_akweny.mjs` OK, build OK. Changelog 0.3.2.
+W toku: nic.
+Do zrobienia: 7.8b jednostki morskie, 7.8c floty, 7.8d ruch, 7.8e przeprawa, 7.8f bitwy morskie; 7.9, 7.3, 7.7, etap 8.
+Następny krok: 7.8b — znacznik „morska” i pojemność okrętu w jednostkach frakcji (sekcja Jednostki na karcie frakcji).
+Na prośbę użytkownika („zbyt duże”) akweny gęściej: ILE 80 → 120, wyszło 119 (średnio 23 tys. px zamiast 34 tys.); test_akweny OK.
+Jeziora i rzeki (prośba użytkownika): `akweny.json` typ morze / jezioro, sasiedzi [[nr, morze|rzeka]] (rzeki z `materialy/mapa/rzeki_2500.png`, zapisuje go teraz mapa_teren.py — kolejność: dane → osady → teren → akweny); `PRZEJSCIA.zegluga` (ruch flot w 7.8d musi go sprawdzać), legenda „Umiejętności ruchu”. Wyszukiwarka `#szukaj` (datalist) na mapie. Test `materialy/test_szukaj.mjs` OK, build OK. Changelog.
+Problemy / pytania do użytkownika: brak.
+
+## 2026-10-19 (noc, cd.) — obecność graczy (online / ostatnio)
+Zrobione: wydanie 0.3.1 zrobił użytkownik. Mini-wywiad: widzą wszyscy członkowie, kropka przy herbach; użytkownik chciał tylko 2 zapisy (logowanie / wyjście, też Alt+F4) → Firebase Realtime Database z onDisconnect. `magazyn.js`: `zglosObecnosc(uid, frakcja)` (.info/connected → onDisconnect „offline” → set „online”), `sluchajObecnosci`, `wyloguj` zapisuje „offline” przed signOut; bez `databaseURL` w firebase-config — wyłączone (DEMO bez zmian). `main.js`: `oznaczObecnosc()` — klasa `.online` (zielona kropka) i podpowiedź „gracz online” / „ostatnio: …” przy herbach. Reguły `database.rules.json` (czyta zalogowany, pisze tylko swój wpis {f, on, t}) — emulator 8/8 + test rozłączenia OK (`materialy/test_obecnosc*.mjs`). Build OK, test DEMO OK. Changelog 0.3.2.
+W toku: nic.
+Realtime Database włączona przez użytkownika (europe-west1), `databaseURL` wpisany, build OK; niezalogowany dostaje „Permission denied” (reguły działają).
+Obecność sprawdzona przez użytkownika („niby działa”).
+Do zrobienia: dalej 7.8 floty, 7.9, 7.3, 7.7, etap 8.
+Następny krok: po potwierdzeniu obecności przez użytkownika — wywiad 7.8 floty.
+Problemy / pytania do użytkownika: obecność frakcji to zgłoszenie samego programu (konto podaje swoje państwo) — dla tej grupy wystarczy.
+
 ## 2026-10-19 (noc, cd.) — 7.10 samodzielne kraje NPC
 Zrobione: rodzaj „samodzielny” w `RODZAJE_NPC`: `stan.npc[id] = { nazwa, rodzaj: "samodzielny", kolor, opis }` (bez zwierzchnika); `kolorNpc` bierze `n.kolor`; Panel GM → Kraje NPC: przy samodzielnym pole koloru zamiast zwierzchnika (też w formularzu dodawania), zmiana rodzaju przenosi kolor/zwierzchnika; opis na karcie prowincji i w liście właścicieli „samodzielny”. Wojny, traktaty i prowincje działały już po id `npc:…`. Test `materialy/test_npc.mjs` OK, build OK. Changelog.
 W toku: nic.
 Wydanie 0.3.1 (19-10-2026) robi użytkownik. Na jego prośbę: `package.json` → 0.3.2, w zmiany.js pusty wpis 0.3.2 („tbd”) na kolejne zmiany.
+Przycisk „Co nowego” przy logowaniu (`#pokaz-zmiany` w index.html, `pokazZmiany()` wydzielone z `coNowego()`; puste wpisy wersji pomijane — też w automatycznym okienku). Build OK, sprawdzone w przeglądarce. Changelog 0.3.2.
 Do zrobienia: 7.8 floty (wywiad), 7.3, 7.9, 7.7, etap 8.
 Następny krok: wywiad 7.8 floty (albo 7.9 bloki sojuszy).
 Problemy / pytania do użytkownika: brak.

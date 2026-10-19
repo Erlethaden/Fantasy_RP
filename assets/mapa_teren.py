@@ -120,6 +120,7 @@ for y, x, brzeg in sorted(pkt):
     cz = sp[ys.start - y0:ys.stop - y0, xs.start - x0:xs.stop - x0]
     img[ys, xs] = np.where(cz[..., 3:] > 127, cz[..., :3], img[ys, xs])
 Image.fromarray(img).save("assets/mapa/teren.png", optimize=True)
+Image.fromarray(rzeka).save(M + "rzeki_2500.png", optimize=True)   # dla mapa_akweny.py: połączenia rzeczne między akwenami (7.8a)
 
 # --- maska dla terenów prowincji: zwykły ląd w prowincji (bez rzek, plaż, podgórza i sprite'ów gór) ---
 zwykly = (P > 0) & ~woda & ~rzeka & ~plaza & ~podgorze & ~obrys & ~gory

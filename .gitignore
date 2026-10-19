@@ -1,0 +1,7 @@
+# zależności i to, co da się zbudować od nowa
+node_modules/
+dist/
+release/
+# szkice grafik i kopie robocze
+assets/_drafts/
+_kopie/

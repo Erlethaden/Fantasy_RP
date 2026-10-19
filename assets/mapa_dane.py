@@ -1,4 +1,4 @@
-# Dane mapy do programu (6.1): python assets/mapa_dane.py  (po mapa_sasiedztwo.py)
+# Dane mapy do programu (6.1): python assets/mapa_dane.py  (po mapa_sasiedztwo.py; potem koniecznie mapa_akweny.py — dopisuje akweny do prowincje.png)
 #   assets/mapa/prowincje.png  — mapa numerów prowincji w skali 1/8 (2500x2500): indeks = R*256 + G (0 = woda), indeks z prowincje.json
 #   assets/mapa/prowincje.json — [{id, x, y (środek w px mapa.png, 5000x5000), ramka [x0, y0, x1, y1] w px prowincje.png, sasiedzi [[indeks, typ]]}]
 import json

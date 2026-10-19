@@ -1,7 +1,24 @@
 // „Co nowego” po aktualizacji: najnowsza wersja na górze; przed każdym wydaniem dopisz wpis z numerem z package.json (INSTRUKCJA-WYDANIE.md)
 export const ZMIANY = [
   {
-    wersja: "0.3.2", data: "tbd", zmiany: [
+    wersja: "0.3.3", data: "", zmiany: [
+    ],
+  },
+  {
+    wersja: "0.3.2", data: "20-10-2026", zmiany: [
+      "Trasy na mapie wyglądają naturalniej: trasa floty płynie po wodzie (omija lądy i trzyma się z dala od brzegu), a trasy armii i szlaki handlowe biegną łagodnymi łukami zamiast ostrych, prostych kresek.",
+      "Ruch flot: „Wyznacz cel” na karcie floty i klik w akwen — flota płynie po sąsiednich akwenach 1 akwen na turę przy „Zamknij turę”, na mapie widać jej trasę i „za N tur”. Cofnięcie tury cofa też ruch flot. Na jeziora i rzekami flota płynie tylko z umiejętnością „żegluga śródlądowa” — bez niej karta pokazuje „brak drogi”. Gracz może zaproponować GM cel swojej floty („Zaproponuj cel”).",
+      "Szlaki handlowe biegnące w podobnym kierunku łączą się na mapie we wspólny szlak i rozgałęziają dopiero bliżej celów (wspólny odcinek rysowany raz).",
+      "Skutki bitwy: kończąc bitwę GM wybiera los każdej armii — domyślnie przegrana cofa się o 1 prowincję w stronę własnych ziem (traci cel), a zwycięzca idzie dalej; można też zostawić ją na miejscu, rozbić albo poddać (bohaterowie trafiają do niewoli zwycięzcy).",
+      "Bohaterowie w bitwie: ranny, poległ albo w niewoli. Bohater w niewoli ma status „W niewoli (u: …)”, nie może dowodzić — GM uwalnia go zmianą statusu. Zaznaczenie „zwycięzca zdobywa prowincję” przejmuje prowincję jak przy podboju. Skutki widać na ekranie zakończonej bitwy i w kronice.",
+      "Floty: GM zakłada flotę na karcie frakcji (staje w akwenie przy stolicy albo przy nadmorskiej prowincji), ustawia dowódcę, bohaterów i okręty z liczbą. Pojemność liczy się z okrętów, a GM może wpisać własną. „Przestaw” i klik w morze przenosi flotę; „Rozwiąż flotę” ją usuwa (floty nie znikają same jak małe armie).",
+      "Floty są na mapie: okręt z żaglem w kolorze kraju (po przybliżeniu). Skład floty jest tajny jak skład armii — przełącznik widoczności „Armie i floty”. Bohater we flocie ma status „na misji (z flotą)”.",
+      "Jednostki frakcji: GM może zaznaczyć jednostkę jako okręt i wpisać, ilu żołnierzy mieści jeden okręt. Okręty są w osobnej grupie „Okręty” i nie da się ich dodać do armii — trafią do flot.",
+      "Wyszukiwarka w lewym górnym rogu mapy: wpisz numer albo nazwę prowincji, właściciela, nazwę osady albo akwenu — Enter (albo wybór z podpowiedzi) przybliża mapę i otwiera kartę.",
+      "Jeziora (16 akwenów) i rzeki łączące akweny: na karcie akwenu widać „jezioro” i sąsiadów „przez rzekę”. Nowa umiejętność frakcji „floty na jeziorach i rzekach (żegluga śródlądowa)” — bez niej floty nie wpłyną na jeziora ani rzeki (GM zaznacza ją przy umiejętnościach ruchu).",
+      "Morza i oceany podzielone na 120 akwenów (także morza śródlądowe). Kliknięcie w morze otwiera kartę akwenu: sąsiednie akweny i nadmorskie prowincje; GM nadaje akwenom nazwy. Po przybliżeniu widać granice akwenów jasną kropkowaną linią. To przygotowanie pod floty.",
+      "Przy herbie państwa w górnym pasku zielona kropka oznacza, że jego gracz jest teraz w programie; po najechaniu widać też, kiedy był ostatnio.",
+      "Na ekranie logowania jest przycisk „Co nowego” — pokazuje jeszcze raz pełną listę zmian ze wszystkich wersji.",
     ],
   },
   {

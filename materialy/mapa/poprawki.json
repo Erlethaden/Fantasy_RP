@@ -1,5 +1,5 @@
 {
- "opis": "Ręczne poprawki komórek (7.6e): piksele komórki „z” wewnątrz wielokąta przechodzą do komórki „na”. Wielokąt w px komorki_final.png (5000x5000, skala 1/4 rysunku). Stosuje assets/mapa_poprawki.py. „litery”: {numer: [komórka a, komórka b]} — przypięte a/b, gdy poprawka przesunęła środek komórki (mapa_sasiedztwo.py). „rzeki”: dorysowane odcinki rzek, linia w px teren.png (2500x2500), szer w px (mapa_teren.py).",
+ "opis": "Ręczne poprawki komórek (7.6e): piksele komórki „z” wewnątrz wielokąta przechodzą do komórki „na”. Wielokąt w px komorki_final.png (5000x5000, skala 1/4 rysunku). Stosuje assets/mapa_poprawki.py. „litery”: {numer: [komórka a, komórka b]} — przypięte a/b, gdy poprawka przesunęła środek komórki (mapa_sasiedztwo.py). „rzeki”: dorysowane odcinki rzek, linia w px teren.png (2500x2500), szer w px (mapa_teren.py). „akweny_podziel”: punkty [x, y] (px 2500²) — akwen z punktem dzielony na dwa (mapa_akweny.py; użytkownik 2026-10-19: A66 za duży).",
  "poprawki": [
   {
    "opis": "63b: część pod górami z napisem 57 → 57b (zostaje górne pole „WEGA 63”)",
@@ -132,5 +132,11 @@
    ],
    "szer": 7
   }
+ ],
+ "akweny_podziel": [
+  [
+   1406,
+   1478
+  ]
  ]
 }

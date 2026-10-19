@@ -6,6 +6,7 @@ import { ZASOBY } from "./zasoby.js";
 import { firebaseConfig } from "../firebase-config.js";
 import { initializeApp } from "firebase/app";
 import { initializeFirestore, collection, doc, FieldPath, deleteField, onSnapshot, writeBatch, getDoc, getDocs, setDoc, updateDoc, addDoc, deleteDoc, query, where, orderBy, limit, getCountFromServer } from "firebase/firestore";
+import { getDatabase, ref as refRT, onValue, onDisconnect, set as setRT, serverTimestamp as czasRT } from "firebase/database";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 
 export const CHMURA = Boolean(firebaseConfig.apiKey);
@@ -14,14 +15,14 @@ export const stan = {}; // jeden wspólny obiekt — moduły go mutują, magazyn
 const KLUCZ = "frp-demo";
 const WERSJA = 3; // podbij, gdy zmienią się dane startowe — stary zapis DEMO zostanie zastąpiony
 const USTAWIENIA = { dniLogow: 30 };
-const start = () => structuredClone({ wersja: WERSJA, frakcje: FRAKCJE, bohaterowie: BOHATEROWIE, zasoby: ZASOBY, tury: [], ustawienia: USTAWIENIA, prowincje: {}, npc: {}, nazwyOsad: {}, pozycjeArmii: {}, cofnijRuchy: null, wojny: [], bitwy: {}, traktaty: {}, kronika: {} });
+const start = () => structuredClone({ wersja: WERSJA, frakcje: FRAKCJE, bohaterowie: BOHATEROWIE, zasoby: ZASOBY, tury: [], ustawienia: USTAWIENIA, prowincje: {}, npc: {}, akweny: {}, nazwyOsad: {}, pozycjeArmii: {}, pozycjeFlot: {}, cofnijRuchy: null, wojny: [], bitwy: {}, traktaty: {}, kronika: {} });
 
 // --- DEMO ---
 function zapisDemo() {
   try {
     const s = JSON.parse(localStorage.getItem(KLUCZ));
     // nowe pole dopisywane do starego zapisu zamiast podbijania WERSJA, żeby nie kasować zmian z DEMO
-    if (s?.wersja === WERSJA) { s.zasoby ??= structuredClone(ZASOBY); s.tury ??= []; s.ustawienia ??= { ...USTAWIENIA }; s.prowincje ??= {}; s.npc ??= {}; s.nazwyOsad ??= {}; s.pozycjeArmii ??= {}; s.cofnijRuchy ??= null; s.wojny ??= []; s.bitwy ??= {}; s.traktaty ??= {}; s.kronika ??= {}; return s; }
+    if (s?.wersja === WERSJA) { s.zasoby ??= structuredClone(ZASOBY); s.tury ??= []; s.ustawienia ??= { ...USTAWIENIA }; s.prowincje ??= {}; s.npc ??= {}; s.akweny ??= {}; s.nazwyOsad ??= {}; s.pozycjeArmii ??= {}; s.pozycjeFlot ??= {}; s.cofnijRuchy ??= null; s.wojny ??= []; s.bitwy ??= {}; s.traktaty ??= {}; s.kronika ??= {}; return s; }
   } catch {}
   return null;
 }
@@ -29,8 +30,22 @@ export const wczytaj = () => Object.assign(stan, zapisDemo() || start());
 export function resetuj() { try { localStorage.removeItem(KLUCZ); } catch {} return Object.assign(stan, start()); }
 
 // --- chmura ---
-// dokumenty: frakcje/{id}, bohaterowie/{id}, gra/stan {zasoby, tury}, gra/prowincje {p: {idProwincji: {wlasciciel, nazwa, opis}}, npc: {id: {nazwa, rodzaj, zwierzchnik | kolor (samodzielny), opis}}}; _nr = kolejność na liście
+// dokumenty: frakcje/{id}, bohaterowie/{id}, gra/stan {zasoby, tury}, gra/prowincje {p: {idProwincji: {wlasciciel, nazwa, opis}}, npc: {id: {nazwa, rodzaj, zwierzchnik | kolor (samodzielny), opis}}, a: {idAkwenu: {nazwa}}}; _nr = kolejność na liście
 const app = CHMURA ? initializeApp(firebaseConfig) : null;
+// obecność graczy (2026-10-19) w Realtime Database: obecnosc/{uid} = { f: frakcja, on: online, t: czas (ms) }; „offline” zapisuje SERWER przy
+// rozłączeniu (onDisconnect — też Alt+F4, awaria, brak sieci), więc są tylko dwa zapisy na sesję. Bez databaseURL w konfiguracji — wyłączone.
+const rtdb = app && firebaseConfig.databaseURL ? getDatabase(app) : null;
+let koniecObecnosci = () => Promise.resolve(), odpnijPolaczenie = () => {};
+export function zglosObecnosc(uid, frakcja) {
+  if (!rtdb) return;
+  odpnijPolaczenie();   // ponowne zgłoszenie (zmiana państwa) — stary nasłuch połączenia precz
+  const moj = refRT(rtdb, `obecnosc/${uid}`), wpis = on => ({ f: frakcja || "", on, t: czasRT() });
+  const odpnij = odpnijPolaczenie = onValue(refRT(rtdb, ".info/connected"), s => {   // po każdym (ponownym) połączeniu: najpierw zlecenie „offline” serwerowi, potem „online”
+    if (s.val()) onDisconnect(moj).set(wpis(false)).then(() => setRT(moj, wpis(true))).catch(e => console.warn("obecność", e));
+  });
+  koniecObecnosci = () => { odpnij(); koniecObecnosci = () => Promise.resolve(); return setRT(moj, wpis(false)).catch(() => {}); };
+}
+export const sluchajObecnosci = cb => rtdb ? onValue(refRT(rtdb, "obecnosc"), s => cb(s.val() || {}), e => { console.warn("obecność", e); cb({}); }) : () => {};
 const db = app && initializeFirestore(app, { ignoreUndefinedProperties: true });
 const auth = app && getAuth(app);
 const ostatnio = new Map(); // ścieżka → JSON ostatnio zapisanego/odebranego dokumentu; zapisujemy tylko różnice
@@ -40,13 +55,14 @@ const json = x => JSON.stringify(x, (k, v) => v && typeof v === "object" && !Arr
 //   tajne_zasoby/{f}    { stany, zasoby (unikalne z ilościami), tury: [{nr, stany, unikalne}] } — jawne, gdy f.jawne.zasoby
 //   tajne_jednostki/{f} { jednostki }                                                         — jawne, gdy f.jawne.jednostki
 //   tajne_statusy/{f}   { statusy: {idBohatera: {status, misja}} }                             — jawne, gdy f.jawne.statusy
-//   tajne_armie/{f}     { armie: [{id, nazwa, dowodca, pospolity, bohaterowie, oddzialy, cel, przebyte}], cofnij: {nr, armie, pozycje} | null } — jawne, gdy f.jawne.armie
-//   gra/armie           { a: {idArmii: {f, p, o}}, cofnij: {nr, pozycje, przebyte: {idArmii: ile}} | null } — pozycje znaczników armii, jawne (7.1); cofnij = stan sprzed ruchu ostatniej tury
+//   tajne_armie/{f}     { armie: [{id, nazwa, dowodca, pospolity, bohaterowie, oddzialy, cel, przebyte}], cofnij: {nr, armie, pozycje} | null,
+//                         floty: [{id, nazwa, dowodca, pospolity, bohaterowie, oddzialy (okręty), pojemnosc?}] (7.8c) } — jawne, gdy f.jawne.armie
+//   gra/armie           { a: {idArmii: {f, p, o}}, fl: {idFloty: {f, a: nr akwenu}}, cofnij: {nr, pozycje, przebyte: {idArmii: ile}} | null } — pozycje znaczników armii i flot, jawne (7.1, 7.8c); cofnij = stan sprzed ruchu ostatniej tury
 //   tajne_budynki/{f}   { p: {idProwincji: {sloty, zloze}} }                                  — jawne, dopóki f.jawne.budynki !== false (6.4: domyślnie jawne)
 //   notatki_gracza/{f}  { tekst } — gracz tej frakcji + GM;  notatki_gm/{f} { tekst } — tylko GM/admin
 // W pamięci aplikacja widzi jeden scalony stan; części, których nie wolno czytać, są puste i oznaczone w f._brak / h._brak.
 const RODZAJE = ["zasoby", "jednostki", "statusy", "budynki", "armie"];
-const TAJNE_POLA_FRAKCJI = ["stany", "zasoby", "jednostki", "budynki", "armie", "cofnijRozwiazanie", "notatkiGracza", "notatkiGM", "_brak"];
+const TAJNE_POLA_FRAKCJI = ["stany", "zasoby", "jednostki", "budynki", "armie", "floty", "cofnijRozwiazanie", "notatkiGracza", "notatkiGM", "_brak"];
 const bez = (o, pola) => Object.fromEntries(Object.entries(o).filter(([k]) => !pola.includes(k)));
 let dostep = { gm: true, frakcja: "" }; // kto czyta: ustawiane przez main.js po zalogowaniu (ustawDostep)
 const wolnoCzytac = (sciezka, frakcje) => {
@@ -69,7 +85,7 @@ const dokumenty = s => {
       tury: s.tury.filter(t => t.frakcje?.[f.id]).map(t => ({ nr: t.nr, ...t.frakcje[f.id] })) });
     if (!f._brak?.jednostki) d.set(`tajne_jednostki/${f.id}`, { jednostki: f.jednostki || [] });
     if (!f._brak?.budynki) d.set(`tajne_budynki/${f.id}`, { p: f.budynki || {} });
-    if (!f._brak?.armie) d.set(`tajne_armie/${f.id}`, { armie: f.armie || [], cofnij: f.cofnijRozwiazanie || null });   // cofnij: armie rozwiązane przy ostatnim zamknięciu tury (7.1e) — tajne jak skład
+    if (!f._brak?.armie) d.set(`tajne_armie/${f.id}`, { armie: f.armie || [], cofnij: f.cofnijRozwiazanie || null, floty: f.floty || [] });   // cofnij: armie rozwiązane przy ostatnim zamknięciu tury (7.1e) — tajne jak skład
     if (!f._brak?.statusy) d.set(`tajne_statusy/${f.id}`, { statusy: Object.fromEntries(s.bohaterowie.filter(h => h.frakcja === f.id)
       .map(h => [h.id, { status: h.status || "stolica", misja: h.misja || "" }])) });
     if (!f._brak?.notatkiGracza) d.set(`notatki_gracza/${f.id}`, { tekst: f.notatkiGracza || "" });
@@ -77,8 +93,8 @@ const dokumenty = s => {
   });
   s.bohaterowie.forEach((h, i) => d.set(`bohaterowie/${h.id}`, { ...bez(h, ["status", "misja", "_brak"]), _nr: i }));
   d.set("gra/stan", { zasoby: s.zasoby, tury: s.tury.map(t => ({ nr: t.nr, data: t.data })), ustawienia: s.ustawienia || USTAWIENIA, wojny: s.wojny || [] });   // wojny: [[wł1, wł2]] — jawne (7.1f)
-  d.set("gra/prowincje", { p: s.prowincje || {}, npc: s.npc || {} });
-  d.set("gra/armie", { a: s.pozycjeArmii || {}, cofnij: s.cofnijRuchy || null, bitwy: s.bitwy || {} });
+  d.set("gra/prowincje", { p: s.prowincje || {}, npc: s.npc || {}, a: s.akweny || {} });
+  d.set("gra/armie", { a: s.pozycjeArmii || {}, fl: s.pozycjeFlot || {}, cofnij: s.cofnijRuchy || null, bitwy: s.bitwy || {} });
   for (const [id, r] of Object.entries(s.raportyBitew || {})) d.set(`bitwy/${id}`, r);
   for (const [id, t] of Object.entries(s.traktaty || {})) d.set(`traktaty/${id}`, t);
   for (const [id, k] of Object.entries(s.kronika || {})) d.set(`kronika/${id}`, k);   // kronika (7.2): { tura, czas, typ, tekst, kraje, tajny, widza } — tajne czytają kraje z „widza” i GM   // traktaty (7.4): { nazwa, typ, strony: [wł], tajny, opis, tura, zerwany? } — tajne czytają tylko strony i GM   // raporty bitew (7.1h): skład obu stron — tylko uczestnicy i GM   // bitwy: {id: {p, armie: [id], tura}} — jawne (7.1g)
@@ -115,11 +131,11 @@ export function zapisz(s) {
   batch.commit().catch(e => { console.error(e); zalogujBlad(e, co.slice(0, 30)); bladZapisu(e); });
 }
 // prowincje i kraje NPC: w bazie zmieniane tylko wskazane pola (p.<id>, npc.<id>), nie cały dokument — dwóch GM
-// zmieniających naraz różne prowincje nie nadpisze sobie zmian. zmiany = [["p" | "npc", id], …]; wartości bierze ze stanu (brak = usuń)
+// zmieniających naraz różne prowincje nie nadpisze sobie zmian. zmiany = [["p" | "npc" | "a", id], …] (a = akweny 7.8a: {id: {nazwa}}); wartości bierze ze stanu (brak = usuń)
 export function zapiszProwincje(zmiany) {
   if (!CHMURA) return zapisz(stan);
   if (!dostep.gm || !zmiany.length) return;
-  const pola = zmiany.flatMap(([gdzie, id]) => [new FieldPath(gdzie, id), (gdzie === "p" ? stan.prowincje : stan.npc)?.[id] ?? deleteField()]);
+  const pola = zmiany.flatMap(([gdzie, id]) => [new FieldPath(gdzie, id), (gdzie === "p" ? stan.prowincje : gdzie === "a" ? stan.akweny : stan.npc)?.[id] ?? deleteField()]);
   const log = () => ({ czas: new Date().toISOString(), ...kto(), typ: "zmiana", co: ["gra/prowincje"] });
   const ref = doc(db, "gra/prowincje"), batch = writeBatch(db);
   batch.update(ref, ...pola); batch.set(doc(collection(db, "logi")), log());
@@ -127,7 +143,7 @@ export function zapiszProwincje(zmiany) {
   batch.commit().catch(e => {
     if (e.code !== "not-found") { console.error(e); zalogujBlad(e, ["gra/prowincje"]); return bladZapisu(e); }
     // dokumentu jeszcze nie ma (pierwsza prowincja w grze): zakładamy go z całym obecnym stanem
-    const b2 = writeBatch(db); b2.set(ref, { p: stan.prowincje || {}, npc: stan.npc || {} }); b2.set(doc(collection(db, "logi")), log());
+    const b2 = writeBatch(db); b2.set(ref, { p: stan.prowincje || {}, npc: stan.npc || {}, a: stan.akweny || {} }); b2.set(doc(collection(db, "logi")), log());
     b2.commit().catch(e2 => { console.error(e2); zalogujBlad(e2, ["gra/prowincje"]); bladZapisu(e2); });
   });
 }
@@ -228,7 +244,7 @@ export function polacz(onZmiana) {
         if (tj === undefined) brak.jednostki = true; else x.jednostki = migracja(f.jednostki, tj?.jednostki) || [];
         if (t(`tajne_statusy/${f.id}`) === undefined) brak.statusy = true;
         const tb = t(`tajne_budynki/${f.id}`); if (tb === undefined) brak.budynki = true; else x.budynki = tb?.p || {};
-        const ta = t(`tajne_armie/${f.id}`); if (ta === undefined) brak.armie = true; else { x.armie = ta?.armie || []; x.cofnijRozwiazanie = ta?.cofnij || null; }
+        const ta = t(`tajne_armie/${f.id}`); if (ta === undefined) brak.armie = true; else { x.armie = ta?.armie || []; x.cofnijRozwiazanie = ta?.cofnij || null; x.floty = ta?.floty || []; }
         if (ng === undefined) brak.notatkiGracza = true; else x.notatkiGracza = ng?.tekst || "";
         if (nm === undefined) brak.notatkiGM = true; else x.notatkiGM = nm?.tekst || "";
         if (Object.keys(brak).length) x._brak = brak;
@@ -246,7 +262,7 @@ export function polacz(onZmiana) {
         const z = tz?.tury?.find(x => x.nr === m.nr) ?? m.frakcje?.[f.id]; // stary format: migawki w gra/stan
         return z ? [[f.id, { stany: z.stany || {}, unikalne: z.unikalne || {} }]] : [];
       })) }));
-      Object.assign(stan, { frakcje, bohaterowie, zasoby: czesci.gra?.zasoby || [], tury, ustawienia: { ...USTAWIENIA, ...czesci.gra?.ustawienia }, prowincje: czesci.prowincje?.p || {}, npc: czesci.prowincje?.npc || {}, nazwyOsad: czesci.nazwy, pozycjeArmii: czesci.armie?.a || {}, cofnijRuchy: czesci.armie?.cofnij || null, bitwy: czesci.armie?.bitwy || {}, wojny: czesci.gra?.wojny || [] });
+      Object.assign(stan, { frakcje, bohaterowie, zasoby: czesci.gra?.zasoby || [], tury, ustawienia: { ...USTAWIENIA, ...czesci.gra?.ustawienia }, prowincje: czesci.prowincje?.p || {}, npc: czesci.prowincje?.npc || {}, akweny: czesci.prowincje?.a || {}, nazwyOsad: czesci.nazwy, pozycjeArmii: czesci.armie?.a || {}, pozycjeFlot: czesci.armie?.fl || {}, cofnijRuchy: czesci.armie?.cofnij || null, bitwy: czesci.armie?.bitwy || {}, wojny: czesci.gra?.wojny || [] });
       if (pierwszy) { pierwszy = false; if (dostep.gm) { dopiszNowychBohaterow(); dopiszNoweSekcje(); zapisz(stan); } gotowe(stan); } // GM: przeniesienie starego formatu do nowych dokumentów
       else onZmiana();
     };
@@ -399,4 +415,4 @@ export const naZmianeKonta = cb => auth ? onAuthStateChanged(auth, cb) : cb(null
 export const zaloguj = (mail, haslo) => signInWithEmailAndPassword(auth, mail, haslo);
 export const zalozKonto = (mail, haslo) => createUserWithEmailAndPassword(auth, mail, haslo);
 export const zalogujGoogle = () => signInWithPopup(auth, new GoogleAuthProvider());
-export const wyloguj = () => { odlacz(); return signOut(auth); };
+export const wyloguj = async () => { odlacz(); await koniecObecnosci(); return signOut(auth); };   // „offline” jeszcze z uprawnieniami

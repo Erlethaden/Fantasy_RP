@@ -92,6 +92,9 @@ service cloud.firestore {
           // 7.14: cel własnej armii (celId = id armii z gra/armie)
           || (d.cel == "ruch" && get(/databases/$(database)/documents/gra/armie).data.a.get(d.celId, {}).get("f", "") == mojaFrakcja()
               && d.zmiany.keys().hasOnly(["cel"]) && d.zmiany.cel is map && d.zmiany.cel.keys().hasOnly(["p", "o", "armia"]))
+          // 7.8d: cel własnej floty (celId = id floty z gra/armie.fl, cel = nr akwenu)
+          || (d.cel == "rejs" && get(/databases/$(database)/documents/gra/armie).data.fl.get(d.celId, {}).get("f", "") == mojaFrakcja()
+              && d.zmiany.keys().hasOnly(["cel"]) && d.zmiany.cel is int)
           // 7.15: nowy traktat — autor jest stroną i od razu się zgadza; strony propozycji = strony traktatu (po nich czytają i dają zgodę)
           || (d.cel == "traktat" && d.celId == "" && d.strony is list && mojaFrakcja() in d.strony && d.strony.size() >= 2 && d.strony.size() <= 30
               && d.zgody.keys().hasOnly([mojaFrakcja()]) && d.zgody[mojaFrakcja()] == true

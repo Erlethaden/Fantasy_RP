@@ -1,0 +1,26 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "wide-tracking",
+        "value": "*",
+        "files": [
+          "assets/menu.html"
+        ],
+        "createdAt": "2026-10-16T13:03:56.616Z",
+        "reason": "Claude: flagged text is the one-line tagline under the title (.pod, .08em) from variant E the user chose, not body copy"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/style.css"
+        ],
+        "createdAt": "2026-10-19T09:03:08.569Z",
+        "reason": "user confirmed 2026-10-19: zostaw paski (celowy akcent frakcji na kartach)"
+      }
+    ]
+  }
+}

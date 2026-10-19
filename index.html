@@ -20,7 +20,7 @@
   <button class="google" type="button" id="zaloz-konto" hidden>Załóż konto</button>
   <div class="lub">albo</div>
   <button class="google" type="button" id="google">Zaloguj przez Google</button>
-  <div class="wersja"><span id="wersja"></span><span id="tryb">tryb DEMO</span></div>
+  <div class="wersja"><span id="wersja"></span><button type="button" class="pokaz-zmiany" id="pokaz-zmiany">Co nowego</button><span id="tryb">tryb DEMO</span></div>
 </form>
 
 <div class="podpis"><div class="imie" id="imie"></div><div class="frakcja" id="frakcja"></div></div>
@@ -36,6 +36,7 @@
   <div class="obszar">
     <main class="mapa" id="mapa" aria-label="Mapa świata — przeciągnij, by przesunąć; kółko albo +/- przybliża"></main>
     <div class="warstwy-mapy" id="warstwy-mapy" role="group" aria-label="Warstwy mapy"></div>
+    <div class="szukaj-mapy"><input type="search" id="szukaj" list="lista-szukaj" placeholder="🔍 Szukaj prowincji, osady, akwenu…" aria-label="Szukaj prowincji, osady albo akwenu" autocomplete="off"><datalist id="lista-szukaj"></datalist></div>
     <aside class="szuflada" id="szuflada" hidden>
       <button type="button" class="zamknij zamknij-szuflade" id="zamknij-szuflade" aria-label="Zamknij panel">×</button>
       <div class="glowny" id="glowny"></div>

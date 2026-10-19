@@ -1,7 +1,7 @@
 {
   "name": "fantasy-rp",
   "productName": "Fantasy RP dla autystów",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "author": "Zeren Erlethaden",
   "private": true,
   "main": "electron/main.cjs",

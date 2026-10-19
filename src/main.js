@@ -3,15 +3,17 @@ import "../assets/sala_tronow/animacje.js"; // ustawia window.Sala
 import pakiet from "../package.json";
 import { usunWpis, usunTraktat, czytajBitwe, stan, wczytaj, zapisz, CHMURA, polacz, odlacz, naZmianeKonta, zaloguj, zalozKonto, zalogujGoogle, wyloguj, ustawBladZapisu,
   ROLE, mojProfil, sluchajProfilu, sluchajUzytkownikow, ustawUzytkownika, ustawDostep, sprzatnijLogi, ostatnieLogi, licznik, KOLEKCJE, policzDokumenty, rozmiaryWczytanych, szukajSmieci, zapiszWszystko,
-  zaproponuj, sluchajPropozycji, zgodaStrony, rozpatrz, wycofaj, sprzatnijPropozycje, zapiszProwincje, zapiszNazwyOsad } from "./dane/magazyn.js";
+  zaproponuj, sluchajPropozycji, zgodaStrony, zglosObecnosc, sluchajObecnosci, rozpatrz, wycofaj, sprzatnijPropozycje, zapiszProwincje, zapiszNazwyOsad } from "./dane/magazyn.js";
 import { ZMIANY } from "./dane/zmiany.js";
-import { utworzMape } from "./mapa.js";
+import { utworzMape, krzywa } from "./mapa.js";
 import terenUrl from "../assets/mapa/teren.png";
 import terenMaskaUrl from "../assets/mapa/teren_maska.png";
 import TERENY from "../assets/mapa/tereny.json";
 import indeksyUrl from "../assets/mapa/prowincje.png";
 import PROWINCJE from "../assets/mapa/prowincje.json";
 import GRANICE from "../assets/mapa/granice.json";
+import AKWENY from "../assets/mapa/akweny.json";
+import GRANICE_MORSKIE from "../assets/mapa/akweny_granice.json";
 // ikonki osad (6.2b): assets/mapa/ikony/<miasto|wioska|stolica>.png — dopóki ich nie ma, mapa rysuje proste znaczniki
 const IKONY_OSAD = Object.fromEntries(Object.entries(import.meta.glob(["../assets/mapa/ikony/*.png", "!../assets/mapa/ikony/*_1024.png"], { eager: true, query: "?url", import: "default" }))
   .map(([k, url]) => [k.split("/").pop().slice(0, -4), url]));
@@ -78,6 +80,19 @@ function zbudujListe() {
     b.innerHTML = herbFrakcji(f) ? `<img src="${herbFrakcji(f)}" alt="">` : `<span class="herb-maly" aria-hidden="true">${esc(f.nazwa[0])}</span>`;
     b.onclick = () => widok === f.id ? zamknijSzuflade() : wybierz(f.id); return b;
   }));
+  oznaczObecnosc();
+}
+// obecność graczy: zielona kropka przy herbie, gdy gracz tego państwa jest zalogowany; w podpowiedzi — kiedy był ostatnio
+let obecnosc = {}, odpiecieObecnosci = () => {};
+function oznaczObecnosc() {
+  for (const b of lista.children) {
+    const f = frakcjaPo(b.dataset.id), wpisy = Object.values(obecnosc).filter(o => o.f === b.dataset.id);
+    const on = wpisy.some(o => o.on), t = Math.max(0, ...wpisy.map(o => +o.t || 0));
+    b.classList.toggle("online", on);
+    b.title = f.nazwa + (f.id === profil?.frakcja ? " — Twoje państwo" : "") + (!CHMURA ? "" : on ? " · gracz online"
+      : t ? ` · ostatnio: ${new Date(t).toLocaleString("pl-PL", { day: "numeric", month: "numeric", hour: "2-digit", minute: "2-digit" })}` : "");
+    b.setAttribute("aria-label", b.title);
+  }
 }
 // szuflada z prawej (karta frakcji, Panel GM): zwęża mapę; zamyka ją ✕, Esc albo klik w mapę
 const szuflada = document.getElementById("szuflada");
@@ -92,8 +107,28 @@ addEventListener("keydown", e => { if (e.key === "Escape" && !szuflada.hidden &&
 // teren (7.6b): teren.png (2500²) pokazywany jako mapa 5000², tekstury typów terenu prowincji (assets/mapa/tekstury/<typ>.png)
 const TEKSTURY = Object.fromEntries(Object.entries(import.meta.glob("../assets/mapa/tekstury/*.png", { eager: true, query: "?url", import: "default" }))
   .map(([k, url]) => [k.split("/").pop().slice(0, -4), url]));
-const mapa = utworzMape(document.getElementById("mapa"), { rysunek: terenUrl, rozmiar: [5000, 5000], teren: { maska: terenMaskaUrl, tekstury: TEKSTURY }, indeksy: indeksyUrl, ramki: PROWINCJE.map(p => p.ramka), granice: GRANICE, ikony: IKONY_OSAD,
-  onKlik: (i, x, y) => celowanie ? celWProwincji(i, x, y) : stawianie ? postawOsade(i, x, y) : i ? pokazProwincje(i) : !szuflada.hidden && zamknijSzuflade() });
+const mapa = utworzMape(document.getElementById("mapa"), { rysunek: terenUrl, rozmiar: [5000, 5000], teren: { maska: terenMaskaUrl, tekstury: TEKSTURY }, indeksy: indeksyUrl, ramki: [...PROWINCJE, ...AKWENY].map(p => p.ramka), granice: GRANICE, graniceMorskie: GRANICE_MORSKIE, morzeOd: PROWINCJE.length + 1, ikony: IKONY_OSAD,
+  onKlik: (i, x, y) => celowanieFloty ? przestawFlote(i) : celowanie ? celWProwincji(i > NP ? 0 : i, x, y) : stawianie ? postawOsade(i, x, y) : i > NP ? pokazAkwen(i - NP) : i ? pokazProwincje(i) : !szuflada.hidden && zamknijSzuflade() });
+// akweny (7.8a) są w tym samym obrazie indeksów co prowincje, za nimi: indeks NP + nr akwenu; AKWENY[n-1] = {id, typ: morze | jezioro, x, y, ramka,
+//   sasiedzi: [[nr, "morze" | "rzeka"]], brzeg: [indeks prowincji]} — jeziora i połączenia rzeczne tylko z umiejętnością „żegluga”
+const NP = PROWINCJE.length;
+const nazwaAkwenu = a => stan.akweny?.[a.id]?.nazwa || `Akwen ${a.id.slice(1)}`;
+// karta akwenu: nazwa (GM; stan.akweny[id] = {nazwa}), sąsiednie akweny i wybrzeże (nadmorskie prowincje)
+function pokazAkwen(n) {
+  const a = AKWENY[n - 1]; widok = "a:" + n; mapa.wybierz(NP + n);
+  [...lista.children].forEach(b => b.setAttribute("aria-current", false)); glowny.style.removeProperty("--kolor");
+  const przycisk = (attr, nazwa, pod = "") => `<li><button type="button" ${attr}><span>${esc(nazwa)}${pod ? `<small>${esc(pod)}</small>` : ""}</span></button></li>`;
+  glowny.innerHTML = `<article class="karta prowincja akwen"><h2>${esc(nazwaAkwenu(a))}</h2><p class="rasa">${a.typ === "jezioro" ? "jezioro" : "akwen morski"} · ${esc(a.id)}</p>
+    ${a.typ === "jezioro" ? `<p class="opis-sekcji">Flota wpłynie tu tylko z umiejętnością frakcji „żegluga śródlądowa” (też rzekami).</p>` : ""}
+    ${gm ? `<form class="edycja-akwenu"><label class="szeroko">Nazwa <input name="nazwa" maxlength="80" value="${esc(stan.akweny?.[a.id]?.nazwa || "")}" placeholder="Akwen ${esc(a.id.slice(1))}"></label></form>` : ""}
+    <section><h3>Sąsiednie akweny</h3>${a.sasiedzi.length ? `<ul class="sasiedzi">${a.sasiedzi.map(([j, t]) => przycisk(`data-a="${j}"`, nazwaAkwenu(AKWENY[j - 1]), [t === "rzeka" && "przez rzekę", AKWENY[j - 1].typ === "jezioro" && "jezioro"].filter(Boolean).join(" · "))).join("")}</ul>` : `<p class="opis-sekcji">Zamknięty akwen — nie łączy się z innymi.</p>`}</section>
+    <section><h3>Wybrzeże</h3>${a.brzeg.length ? `<ul class="sasiedzi">${a.brzeg.map(i => { const q = PROWINCJE[i - 1]; return przycisk(`data-i="${i}"`, nazwaProwincji(q), wlascicielPo(stan.prowincje?.[q.id]?.wlasciciel)?.nazwa); }).join("")}</ul>` : `<p class="opis-sekcji">Otwarte morze — bez lądu.</p>`}</section></article>`;
+  glowny.querySelectorAll("[data-a]").forEach(b => b.onclick = () => { const q = AKWENY[b.dataset.a - 1]; pokazAkwen(+b.dataset.a); mapa.pokaz(q.x, q.y); });
+  glowny.querySelectorAll(".sasiedzi [data-i]").forEach(b => b.onclick = () => { const q = PROWINCJE[b.dataset.i - 1]; pokazProwincje(+b.dataset.i); mapa.pokaz(q.x, q.y); });
+  const pole = glowny.querySelector("input[name=nazwa]");
+  if (pole) pole.onchange = () => { const v = pole.value.trim(); stan.akweny ??= {}; v ? stan.akweny[a.id] = { nazwa: v } : delete stan.akweny[a.id]; zapiszProwincje([["a", a.id]]); pokazAkwen(n); };
+  glowny.scrollTop = 0; otworzSzuflade(); requestAnimationFrame(() => mapa.doWidoku(a.x, a.y));
+}
 // karta prowincji: właściciel, nazwa, opis — edytuje GM/admin, widzą wszyscy (decyzje 6.3)
 // stan.prowincje[id] = { wlasciciel: idFrakcji | "npc:<id>", nazwa, opis }; brak wpisu = ziemia niczyja
 // stan.npc[id] = { nazwa, rodzaj: "wasal" | "marionetka", zwierzchnik: idFrakcji, opis } — kraj NPC w odcieniu koloru zwierzchnika (decyzja użytkownika)
@@ -200,7 +235,7 @@ function postawOsade(i, x, y) {
 // most: klik na rzece przy edytowanej prowincji — sąsiad z granicą rzeczną najbliżej klikniętego miejsca
 function postawMost(i, x, y) {
   const p = PROWINCJE[i - 1], blisko = mapa.wokol(x, y, 30);
-  const q = [...blisko].filter(([j]) => j !== i && typGranicy(p, j, p.sasiedzi.find(([s]) => s === j)?.[1]) === "rzeka").sort((a, b) => a[1] - b[1])[0];
+  const q = [...blisko].filter(([j]) => j !== i && j <= NP && typGranicy(p, j, p.sasiedzi.find(([s]) => s === j)?.[1]) === "rzeka").sort((a, b) => a[1] - b[1])[0];
   pokazProwincje(i, true);
   if (!blisko.has(i) || !q) return napisz(".komunikat-mostu", "Tu nie ma rzeki na granicy tej prowincji — kliknij „+ Most” i wskaż miejsce na rzece tuż przy niej.");
   ustawGranice(p, PROWINCJE[q[0] - 1], "mosty", [Math.round(x), Math.round(y)]);
@@ -232,18 +267,32 @@ async function wyslijPropozycje(p) {
 }
 const NAZWY_TYPOW = { miasto: "Miasto", wioska: "Wioska", stolica: "Stolica" };
 const mostyNaMapie = () => Object.entries(stan.prowincje || {}).flatMap(([a, d]) => Object.entries(d.mosty || {}).filter(([b]) => a < b).map(([, [x, y]]) => ({ typ: "most", x, y })));
-const pokazOsadyNaMapie = () => { mapa.ustawOsady(PROWINCJE.flatMap(osadyProwincji).concat(mostyNaMapie(), armieNaMapie(), bitwyNaMapie())); mapa.ustawTrasy([...liniaTraktatowNaMapie(), ...trasyNaMapie()]); };
+const pokazOsadyNaMapie = () => { mapa.ustawOsady(PROWINCJE.flatMap(osadyProwincji).concat(mostyNaMapie(), armieNaMapie(), flotyNaMapie(), bitwyNaMapie())); mapa.ustawTrasy([...liniaTraktatowNaMapie(), ...trasyNaMapie()]); };
 // znaczniki armii (7.1b): sztandar armia.png z flagą w kolorach-kluczach (magenta) przemalowaną na kolor frakcji; kilka armii w jednym miejscu — obok siebie
-const szablonArmii = Object.assign(new Image(), { src: IKONY_OSAD.armia || "", onload: () => pokazOsadyNaMapie() }), ikonyArmii = new Map();
-function ikonaArmii(kolor) {
-  if (!szablonArmii.complete || !szablonArmii.naturalWidth) return IKONY_OSAD.armia;
-  if (ikonyArmii.has(kolor)) return ikonyArmii.get(kolor);
-  const c = document.createElement("canvas"); c.width = szablonArmii.naturalWidth; c.height = szablonArmii.naturalHeight;
-  const x = c.getContext("2d"); x.drawImage(szablonArmii, 0, 0);
+// floty (7.8c): okręt flota.png, ten sam mechanizm kolorów-kluczy
+const szablony = Object.fromEntries(["armia", "flota"].map(t => [t, Object.assign(new Image(), { src: IKONY_OSAD[t] || "", onload: () => pokazOsadyNaMapie() })])), ikonyKraju = new Map();
+const ikonaArmii = kolor => ikonaKraju("armia", kolor);
+function ikonaKraju(typ, kolor) {
+  const szablon = szablony[typ], klucz = typ + kolor;
+  if (!szablon.complete || !szablon.naturalWidth) return IKONY_OSAD[typ];
+  if (ikonyKraju.has(klucz)) return ikonyKraju.get(klucz);
+  const c = document.createElement("canvas"); c.width = szablon.naturalWidth; c.height = szablon.naturalHeight;
+  const x = c.getContext("2d"); x.drawImage(szablon, 0, 0);
   const d = x.getImageData(0, 0, c.width, c.height), k = rgb(kolor), px = d.data;
   const klucze = { "255,0,255": k, "255,120,255": k.map(v => Math.min(255, v + 50)), "160,0,160": k.map(v => v * 0.6) };
   for (let i = 0; i < px.length; i += 4) { const z = klucze[`${px[i]},${px[i + 1]},${px[i + 2]}`]; if (z) [px[i], px[i + 1], px[i + 2]] = z; }
-  x.putImageData(d, 0, 0); ikonyArmii.set(kolor, c.toDataURL()); return ikonyArmii.get(kolor);
+  x.putImageData(d, 0, 0); ikonyKraju.set(klucz, c.toDataURL()); return ikonyKraju.get(klucz);
+}
+// znaczniki flot: w środku akwenu (stan.pozycjeFlot[id] = {f, a: nr akwenu}); kilka flot w akwenie — obok siebie
+function flotyNaMapie() {
+  const wAkwenie = new Map();
+  return Object.entries(stan.pozycjeFlot || {}).flatMap(([id, poz]) => {
+    const a = AKWENY[poz.a - 1], f = frakcjaPo(poz.f); if (!a || !f) return [];
+    const n = wAkwenie.get(poz.a) || 0; wAkwenie.set(poz.a, n + 1);
+    const fl = f.floty?.find(z => z.id === id);
+    return [{ typ: "flota", x: a.x, y: a.y, dx: n * 26, ikona: ikonaKraju("flota", f.kolor), tytul: `${f.nazwa} — ${fl ? `${fl.nazwa}, ${liczebnosc(fl)} ${odmiana(liczebnosc(fl), "okręt", "okręty", "okrętów")}` : "flota"}`,
+      klik: () => (wybierz(f.id), glowny.querySelector("section.floty")?.scrollIntoView({ block: "start" })) }];
+  });
 }
 function armieNaMapie() {
   const wMiejscu = new Map();
@@ -398,6 +447,17 @@ function pokazProwincje(i, zostanPrzewiniecie) {
   if (form) form.onchange = () => {
     const v = Object.fromEntries(new FormData(form)), n = { ...stan.prowincje?.[p.id], wlasciciel: v.wlasciciel, nazwa: v.nazwa.trim(), opis: v.opis.trim(),
       teren: v.teren === (TERENY[p.id] || "rownina") ? "" : v.teren };   // zapisujemy tylko zmianę względem startowego   // bieżący stan — nazwy osad mogły się zmienić po narysowaniu karty
+    ustawProwincje(p, n); pokazProwincje(i, true);
+  };
+  if (!zostanPrzewiniecie) glowny.scrollTop = 0;
+  otworzSzuflade();
+  requestAnimationFrame(() => mapa.doWidoku(p.x, p.y));   // po zwężeniu mapy przez szufladę
+}
+// nowe dane prowincji (karta GM albo zdobycie w bitwie 7.1i): przy zmianie właściciela podbita stolica przestaje nią być,
+// budynki przechodzą (bez unikalnych zasobów starej frakcji), wpis w kronice
+function ustawProwincje(p, n) {
+  const d = stan.prowincje?.[p.id] || {};
+  {
     if (n.wlasciciel !== d.wlasciciel && n.osady?.some(o => o.typ === "stolica")) n.osady = n.osady.map(o => o.typ === "stolica" ? { ...o, typ: "miasto" } : o);   // podbita stolica przestaje nią być
     // podbój (6.4): budynki i złoże przechodzą do nowego właściciela, poza unikalnymi zasobami starej frakcji
     const bud = n.wlasciciel !== d.wlasciciel && budynki(p), bezU = v => v?.startsWith("u:") ? "" : v || "";
@@ -407,16 +467,13 @@ function pokazProwincje(i, zostanPrzewiniecie) {
     if (Object.values(n).some(Boolean)) stan.prowincje[p.id] = Object.fromEntries(Object.entries(n).filter(([, w]) => w)); else delete stan.prowincje[p.id];
     if (bud) ustawBudynki(p, { sloty: (bud.sloty || []).map(bezU), zloze: bezU(bud.zloze) });
     if ((n.wlasciciel || "") !== (d.wlasciciel || "")) { wpiszKronike("wlasciciel", `${nazwaProwincji(p)}: ${nazwaKraju(d.wlasciciel)} → ${nazwaKraju(n.wlasciciel)}`, [d.wlasciciel, n.wlasciciel]); zapisz(stan); }
-    zapiszProwincje([["p", p.id]]); kolorujMape(); pokazOsadyNaMapie(); pokazProwincje(i, true);
-  };
-  if (!zostanPrzewiniecie) glowny.scrollTop = 0;
-  otworzSzuflade();
-  requestAnimationFrame(() => mapa.doWidoku(p.x, p.y));   // po zwężeniu mapy przez szufladę
+    zapiszProwincje([["p", p.id]]); kolorujMape(); pokazOsadyNaMapie();
+  }
 }
 // edycję (zasoby, stany, tury, jednostki, statusy bohaterów) widzą tylko GM i admin; w DEMO każdy — ustawiane po zalogowaniu
 let gm = !CHMURA;
 // część tajna: f._brak[rodzaj] = tej części nie wolno czytać (magazyn jej nie wczytał); f.jawne[rodzaj] = GM ujawnił ją wszystkim
-const RODZAJE_TAJNE = { zasoby: "Zasoby", jednostki: "Jednostki", statusy: "Statusy bohaterów", budynki: "Budynki i złoża", armie: "Armie (skład, trasa)" };
+const RODZAJE_TAJNE = { zasoby: "Zasoby", jednostki: "Jednostki", statusy: "Statusy bohaterów", budynki: "Budynki i złoża", armie: "Armie i floty (skład, trasa)" };
 const tajne = (f, r) => Boolean(f._brak?.[r]);
 const jawneR = (f, r) => r === "budynki" ? f.jawne?.budynki !== false : Boolean(f.jawne?.[r]);   // budynki domyślnie jawne (6.4)
 const kłódka = `<p class="tajne">🔒 Tajne — widzi tylko gracz tej frakcji i GM.</p>`;
@@ -483,17 +540,20 @@ function podepnijZasoby(f) {
     if (confirm(`Usunąć zasób „${z.nazwa}”?`)) { f.zasoby.splice(b.dataset.i, 1); zapisz(stan); wybierz(f.id, true); }
   });
 }
-// jednostki: f.jednostki = [{ nazwa, opis, poziom }], poziom = indeks w POZIOMY; bez kosztów, dopóki GM nie ustali mechaniki
+// jednostki: f.jednostki = [{ nazwa, opis, poziom, morska?, pojemnosc? }], poziom = indeks w POZIOMY; bez kosztów, dopóki GM nie ustali mechaniki;
+// morska (7.8b) = okręt do flot (nie do armii), pojemnosc = ilu żołnierzy mieści jeden okręt (brak = nie liczy się do pojemności floty)
 const POZIOMY = ["Chołota", "Regularne", "Elita"];
 const polaJednostki = (j = {}) => `<input name="nazwa" required maxlength="60" value="${esc(j.nazwa || "")}" placeholder="Nazwa jednostki" aria-label="Nazwa jednostki">
   <select name="poziom" aria-label="Poziom elitarności">${POZIOMY.map((p, i) => `<option value="${i}"${i === (j.poziom ?? 1) ? " selected" : ""}>${p}</option>`).join("")}</select>
+  <label class="morska"><input type="checkbox" name="morska"${j.morska ? " checked" : ""}> okręt</label>
+  <input name="pojemnosc" inputmode="numeric" maxlength="7" value="${j.pojemnosc ?? ""}" placeholder="mieści żołnierzy" aria-label="Ilu żołnierzy mieści okręt" title="Ilu żołnierzy mieści jeden okręt (puste = nie przewozi)">
   <textarea name="opis" maxlength="600" rows="2" placeholder="Opis, wyposażenie (opcjonalnie)" aria-label="Opis jednostki">${esc(j.opis || "")}</textarea>`;
 const jednostki = f => {
   if (tajne(f, "jednostki")) return `<section class="jednostki"><h3>Jednostki</h3>${kłódka}</section>`;
   const lista = f.jednostki ??= [];
   return `<section class="jednostki"><h3>Jednostki${znacznik(f, "jednostki")}</h3>
-  ${POZIOMY.map((p, poz) => { const w = lista.map((j, i) => [j, i]).filter(([j]) => j.poziom === poz); return w.length ? `<h4>${p}</h4><ul class="lista-jednostek">${w.map(([j, i]) =>
-    `<li data-i="${i}"><span><b>${esc(j.nazwa)}</b>${j.opis ? ` — ${esc(j.opis)}` : ""}</span>
+  ${[...POZIOMY.map((p, poz) => [p, j => !j.morska && j.poziom === poz]), ["Okręty", j => j.morska]].map(([p, czy]) => { const w = lista.map((j, i) => [j, i]).filter(([j]) => czy(j)); return w.length ? `<h4>${p}</h4><ul class="lista-jednostek">${w.map(([j, i]) =>
+    `<li data-i="${i}"><span><b>${esc(j.nazwa)}</b>${j.morska ? ` <small>${POZIOMY[j.poziom ?? 1].toLowerCase()}${j.pojemnosc ? ` · mieści ${j.pojemnosc} żołn.` : ""}</small>` : ""}${j.opis ? ` — ${esc(j.opis)}` : ""}</span>
       ${gm ? `<span class="akcje"><button type="button" class="usun" data-akcja="edytuj" aria-label="Edytuj jednostkę ${esc(j.nazwa)}" title="Edytuj">✎</button>
       <button type="button" class="usun" data-akcja="usun" aria-label="Usuń jednostkę ${esc(j.nazwa)}" title="Usuń">×</button></span>` : ""}</li>`).join("")}</ul>` : ""; }).join("")
     || `<p class="puste">${gm ? "Brak — dodaj pierwszą jednostkę." : "Brak."}</p>`}
@@ -501,7 +561,12 @@ const jednostki = f => {
 };
 function podepnijJednostki(f) {
   if (!gm || tajne(f, "jednostki")) return;
-  const odczyt = form => { const d = new FormData(form); return { nazwa: d.get("nazwa").trim(), opis: d.get("opis").trim(), poziom: +d.get("poziom") }; };
+  const odczyt = form => {
+    const d = new FormData(form), j = { nazwa: d.get("nazwa").trim(), opis: d.get("opis").trim(), poziom: +d.get("poziom") };
+    const poj = parseInt(String(d.get("pojemnosc")).replace(/\s/g, ""));
+    if (d.get("morska") === "on") { j.morska = true; if (poj > 0) j.pojemnosc = poj; }
+    return j;
+  };
   glowny.querySelector(".dodaj-jednostke").onsubmit = e => {
     e.preventDefault(); const j = odczyt(e.target); if (!j.nazwa) return;
     f.jednostki.push(j); zapisz(stan); wybierz(f.id, true);
@@ -516,7 +581,7 @@ function podepnijJednostki(f) {
       li.innerHTML = `<form class="edytuj-jednostke">${polaJednostki(j)}<button class="dodaj">Zapisz</button><button type="button" class="cofnij">Anuluj</button></form>`;
       const form = li.querySelector("form"); form.nazwa.focus();
       form.querySelector(".cofnij").onclick = () => wybierz(f.id, true);
-      form.onsubmit = e => { e.preventDefault(); const n = odczyt(form); if (!n.nazwa) return; Object.assign(j, n); zapisz(stan); wybierz(f.id, true); };
+      form.onsubmit = e => { e.preventDefault(); const n = odczyt(form); if (!n.nazwa) return; delete j.morska; delete j.pojemnosc; Object.assign(j, n); zapisz(stan); wybierz(f.id, true); };
     };
   });
 }
@@ -524,7 +589,8 @@ const odmiana = (n, jeden, kilka, wiele) => n === 1 ? jeden : n % 10 >= 2 && n %
 // trasy armii (7.1c): miejsce = { p: idProwincji, o: numer osady | -1 (w polu) }; jeden krok = sąsiednia prowincja (w polu)
 // albo inna osada / pole w tej samej prowincji. Góry i rzeka bez mostu tylko z umiejętnością frakcji (f.przejscia = { gory, rzeki }).
 const NR_PROWINCJI = new Map(PROWINCJE.map((p, i) => [p.id, i + 1]));
-const PRZEJSCIA = { gory: "przez góry", rzeki: "przez rzeki (bez mostu)" };
+// umiejętności ruchu frakcji (f.przejscia): armie przez góry / rzeki bez mostu; floty na jeziora i rzekami (7.8a — sprawdza ruch flot w 7.8d)
+const PRZEJSCIA = { gory: "armie przez góry", rzeki: "armie przez rzeki (bez mostu)", zegluga: "floty na jeziorach i rzekach (żegluga śródlądowa)" };
 const przechodzi = (f, t) => t === "zwykła" || t === "most" || (t === "góry" && Boolean(f?.przejscia?.gory)) || (t === "rzeka" && Boolean(f?.przejscia?.rzeki));
 function wyznaczTrase(f, start, cel, moze = t => przechodzi(f, t)) {   // → lista kroków [{p, o}] bez miejsca startu albo null, gdy nie ma drogi; moze(typGranicy) — czy wolno przejść
   if (!start || !cel) return null;
@@ -565,18 +631,26 @@ const zaIle = n => n === 0 ? "na miejscu" : `za ${n} ${odmiana(n, "turę", "tury
 function trasyNaMapie() {
   return stan.frakcje.flatMap(f => (f._brak?.armie ? [] : f.armie || []).flatMap(a => {
     const tr = a.cel && trasaArmii(f, a), start = stan.pozycjeArmii?.[a.id]; if (!tr || !start) return [];
-    const punkty = [...(a.przebyte || []), start, ...tr].map(punktMiejsca).filter(Boolean);
-    return [{ punkty, przebyte: (a.przebyte || []).length, kolor: f.kolor, napis: `${a.nazwa}: ${zaIle(tr.length)}` }];
+    const za = krzywa([...(a.przebyte || []), start].map(punktMiejsca).filter(Boolean)), dalej = krzywa([start, ...tr].map(punktMiejsca).filter(Boolean));
+    return [{ punkty: [...za, ...dalej.slice(1)], przebyte: za.length - 1, kolor: f.kolor, napis: `${a.nazwa}: ${zaIle(tr.length)}` }];
   })).concat(propozycje.filter(p => p.cel === "ruch" && p.status === "czeka").flatMap(p => {   // 7.14: proponowane przez gracza — blade, „czeka na GM”
     const f = frakcjaPo(p.frakcja), a = f?.armie?.find(x => x.id === p.celId), start = stan.pozycjeArmii?.[p.celId];
     const tr = a && start && wyznaczTrase(f, start, miejsceCelu({ cel: p.zmiany.cel })); if (!tr) return [];
-    return [{ punkty: [start, ...tr].map(punktMiejsca).filter(Boolean), przebyte: 0, kolor: f.kolor, proponowana: true, napis: `${a.nazwa}: ${zaIle(tr.length)} — czeka na GM` }];
+    return [{ punkty: krzywa([start, ...tr].map(punktMiejsca).filter(Boolean)), przebyte: 0, kolor: f.kolor, proponowana: true, napis: `${a.nazwa}: ${zaIle(tr.length)} — czeka na GM` }];
+  })).concat(stan.frakcje.flatMap(f => (f._brak?.armie ? [] : f.floty || []).flatMap(fl => {   // floty (7.8d): kreska między środkami akwenów
+    const tr = fl.cel && trasaFloty(f, fl), start = stan.pozycjeFlot?.[fl.id]?.a; if (!tr || !start) return [];
+    const za = liniaFloty([...(fl.przebyte || []), start]), dalej = liniaFloty([start, ...tr]);
+    return [{ punkty: [...za, ...dalej.slice(1)], przebyte: za.length - 1, kolor: f.kolor, napis: `${fl.nazwa}: ${zaIle(tr.length)}` }];
+  }))).concat(propozycje.filter(p => p.cel === "rejs" && p.status === "czeka").flatMap(p => {
+    const f = frakcjaPo(p.frakcja), fl = f?.floty?.find(x => x.id === p.celId), start = stan.pozycjeFlot?.[p.celId]?.a;
+    const tr = fl && start && trasaFloty(f, fl, p.zmiany.cel); if (!tr) return [];
+    return [{ punkty: liniaFloty([start, ...tr]), przebyte: 0, kolor: f.kolor, proponowana: true, napis: `${fl.nazwa}: ${zaIle(tr.length)} — czeka na GM` }];
   }));
 }
 // ruch przy zamknięciu tury (7.1d): każda armia z celem robi 1 krok swojej trasy; trasy liczone z pozycji sprzed ruchu (pościg też).
 // Do cofnięcia: pozycje i długości przebytych dróg sprzed ruchu w stan.cofnijRuchy (tylko ostatnia tura).
 function ruchArmii(nr) {
-  const cofnij = { nr, pozycje: structuredClone(stan.pozycjeArmii || {}), przebyte: {}, bitwy: structuredClone(stan.bitwy || {}) }, kroki = [];
+  const cofnij = { nr, pozycje: structuredClone(stan.pozycjeArmii || {}), przebyte: {}, bitwy: structuredClone(stan.bitwy || {}), floty: structuredClone(stan.pozycjeFlot || {}), przebyteFlot: {} }, kroki = [];
   for (const f of stan.frakcje) for (const a of f.armie || []) {
     if (!a.cel || bitwaArmii(a.id)) continue;
     const tr = trasaArmii(f, a); if (tr?.length) kroki.push([a, tr[0]]);
@@ -587,6 +661,13 @@ function ruchArmii(nr) {
     a.przebyte = [...(a.przebyte || []), { p: poz.p, o: poz.o }];
     stan.pozycjeArmii[a.id] = { ...poz, p: krok.p, o: krok.o };
   }
+  // floty (7.8d): 1 akwen na turę; bitwy morskie dopiero w 7.8f
+  const krokiFlot = stan.frakcje.flatMap(f => (f.floty || []).flatMap(fl => { const tr = fl.cel && trasaFloty(f, fl); return tr?.length ? [[fl, tr[0]]] : []; }));
+  for (const [fl, a] of krokiFlot) {
+    cofnij.przebyteFlot[fl.id] = (fl.przebyte || []).length;
+    fl.przebyte = [...(fl.przebyte || []), stan.pozycjeFlot[fl.id].a];
+    stan.pozycjeFlot[fl.id] = { ...stan.pozycjeFlot[fl.id], a };
+  }
   stan.cofnijRuchy = cofnij;
   wykryjBitwy(cofnij.pozycje, nr);
   return kroki.length;
@@ -595,6 +676,8 @@ function cofnijRuchArmii(nr) {
   const c = stan.cofnijRuchy; if (c?.nr !== nr) return false;
   for (const [id, poz] of Object.entries(c.pozycje)) if (stan.pozycjeArmii?.[id]) stan.pozycjeArmii[id] = poz;   // armie założone po zamknięciu zostają
   for (const f of stan.frakcje) for (const a of f.armie || []) if (a.id in c.przebyte) a.przebyte = (a.przebyte || []).slice(0, c.przebyte[a.id]);
+  for (const [id, poz] of Object.entries(c.floty || {})) if (stan.pozycjeFlot?.[id]) stan.pozycjeFlot[id] = poz;
+  for (const f of stan.frakcje) for (const fl of f.floty || []) if (fl.id in (c.przebyteFlot || {})) fl.przebyte = (fl.przebyte || []).slice(0, c.przebyteFlot[fl.id]);
   if (c.bitwy) stan.bitwy = c.bitwy;
   stan.cofnijRuchy = null;
   return true;
@@ -700,14 +783,16 @@ async function pokazBitwe(id) {
   const b = stan.bitwy?.[id]; if (!b) return;
   const r = b.koniec ? stan.raportyBitew?.[id] || await czytajBitwe(id) : gm || !CHMURA ? raportBitwy(id) : await czytajBitwe(id);
   const p = PROWINCJE[NR_PROWINCJI.get(b.p) - 1], strony = r?.strony || (b.koniec?.strony || [...new Set(b.armie.map(x => kraj(x, b)))]).map(n => ({ nazwa: n, armie: null }));
-  const k = b.koniec, straty = r?.koniec?.straty || {}, polegli = new Set(r?.koniec?.polegli || []);
+  const k = b.koniec, straty = r?.koniec?.straty || {}, polegli = new Set(r?.koniec?.polegli || []), losBoh = r?.koniec?.bohaterowie || {}, losArmii = r?.koniec?.los || {};
+  const ZNAK_BOH = { polegl: [" ✝", "polegl"], ranny: [" (ranny)", "ranny"], niewola: [" ⛓ w niewoli", "niewola"] };
   const edycja = gm && !k;
   const oddzialy = st => st.armie.flatMap(a => a.oddzialy);
   const kolumna = (st, nr) => `<section class="strona" style="--kolor:${st.kolor || "#808080"}">
     <h3>${esc(st.nazwa)}${k ? (k.zwyciezca === nr ? ` <span class="wygrana">zwycięstwo</span>` : k.zwyciezca === -1 ? ` <span class="remis">remis</span>` : ` <span class="porazka">porażka</span>`) : ""}</h3>
     ${st.armie === null ? `<p class="tajne">🔒 Skład widzą tylko strony bitwy i GM.</p>` : st.armie.map(a => `<div class="armia-bitwy"><h4>${esc(a.nazwa)}</h4>
+      ${edycja ? `<label class="los">Po bitwie <select name="los" data-armia="${esc(a.id)}">${Object.entries(LOSY).map(([v, n]) => `<option value="${v}">${n}</option>`).join("")}</select></label>` : losArmii[a.id] ? `<p class="los">${esc(losArmii[a.id])}</p>` : ""}
       <p>${a.dowodca ? `Dowódca: <b>${esc(a.dowodca)}</b>` : `<b class="ostrzezenie">Brak dowódcy</b>`}</p>
-      ${a.bohaterowie.length ? `<p class="bohaterowie-bitwy">${a.bohaterowie.map(h => edycja ? `<label><input type="checkbox" data-polegl="${esc(h.id)}"> ${esc(h.imie)} poległ</label>` : `<span${polegli.has(h.id) ? ` class="polegl"` : ""}>${esc(h.imie)}${polegli.has(h.id) ? " ✝" : ""}</span>`).join("")}</p>` : ""}
+      ${a.bohaterowie.length ? `<p class="bohaterowie-bitwy">${a.bohaterowie.map(h => { const l = losBoh[h.id] || (polegli.has(h.id) ? "polegl" : ""); return edycja ? `<label>${esc(h.imie)} <select data-bohater="${esc(h.id)}" aria-label="Los: ${esc(h.imie)}"><option value="">cały</option><option value="ranny">ranny</option><option value="polegl">poległ</option><option value="niewola">w niewoli</option></select></label>` : `<span${l ? ` class="${ZNAK_BOH[l][1]}"` : ""}>${esc(h.imie)}${l ? ZNAK_BOH[l][0] : ""}</span>`; }).join("")}</p>` : ""}
       ${POZIOMY.map((nazwaP, poz) => { const w = a.oddzialy.map((o, i) => [o, i]).filter(([o]) => o.poziom === poz); return w.length ? `<h5>${nazwaP}</h5><ul class="podsumowanie">${w.map(([o, i]) =>
         `<li><span>${esc(o.jednostka)}</span><span>${o.liczba}${edycja ? ` <input class="straty" data-armia="${esc(a.id)}" data-i="${i}" inputmode="numeric" placeholder="straty" aria-label="Straty: ${esc(o.jednostka)}">` : straty[a.id]?.[i] ? ` <b class="ostrzezenie">−${straty[a.id][i]}</b>` : ""}</span></li>`).join("")}</ul>` : ""; }).reverse().join("")}
     </div>`).join("") || `<p class="puste">Brak armii.</p>`}
@@ -720,14 +805,16 @@ async function pokazBitwe(id) {
     ${k ? `<section class="wynik"><h3>Wynik</h3><p><b>${k.zwyciezca === -1 ? "Remis" : `Zwycięstwo: ${esc(strony[k.zwyciezca]?.nazwa || "?")}`}</b></p>${k.opis ? tekst(k.opis) : ""}</section>` : ""}
     ${edycja ? `<form class="koniec-bitwy"><h3>Koniec bitwy (GM)</h3>
       <label>Wynik <select name="zwyciezca">${strony.map((st, i) => `<option value="${i}">Zwycięstwo: ${esc(st.nazwa)}</option>`).join("")}<option value="-1">Remis</option></select></label>
+      <label class="zdobycie"><input type="checkbox" name="zdobywa"> Zwycięzca zdobywa prowincję ${esc(p ? nazwaProwincji(p) : "")} (gdy nie jest jego)</label>
       <label>Opis <textarea name="opis" rows="3" maxlength="3000" placeholder="Przebieg bitwy (opcjonalnie)"></textarea></label>
-      <p class="opis-sekcji">Straty wpisz przy oddziałach (opcjonalnie) — zostaną odjęte od armii. Armia poniżej 100 żołnierzy zostanie rozwiązana przy zamknięciu tury.</p>
+      <p class="opis-sekcji">Straty wpisz przy oddziałach (opcjonalnie) — zostaną odjęte od armii. „Po bitwie” przy armii: domyślnie przegrana armia cofa się o 1 prowincję w stronę własnych ziem, a zwycięzca idzie dalej. Poddana armia znika, a jej bohaterowie trafiają do niewoli zwycięzcy. Armia poniżej 100 żołnierzy zostanie rozwiązana przy zamknięciu tury.</p>
       <button class="dodaj">Zakończ bitwę i zapisz wynik</button></form>` : ""}`;
   oknoBitwy.querySelector(".zamknij").onclick = () => oknoBitwy.close();
   const form = oknoBitwy.querySelector(".koniec-bitwy");
   if (form) form.onsubmit = e => {
     e.preventDefault();
-    const st = {}, pol = [...oknoBitwy.querySelectorAll("[data-polegl]:checked")].map(x => x.dataset.polegl);
+    const st = {}, losB = Object.fromEntries([...oknoBitwy.querySelectorAll("[data-bohater]")].filter(x => x.value).map(x => [x.dataset.bohater, x.value]));
+    const los = Object.fromEntries([...oknoBitwy.querySelectorAll("select[name=los]")].map(x => [x.dataset.armia, x.value]));
     oknoBitwy.querySelectorAll(".straty").forEach(x => { const n = Math.max(0, parseInt(x.value.replace(/\s/g, "")) || 0); if (n) (st[x.dataset.armia] ??= {})[x.dataset.i] = n; });
     const zw = +form.zwyciezca.value;
     if (!confirm(`Zakończyć bitwę? ${zw === -1 ? "Remis" : `Zwycięża ${strony[zw].nazwa}`}.`)) return;
@@ -735,18 +822,59 @@ async function pokazBitwe(id) {
     b.koniec = { zwyciezca: zw, opis: form.opis.value.trim(), tura: stan.tury.length + 1, strony: strony.map(s => s.nazwa) };   // jawne: wynik i nazwy stron
     wpiszKronike("wynik", `Bitwa — ${p ? nazwaProwincji(p) : "?"}: ${zw === -1 ? `remis (${strony.map(s => s.nazwa).join(", ")})` : `zwycięstwo: ${strony[zw].nazwa} nad ${strony.filter((_, i) => i !== zw).map(s => s.nazwa).join(", ")}`}${b.koniec.opis ? ` — ${b.koniec.opis.slice(0, 300)}` : ""}`,
       [...new Set(Object.values(b.wl || {}))]);
-    raport.koniec = { ...b.koniec, straty: st, polegli: pol };
-    for (const f of stan.frakcje) for (const a of f.armie || []) {   // straty i polegli
+    for (const f of stan.frakcje) for (const a of f.armie || []) {   // straty
       const s = st[a.id]; if (s) { a.oddzialy = a.oddzialy.map((o, i) => ({ ...o, liczba: Math.max(0, (+o.liczba || 0) - (s[i] || 0)) })).filter(o => o.liczba > 0); }
-      if (pol.length) { if (pol.includes(a.dowodca)) a.dowodca = ""; a.bohaterowie = (a.bohaterowie || []).filter(h => !pol.includes(h)); }
     }
-    for (const h of stan.bohaterowie) if (pol.includes(h.id)) Object.assign(h, { status: "martwy", misja: "" });
+    const skutki = skutkiBitwy(id, strony, zw, los, losB, form.zdobywa.checked);
+    if (skutki.opis.length) wpiszKronike("wynik", `Po bitwie — ${p ? nazwaProwincji(p) : "?"}: ${skutki.opis.join("; ")}`, [...new Set(Object.values(b.wl || {}))]);
+    raport.koniec = { ...b.koniec, straty: st, polegli: Object.keys(losB).filter(h => losB[h] === "polegl"), bohaterowie: losB, los: skutki.los };
     stan.frakcje.forEach(statusyArmii);
     odswiezRaporty(); (stan.raportyBitew ??= {})[id] = raport;
     zapisz(stan); pokazOsadyNaMapie(); oknoBitwy.close();
     if (widok && stan.frakcje.some(f => f.id === widok)) wybierz(widok, true);
   };
   oknoBitwy.showModal();
+}
+// skutki bitwy (7.1i): los armii („auto” = przegrana cofa się, pozostałe zostają), bohaterów i ewentualne zdobycie prowincji;
+// zwraca { los: {idArmii: opis}, opis: [zdania do kroniki] }
+const LOSY = { auto: "przegrana: odwrót, wygrana: dalej", zostaje: "zostaje na miejscu", odwrot: "odwrót", rozbita: "rozbita (znika)", poddana: "poddana (bohaterowie w niewoli)" };
+function skutkiBitwy(id, strony, zw, los, losB, zdobywa) {
+  const b = stan.bitwy[id], p = PROWINCJE[NR_PROWINCJI.get(b.p) - 1], wynik = { los: {}, opis: [] };
+  const stronaArmii = aid => strony.findIndex(st => st.armie?.some(a => a.id === aid));
+  const zwyciezca = s => zw >= 0 && zw !== s ? strony[zw] : strony.find((_, i) => i !== s);   // do kogo idą jeńcy tej strony
+  const armiaBohatera = h => stan.frakcje.flatMap(f => (f.armie || []).map(a => [f, a])).find(([, a]) => wArmii(a).includes(h));
+  for (const [h, l] of Object.entries(losB)) {   // bohaterowie
+    const boh = stan.bohaterowie.find(x => x.id === h), fa = armiaBohatera(h); if (!boh) continue;
+    if (l === "ranny") { Object.assign(boh, { status: "ranny", misja: "" }); wynik.opis.push(`${boh.imie} ranny`); continue; }
+    if (fa) { const [, a] = fa; if (a.dowodca === h) a.dowodca = ""; a.bohaterowie = (a.bohaterowie || []).filter(x => x !== h); }
+    if (l === "polegl") { Object.assign(boh, { status: "martwy", misja: "" }); wynik.opis.push(`${boh.imie} poległ`); }
+    if (l === "niewola") { const u = zwyciezca(stronaArmii(fa?.[1].id))?.nazwa || "?"; Object.assign(boh, { status: "niewola", misja: u }); wynik.opis.push(`${boh.imie} w niewoli u: ${u}`); }
+  }
+  for (const f of stan.frakcje) for (const a of [...(f.armie || [])]) {   // armie
+    if (!b.armie.includes(a.id)) continue;
+    const s = stronaArmii(a.id), przegrana = zw >= 0 && s !== zw, l = los[a.id] === "auto" || !los[a.id] ? (przegrana ? "odwrot" : "zostaje") : los[a.id];
+    if (l === "odwrot") {
+      const q = odwrot(f, a); wynik.los[a.id] = q ? `odwrót → ${nazwaProwincji(q)}` : "odwrót niemożliwy — zostaje";
+      wynik.opis.push(`${a.nazwa} (${f.nazwa}) ${q ? `cofa się do: ${nazwaProwincji(q)}` : "nie ma dokąd się cofnąć"}`);
+    } else if (l === "rozbita" || l === "poddana") {
+      if (l === "poddana") { const u = zwyciezca(s)?.nazwa || "?"; for (const h of wArmii(a)) { const boh = stan.bohaterowie.find(x => x.id === h); if (boh) Object.assign(boh, { status: "niewola", misja: u }); } }
+      f.armie.splice(f.armie.indexOf(a), 1); delete stan.pozycjeArmii[a.id];
+      wynik.los[a.id] = l === "rozbita" ? "rozbita" : "poddała się"; wynik.opis.push(`${a.nazwa} (${f.nazwa}) ${l === "rozbita" ? "rozbita" : "poddała się — bohaterowie w niewoli"}`);
+    } else if (przegrana) wynik.los[a.id] = "zostaje na miejscu";
+  }
+  const nowy = zw >= 0 && strony[zw].wl;   // zdobycie prowincji (frakcja zwycięzcy)
+  if (zdobywa && p && nowy && stan.prowincje?.[p.id]?.wlasciciel !== nowy) { ustawProwincje(p, { ...stan.prowincje?.[p.id], wlasciciel: nowy }); wynik.opis.push(`${strony[zw].nazwa} zdobywa prowincję`); }
+  return wynik;
+}
+// odwrót: do sąsiedniej prowincji (przejściem dozwolonym dla frakcji), z której najbliżej do własnych ziem; cel armii skasowany
+function odwrot(f, a) {
+  const poz = stan.pozycjeArmii[a.id], start = NR_PROWINCJI.get(poz?.p); if (!start) return null;
+  const moje = PROWINCJE.flatMap((q, i) => stan.prowincje?.[q.id]?.wlasciciel === f.id ? [i + 1] : []), odl = new Map(moje.map(i => [i, 0])), kolejka = [...moje];
+  for (let k = 0; k < kolejka.length; k++) { const i = kolejka[k], q = PROWINCJE[i - 1];
+    for (const [j, t] of q.sasiedzi) if (!odl.has(j) && przechodzi(f, typGranicy(q, j, t))) { odl.set(j, odl.get(i) + 1); kolejka.push(j); } }
+  const P = PROWINCJE[start - 1], opcje = P.sasiedzi.filter(([j, t]) => przechodzi(f, typGranicy(P, j, t))).sort((x, y) => (odl.get(x[0]) ?? 1e9) - (odl.get(y[0]) ?? 1e9));
+  if (!opcje.length) return null;
+  const q = PROWINCJE[opcje[0][0] - 1]; stan.pozycjeArmii[a.id] = { ...poz, p: q.id, o: -1 }; delete a.cel; a.przebyte = []; return q;
 }
 // uczestnik dostaje ekran nowej bitwy raz, sam, po wejściu (zapamiętane w tej przeglądarce)
 function pokazNoweBitwy() {
@@ -758,7 +886,7 @@ function pokazNoweBitwy() {
   pokazBitwe(nowa[0]);
 }
 // szlaki handlowe i linie traktatów na mapie (7.5): między stolicami stron (bez stolicy — środek pierwszej prowincji kraju)
-// szlak = umowa handlowa: najkrótsza droga lądem po prowincjach (bez gór, rzeki wolno), a gdy lądem się nie da — prosto przez morze
+// szlak = umowa handlowa: droga lądem po prowincjach (bez gór, rzeki wolno), a gdy lądem się nie da — prosto przez morze
 const KOLORY_TRAKTATOW = { sojusz: "#3fa34d", pakt: "#4a7bd0", wasalstwo: "#9a5ad0", przejscie: "#8a8a8a", inny: "#e8e0c8" };
 let warstwy = { szlaki: true, sojusze: false };
 try { warstwy = { ...warstwy, ...JSON.parse(localStorage.getItem("frp-warstwy") || "{}") }; } catch {}
@@ -766,26 +894,77 @@ function miejsceKraju(wl) {
   const s = stolicaWl(wl); if (s) return { p: s.p.id, o: s.k };
   const p = PROWINCJE.find(q => stan.prowincje?.[q.id]?.wlasciciel === wl); return p && { p: p.id, o: -1 };
 }
-const szlakiCache = new Map();   // klucz: miejsca + typy granic → punkty (BFS po ~900 prowincjach przy każdym odświeżeniu byłby zbędny)
-function szlak(a, b) {
-  const A = miejsceKraju(a), B = miejsceKraju(b); if (!A || !B) return null;
-  const klucz = JSON.stringify([A, B, Object.values(stan.prowincje || {}).map(d => [d.granice, d.mosty])]);
-  if (!szlakiCache.has(klucz)) {
-    const tr = wyznaczTrase(null, A, B, t => t !== "góry");
-    szlakiCache.set(klucz, tr ? { styl: "lad", punkty: [A, ...tr].map(punktMiejsca).filter(Boolean) } : { styl: "morze", punkty: [punktMiejsca(A), punktMiejsca(B)].filter(Boolean) });
-    if (szlakiCache.size > 200) szlakiCache.delete(szlakiCache.keys().next().value);
+// szlaki handlowe razem (2026-10-19, prośba użytkownika): kolejne szlaki wolą drogi już użyte przez wcześniejsze (użyta granica kosztuje 0.4
+// zamiast 1), więc szlaki w podobnym kierunku biegną wspólnym pniem i rozgałęziają się bliżej celów; wspólny odcinek rysowany raz
+let szlakiPamiec = { klucz: "", linie: [] };
+// odcinki [[p, q]] → ciągłe łamane (przerwane tylko w rozgałęzieniach i na końcach), żeby wygładzanie nie zostawiało kątów między odcinkami
+function lancuchy(odc) {
+  const k = p => p.join(","), pkt = new Map(), sas = new Map(), uzyte = new Set(), kr = (a, b) => a < b ? a + "|" + b : b + "|" + a, wynik = [];
+  for (const [p, q] of odc) for (const [a, b] of [[p, q], [q, p]]) { pkt.set(k(a), a); if (!sas.has(k(a))) sas.set(k(a), []); sas.get(k(a)).push(k(b)); }
+  const idz = (a, b) => {
+    const l = [a, b]; uzyte.add(kr(a, b));
+    for (let n; sas.get(b).length === 2 && (n = sas.get(b).find(x => !uzyte.has(kr(b, x)))); b = n) { uzyte.add(kr(b, n)); l.push(n); }
+    return l;
+  };
+  for (const tylkoWezly of [true, false]) for (const [a, l] of sas) if (!tylkoWezly || l.length !== 2) for (const b of l) if (!uzyte.has(kr(a, b))) wynik.push(idz(a, b));   // potem pętle
+  return wynik.map(l => l.map(x => pkt.get(x)));
+}
+function szlakiHandlowe(pary) {
+  const miejsca = pary.map(([a, b]) => [miejsceKraju(a), miejsceKraju(b)]).filter(([A, B]) => A && B).sort((x, y) => JSON.stringify(x) < JSON.stringify(y) ? -1 : 1);
+  const klucz = JSON.stringify([miejsca, Object.values(stan.prowincje || {}).map(d => [d.granice, d.mosty])]);
+  if (klucz === szlakiPamiec.klucz) return szlakiPamiec.linie;
+  const uzyte = new Set(), odcinki = new Map(), morskie = [], kraw = (i, j) => i < j ? `${i}-${j}` : `${j}-${i}`;
+  for (const [A, B] of miejsca) {
+    const s0 = NR_PROWINCJI.get(A.p), k0 = NR_PROWINCJI.get(B.p);
+    const koszt = new Map([[s0, 0]]), skad = new Map(), gotowe = new Set();   // Dijkstra po ~900 prowincjach (bez gór, rzeki wolno)
+    while (true) {
+      let i = 0, m = Infinity; for (const [j, c] of koszt) if (!gotowe.has(j) && c < m) { m = c; i = j; }
+      if (!i || i === k0) break; gotowe.add(i);
+      const q = PROWINCJE[i - 1];
+      for (const [j, t] of q.sasiedzi) { if (typGranicy(q, j, t) === "góry") continue;
+        const c = m + (uzyte.has(kraw(i, j)) ? 0.4 : 1); if (c < (koszt.get(j) ?? Infinity)) { koszt.set(j, c); skad.set(j, i); } }
+    }
+    if (s0 !== k0 && !skad.has(k0)) { morskie.push({ styl: "morze", kolor: "#e0a92a", punkty: [punktMiejsca(A), punktMiejsca(B)].filter(Boolean) }); continue; }
+    const droga = [s0]; for (let i = k0; i !== s0; i = skad.get(i)) droga.splice(1, 0, i);
+    const pkt = [punktMiejsca(A), ...droga.slice(1).map(i => punktMiejsca({ p: PROWINCJE[i - 1].id, o: -1 }))];
+    if (B.o >= 0) pkt[pkt.length - 1 + (s0 === k0 ? 1 : 0)] = punktMiejsca(B);   // koniec w osadzie celu (stolicy)
+    droga.forEach((i, n) => n && uzyte.add(kraw(droga[n - 1], i)));
+    for (let n = 1; n < pkt.length; n++) { const [x, y] = [pkt[n - 1], pkt[n]], k = [x, y].map(v => v.join(",")).sort().join("|");
+      if (x && y && !odcinki.has(k)) odcinki.set(k, [x, y]); }
   }
-  return szlakiCache.get(klucz);
+  szlakiPamiec = { klucz, linie: [...lancuchy([...odcinki.values()]).map(p => ({ styl: "lad", kolor: "#e0a92a", punkty: krzywa(p) })), ...morskie] };
+  return szlakiPamiec.linie;
 }
 function liniaTraktatowNaMapie() {
   const pary = t => t.strony.flatMap((a, i) => t.strony.slice(i + 1).map(b => [a, b]));
-  return aktywneTraktaty().flatMap(([, t]) => {
-    if (t.typ === "handel") return warstwy.szlaki ? pary(t).map(([a, b]) => szlak(a, b)).filter(Boolean).map(s => ({ ...s, kolor: "#e0a92a" })) : [];
-    if (t.typ === "pokoj" || !warstwy.sojusze) return [];
+  const handel = warstwy.szlaki ? szlakiHandlowe(aktywneTraktaty().filter(([, t]) => t.typ === "handel").flatMap(([, t]) => pary(t))) : [];
+  return handel.concat(aktywneTraktaty().flatMap(([, t]) => {
+    if (t.typ === "handel" || t.typ === "pokoj" || !warstwy.sojusze) return [];
     return pary(t).map(([a, b]) => [miejsceKraju(a), miejsceKraju(b)]).filter(([x, y]) => x && y)
       .map(([x, y]) => ({ styl: "sojusz", kolor: KOLORY_TRAKTATOW[t.typ] || "#e8e0c8", punkty: [punktMiejsca(x), punktMiejsca(y)] }));
-  });
+  }));
 }
+// wyszukiwarka (2026-10-19): numer albo nazwa prowincji, właściciel, nazwa osady, nazwa akwenu → podpowiedzi (datalist); wybór albo Enter
+// przybliża mapę i otwiera kartę. Lista budowana przy wejściu w pole (nazwy mogą się zmieniać).
+const szukaj = document.getElementById("szukaj"), listaSzukaj = document.getElementById("lista-szukaj");
+let celeSzukania = new Map();
+szukaj.onfocus = () => {
+  celeSzukania = new Map();
+  PROWINCJE.forEach((p, k) => {
+    const d = stan.prowincje?.[p.id], wl = wlascicielPo(d?.wlasciciel)?.nazwa;
+    celeSzukania.set(`${nazwaProwincji(p)}${d?.nazwa ? ` (${p.id})` : ""}${wl ? ` — ${wl}` : ""}`, () => { pokazProwincje(k + 1); mapa.pokaz(p.x, p.y, 0.6); });
+    osadyProwincji(p).forEach(o => o.nazwa && celeSzukania.set(`${o.nazwa} — ${NAZWY_TYPOW[o.typ].toLowerCase()}, ${nazwaProwincji(p)}`, () => { pokazProwincje(k + 1); mapa.pokaz(o.x, o.y, 1.2); }));
+  });
+  AKWENY.forEach((a, k) => celeSzukania.set(`${nazwaAkwenu(a)} — ${a.typ === "jezioro" ? "jezioro" : "akwen morski"}`, () => { pokazAkwen(k + 1); mapa.pokaz(a.x, a.y, 0.6); }));
+  listaSzukaj.replaceChildren(...[...celeSzukania.keys()].map(t => Object.assign(document.createElement("option"), { value: t })));
+};
+function idzDo(dokladnie) {
+  const t = szukaj.value.trim(), m = t.toLowerCase(); if (!t) return;
+  const cel = celeSzukania.get(t) || (!dokladnie && [...celeSzukania].find(([k]) => k.toLowerCase().includes(m))?.[1]);
+  if (cel) { cel(); szukaj.value = ""; szukaj.blur(); }
+}
+szukaj.oninput = () => idzDo(true);   // wybrana podpowiedź = dokładna wartość
+szukaj.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); idzDo(false); } else if (e.key === "Escape") { szukaj.value = ""; szukaj.blur(); } };
 const przyciskiWarstw = document.getElementById("warstwy-mapy");
 function pokazPrzyciskiWarstw() {
   przyciskiWarstw.innerHTML = [["szlaki", "💰 Szlaki"], ["sojusze", "🤝 Sojusze"]].map(([k, n]) =>
@@ -823,11 +1002,12 @@ function polozenieArmii(id) {
   return `${nazwaProwincji(p)} — ${o ? NAZWY_TYPOW[o.typ].toLowerCase() + (o.nazwa ? ` ${o.nazwa}` : "") : "w polu"}`;
 }
 // bohater w armii ma status „na misji — z armią”; wyjęty z armii (albo po rozwiązaniu) wraca do stolicy
-function statusyArmii(f) {
-  const w = new Set((f.armie || []).flatMap(wArmii));
+function statusyArmii(f) {   // też floty (7.8c): „na misji — z flotą”
+  const wA = new Set((f.armie || []).flatMap(wArmii)), wF = new Set((f.floty || []).flatMap(wArmii));
   for (const h of stan.bohaterowie) if (h.frakcja === f.id && !h._brak) {
-    if (w.has(h.id)) { if (h.status !== "martwy") Object.assign(h, { status: "misja", misja: "z armią" }); }
-    else if (h.status === "misja" && h.misja === "z armią") Object.assign(h, { status: "stolica", misja: "" });
+    const misja = wA.has(h.id) ? "z armią" : wF.has(h.id) ? "z flotą" : "";
+    if (misja) { if (!["martwy", "ranny", "niewola"].includes(h.status)) Object.assign(h, { status: "misja", misja }); }   // ranny zostaje w armii ranny
+    else if (h.status === "misja" && ["z armią", "z flotą"].includes(h.misja)) Object.assign(h, { status: "stolica", misja: "" });
   }
 }
 // nowa armia staje w stolicy frakcji, a bez stolicy — w polu pierwszej prowincji frakcji
@@ -840,7 +1020,7 @@ function armie(f) {
     const n = Object.values(stan.pozycjeArmii || {}).filter(x => x.f === f.id).length;
     return n || bitwyFrakcji(f) ? `<section class="armie"><h3>Armie</h3><p>Armii na mapie: ${n}.</p>${kłódka}${bitwyFrakcji(f)}</section>` : "";
   }
-  const lista = f.armie ??= [], bohF = stan.bohaterowie.filter(h => h.frakcja === f.id && h.status !== "martwy");
+  const lista = f.armie ??= [], bohF = stan.bohaterowie.filter(h => h.frakcja === f.id && !["martwy", "niewola"].includes(h.status));
   const karta = a => {
     const n = liczebnosc(a), dow = a.dowodca ? nazwaBohatera(a.dowodca) : a.pospolity ? `${a.pospolity} (pospolity dowódca)` : "";
     const inni = (a.bohaterowie || []).filter(id => id !== a.dowodca).map(nazwaBohatera);
@@ -851,9 +1031,9 @@ function armie(f) {
     const proponowany = propozycje.find(p => p.cel === "ruch" && p.celId === a.id && p.status === "czeka");
     if (!gm) return `<li><h4>${esc(a.nazwa)}</h4>${opis}${bitwaArmii(a.id) ? `<p><button type="button" class="cofnij" data-ekran-bitwy="${esc(bitwaArmii(a.id)[0])}">Ekran bitwy</button></p>`
       : CHMURA && moja(f) ? `<p>${proponowany ? `<small>Proponowany cel: ${esc(opisCelu({ cel: proponowany.zmiany.cel }))} — czeka na GM</small><br>` : ""}<button type="button" class="cofnij" data-prop-cel="${esc(a.id)}">Zaproponuj cel</button> <span class="opis-sekcji komunikat-armii"></span></p>` : ""}${(a.oddzialy || []).length ? `<ul class="podsumowanie">${a.oddzialy.map(o => `<li><span>${esc(o.jednostka)}</span><span>${+o.liczba || 0}</span></li>`).join("")}</ul>` : ""}</li>`;
-    const zajeci = new Set(lista.filter(x => x !== a).flatMap(wArmii));
+    const zajeci = new Set([...lista.filter(x => x !== a), ...(f.floty || [])].flatMap(wArmii));
     const wolni = bohF.filter(h => !zajeci.has(h.id));
-    const jedn = f.jednostki || [];
+    const jedn = (f.jednostki || []).filter(j => !j.morska);   // okręty są we flotach (7.8c), nie w armiach
     const opcjeJ = v => jedn.map(j => `<option${j.nazwa === v ? " selected" : ""}>${esc(j.nazwa)}</option>`).join("") + (v && !jedn.some(j => j.nazwa === v) ? `<option selected>${esc(v)}</option>` : "");
     return `<li><form class="armia" data-a="${esc(a.id)}">
       <label>Nazwa <input name="nazwa" maxlength="60" value="${esc(a.nazwa)}"></label>
@@ -869,8 +1049,8 @@ function armie(f) {
     ${lista.length ? `<ul class="lista-armii">${lista.map(karta).join("")}</ul>` : `<p class="puste">Brak armii.</p>`}
     ${bitwyFrakcji(f)}
     ${gm ? `<p><button type="button" class="dodaj" data-nowa-armia>+ Armia</button> <span class="opis-sekcji komunikat-armii"></span></p>` : ""}
-    ${gm ? `<fieldset class="przejscia"><legend>Umiejętności ruchu armii</legend>${Object.entries(PRZEJSCIA).map(([k, n]) => `<label><input type="checkbox" data-przejscie="${k}"${f.przejscia?.[k] ? " checked" : ""}> ${n}</label>`).join("")}</fieldset>`
-      : Object.keys(PRZEJSCIA).some(k => f.przejscia?.[k]) ? `<p class="opis-sekcji">Armie przechodzą ${Object.entries(PRZEJSCIA).filter(([k]) => f.przejscia?.[k]).map(([, n]) => n).join(" i ")}.</p>` : ""}</section>`;
+    ${gm ? `<fieldset class="przejscia"><legend>Umiejętności ruchu</legend>${Object.entries(PRZEJSCIA).map(([k, n]) => `<label><input type="checkbox" data-przejscie="${k}"${f.przejscia?.[k] ? " checked" : ""}> ${n}</label>`).join("")}</fieldset>`
+      : Object.keys(PRZEJSCIA).some(k => f.przejscia?.[k]) ? `<p class="opis-sekcji">Umiejętności ruchu: ${Object.entries(PRZEJSCIA).filter(([k]) => f.przejscia?.[k]).map(([, n]) => n).join(", ")}.</p>` : ""}</section>`;
 }
 function podepnijArmie(f) {
   glowny.querySelectorAll("li > p > [data-ekran-bitwy]").forEach(b => b.onclick = () => pokazBitwe(b.dataset.ekranBitwy));
@@ -889,7 +1069,7 @@ function podepnijArmie(f) {
     (stan.pozycjeArmii ??= {})[id] = poz; zapiszA();
   };
   glowny.querySelectorAll("[data-przejscie]").forEach(b => b.onchange = () => { f.przejscia = { ...f.przejscia, [b.dataset.przejscie]: b.checked }; zapiszA(); });
-  glowny.querySelectorAll("form.armia").forEach(form => {
+  glowny.querySelectorAll("form.armia[data-a]").forEach(form => {
     const a = f.armie.find(x => x.id === form.dataset.a);
     const odczyt = () => {
       const d = new FormData(form), j = d.getAll("j"), n = d.getAll("n");
@@ -899,7 +1079,7 @@ function podepnijArmie(f) {
     };
     form.onchange = () => { odczyt(); zapiszA(); };
     form.onsubmit = e => e.preventDefault();
-    form.querySelector("[data-dodaj-oddzial]")?.addEventListener("click", () => { odczyt(); a.oddzialy.push({ jednostka: f.jednostki[0].nazwa, liczba: 0 }); zapiszA(); });
+    form.querySelector("[data-dodaj-oddzial]")?.addEventListener("click", () => { odczyt(); a.oddzialy.push({ jednostka: f.jednostki.find(j => !j.morska).nazwa, liczba: 0 }); zapiszA(); });
     form.querySelectorAll("[data-usun-oddzial]").forEach(b => b.onclick = () => { odczyt(); a.oddzialy.splice(+b.dataset.usunOddzial, 1); zapiszA(); });
     form.querySelector("[data-cel]").onclick = () => {
       celowanie = { f, a }; mapa.kursor(true);
@@ -920,6 +1100,132 @@ function podepnijArmie(f) {
       f.armie.splice(f.armie.indexOf(a), 1); delete stan.pozycjeArmii?.[a.id];
       for (const [id, b] of aktywneBitwy()) { b.armie = b.armie.filter(x => x !== a.id); if (b.armie.length < 2) delete stan.bitwy[id]; }   // bez przeciwnika bitwa się kończy
       zapiszA();
+    };
+  });
+}
+// floty (7.8c): f.floty = [{ id, nazwa, dowodca, pospolity, bohaterowie, oddzialy: [{ jednostka (okręt), liczba }], pojemnosc? }] (tajne jak armie);
+// pozycja w stan.pozycjeFlot[id] = { f, a: nr akwenu } — jawna. Pojemność: wpisana przez GM albo suma z okrętów (liczba × pojemność typu); brak = bez limitu.
+// Floty nie rozwiązują się same (użytkownik: jest ich mało — próg 100 żołnierzy tylko dla armii lądowych); usuwa je GM przyciskiem.
+function pojemnoscFloty(f, fl) {
+  if (fl.pojemnosc > 0) return { ile: fl.pojemnosc, skad: "wpisana przez GM" };
+  const typy = f.jednostki || [], z = (fl.oddzialy || []).map(o => (+o.liczba || 0) * (typy.find(j => j.nazwa === o.jednostka)?.pojemnosc || 0));
+  return z.some(Boolean) ? { ile: z.reduce((s, v) => s + v, 0), skad: "z okrętów" } : null;
+}
+// nowa flota: akwen przy stolicy, a bez stolicy (albo stolicy w głębi lądu) — przy pierwszej nadmorskiej prowincji frakcji; morze przed jeziorem
+function akwenStartu(f) {
+  const s = stolicaWl(f.id), moje = PROWINCJE.flatMap((q, i) => stan.prowincje?.[q.id]?.wlasciciel === f.id ? [i + 1] : []);
+  for (const zbior of [s ? [NR_PROWINCJI.get(s.p.id)] : [], moje]) for (const typ of ["morze", "jezioro"]) {
+    const k = AKWENY.findIndex(a => a.typ === typ && a.brzeg.some(i => zbior.includes(i))); if (k >= 0) return k + 1;
+  }
+  return 0;
+}
+const nazwaAkwenuNr = nr => AKWENY[nr - 1] ? nazwaAkwenu(AKWENY[nr - 1]) : "nieznane";
+const punktAkwenu = nr => [AKWENY[nr - 1].x, AKWENY[nr - 1].y];
+// linia trasy floty po wodzie (mapa.drogaWodna) przez kolejne akweny; zapamiętana na stałe (akweny się nie zmieniają)
+// shortcut: gdy drogi wodnej nie ma (połączenie rzeką — rzeka nie jest akwenem) albo mapa jeszcze się wczytuje, rysuje proste między środkami
+const drogiFlot = new Map();
+function liniaFloty(akw) {
+  if (akw.length < 2) return akw.map(punktAkwenu);
+  const k = akw.join(","); if (drogiFlot.has(k)) return drogiFlot.get(k);
+  const d = mapa.drogaWodna(akw.map(n => NP + n), punktAkwenu(akw[0]), punktAkwenu(akw.at(-1)));
+  if (d) drogiFlot.set(k, d);
+  return d || akw.map(punktAkwenu);
+}
+// ruch floty (7.8d): fl.cel = nr akwenu, fl.przebyte = [nr akwenu] (tajne jak trasa armii); trasa po sąsiednich akwenach (BFS),
+// jezioro i połączenie rzeczne tylko z żeglugą śródlądową (f.przejscia.zegluga). → lista akwenów bez startu albo null (brak drogi)
+function trasaFloty(f, fl, cel = fl.cel) {
+  const s = stan.pozycjeFlot?.[fl.id]?.a; if (!s || !AKWENY[cel - 1]) return null;
+  const skad = new Map([[s, 0]]), kolejka = [s];
+  for (let n = 0; n < kolejka.length && !skad.has(cel); n++) for (const [j, t] of AKWENY[kolejka[n] - 1].sasiedzi)
+    if (!skad.has(j) && (f.przejscia?.zegluga || (t === "morze" && AKWENY[j - 1].typ === "morze"))) { skad.set(j, kolejka[n]); kolejka.push(j); }
+  if (!skad.has(cel)) return null;
+  const droga = []; for (let i = cel; i !== s; i = skad.get(i)) droga.unshift(i);
+  return droga;
+}
+let celowanieFloty = null;   // { f, fl, tryb: "przestaw" | "cel" | "propozycja" } — klik w akwen
+const NAZWY_CELOWANIA = { przestaw: "Przestaw", cel: "Wyznacz cel", propozycja: "Zaproponuj cel" };
+function przestawFlote(i) {
+  const { f, fl, tryb } = celowanieFloty; celowanieFloty = null; mapa.kursor(false); wybierz(f.id, true);
+  if (i <= NP) return napisz(".komunikat-floty", `Flota pływa po wodzie — kliknij morze albo jezioro (jeszcze raz „${NAZWY_CELOWANIA[tryb]}”).`);
+  const a = i - NP;
+  if (tryb === "propozycja") return wyslijPropozycje({ frakcja: f.id, cel: "rejs", celId: fl.id, nazwa: `${fl.nazwa} → ${nazwaAkwenuNr(a)}`, zmiany: { cel: a }, przed: { cel: fl.cel || null } });
+  if (tryb === "cel") fl.cel = a; else stan.pozycjeFlot[fl.id] = { ...stan.pozycjeFlot[fl.id], a };
+  fl.przebyte = []; zapisz(stan); pokazOsadyNaMapie(); wybierz(f.id, true);
+}
+addEventListener("keydown", e => { if (e.key === "Escape" && celowanieFloty) { const { f } = celowanieFloty; celowanieFloty = null; mapa.kursor(false); wybierz(f.id, true); } });
+function floty(f) {
+  if (tajne(f, "armie")) {
+    const n = Object.values(stan.pozycjeFlot || {}).filter(x => x.f === f.id).length;
+    return n ? `<section class="floty"><h3>Floty</h3><p>Flot na wodzie: ${n}.</p>${kłódka}</section>` : "";
+  }
+  const lista = f.floty ??= [], okrety = (f.jednostki || []).filter(j => j.morska);
+  if (!lista.length && !gm) return "";
+  const bohF = stan.bohaterowie.filter(h => h.frakcja === f.id && !["martwy", "niewola"].includes(h.status));
+  const karta = fl => {
+    const n = liczebnosc(fl), dow = fl.dowodca ? nazwaBohatera(fl.dowodca) : fl.pospolity ? `${fl.pospolity} (pospolity dowódca)` : "";
+    const inni = (fl.bohaterowie || []).filter(id => id !== fl.dowodca).map(nazwaBohatera), poj = pojemnoscFloty(f, fl);
+    const opis = `<p class="armia-info">${dow ? `Dowódca: <b>${esc(dow)}</b>` : `<b class="ostrzezenie">Brak dowódcy!</b>`}${inni.length ? ` · bohaterowie: ${esc(inni.join(", "))}` : ""}<br>
+      ${n} ${odmiana(n, "okręt", "okręty", "okrętów")} · ${esc(nazwaAkwenuNr(stan.pozycjeFlot?.[fl.id]?.a))}<br>
+      Mieści: ${poj ? `<b>${poj.ile}</b> ${odmiana(poj.ile, "żołnierza", "żołnierzy", "żołnierzy")} (${poj.skad})` : "bez limitu"}
+      ${fl.cel ? (() => { const tr = trasaFloty(f, fl); return `<br>Cel: ${esc(nazwaAkwenuNr(fl.cel))} — ${tr ? zaIle(tr.length) : `<b class="ostrzezenie">brak drogi (jezioro albo rzeka — potrzebna żegluga śródlądowa)</b>`}`; })() : ""}</p>`;
+    const proponowany = propozycje.find(p => p.cel === "rejs" && p.celId === fl.id && p.status === "czeka");
+    if (!gm) return `<li><h4>${esc(fl.nazwa)}</h4>${opis}${CHMURA && moja(f) ? `<p>${proponowany ? `<small>Proponowany cel: ${esc(nazwaAkwenuNr(proponowany.zmiany.cel))} — czeka na GM</small><br>` : ""}<button type="button" class="cofnij" data-prop-cel-floty="${esc(fl.id)}">Zaproponuj cel</button> <span class="opis-sekcji komunikat-floty"></span></p>` : ""}${(fl.oddzialy || []).length ? `<ul class="podsumowanie">${fl.oddzialy.map(o => `<li><span>${esc(o.jednostka)}</span><span>${+o.liczba || 0}</span></li>`).join("")}</ul>` : ""}</li>`;
+    const zajeci = new Set([...(f.armie || []), ...lista.filter(x => x !== fl)].flatMap(wArmii)), wolni = bohF.filter(h => !zajeci.has(h.id));
+    const opcjeJ = v => okrety.map(j => `<option${j.nazwa === v ? " selected" : ""}>${esc(j.nazwa)}</option>`).join("") + (v && !okrety.some(j => j.nazwa === v) ? `<option selected>${esc(v)}</option>` : "");
+    return `<li><form class="armia flota" data-fl="${esc(fl.id)}">
+      <label>Nazwa <input name="nazwa" maxlength="60" value="${esc(fl.nazwa)}"></label>
+      <label>Dowódca <select name="dowodca"><option value="">— pospolity dowódca —</option>${wolni.map(h => `<option value="${esc(h.id)}"${h.id === fl.dowodca ? " selected" : ""}>${esc(h.imie)}</option>`).join("")}</select></label>
+      <label${fl.dowodca ? " hidden" : ""}>Imię pospolitego dowódcy <input name="pospolity" maxlength="60" value="${esc(fl.pospolity || "")}"></label>
+      ${wolni.length ? `<fieldset class="bohaterowie-armii"><legend>Bohaterowie we flocie</legend>${wolni.map(h => `<label><input type="checkbox" name="b" value="${esc(h.id)}"${(fl.bohaterowie || []).includes(h.id) || h.id === fl.dowodca ? " checked" : ""}${h.id === fl.dowodca ? " disabled" : ""}> ${esc(h.imie)}</label>`).join("")}</fieldset>` : ""}
+      <fieldset class="oddzialy"><legend>Okręty</legend>
+        ${(fl.oddzialy || []).map((o, k) => `<div class="oddzial"><select name="j" aria-label="Okręt">${opcjeJ(o.jednostka)}</select><input name="n" inputmode="numeric" value="${+o.liczba || 0}" aria-label="Liczba okrętów"><button type="button" class="usun" data-usun-oddzial="${k}" aria-label="Usuń okręty">×</button></div>`).join("")}
+        ${okrety.length ? `<button type="button" class="cofnij" data-dodaj-oddzial>+ Okręty</button>` : `<p class="puste">Najpierw dodaj okręty w sekcji Jednostki (zaznacz „okręt”).</p>`}</fieldset>
+      <label>Mieści żołnierzy <input name="pojemnosc" inputmode="numeric" value="${fl.pojemnosc ?? ""}" placeholder="puste = z okrętów"></label>
+      ${opis}<p class="przyciski-armii"><button type="button" class="cofnij" data-cel>Wyznacz cel</button>${fl.cel ? ` <button type="button" class="cofnij" data-bez-celu>Usuń cel</button>` : ""} <button type="button" class="cofnij" data-przestaw>Przestaw</button> <button type="button" class="cofnij" data-rozwiaz>Rozwiąż flotę</button></p></form></li>`;
+  };
+  return `<section class="floty"><h3>Floty${znacznik(f, "armie")}</h3>
+    ${lista.length ? `<ul class="lista-armii">${lista.map(karta).join("")}</ul>` : `<p class="puste">Brak flot.</p>`}
+    ${gm ? `<p><button type="button" class="dodaj" data-nowa-flota>+ Flota</button> <span class="opis-sekcji komunikat-floty"></span></p>` : ""}</section>`;
+}
+function podepnijFloty(f) {
+  glowny.querySelectorAll("[data-prop-cel-floty]").forEach(b => b.onclick = () => {   // gracz: cel idzie do GM jako propozycja (jak 7.14)
+    celowanieFloty = { f, fl: f.floty.find(x => x.id === b.dataset.propCelFloty), tryb: "propozycja" }; mapa.kursor(true);
+    b.nextElementSibling.textContent = `${celowanieFloty.fl.nazwa}: kliknij na mapie akwen, do którego ma płynąć. Esc — anuluj.`;
+  });
+  if (!gm || tajne(f, "armie")) return;
+  const zapiszF = () => { statusyArmii(f); zapisz(stan); wybierz(f.id, true); pokazOsadyNaMapie(); };
+  glowny.querySelector("[data-nowa-flota]")?.addEventListener("click", () => {
+    const a = akwenStartu(f);
+    if (!a) return napisz(".komunikat-floty", "Frakcja nie ma nadmorskiej prowincji — flota nie ma gdzie stanąć.");
+    const id = "f" + Date.now().toString(36);
+    (f.floty ??= []).push({ id, nazwa: `${f.floty.length + 1}. flota`, dowodca: "", pospolity: "", bohaterowie: [], oddzialy: [] });
+    (stan.pozycjeFlot ??= {})[id] = { f: f.id, a }; zapiszF();
+  });
+  glowny.querySelectorAll("form.armia[data-fl]").forEach(form => {
+    const fl = f.floty.find(x => x.id === form.dataset.fl);
+    const odczyt = () => {
+      const d = new FormData(form), j = d.getAll("j"), n = d.getAll("n"), poj = parseInt(String(d.get("pojemnosc")).replace(/\s/g, ""));
+      fl.nazwa = d.get("nazwa").trim() || fl.nazwa; fl.dowodca = d.get("dowodca"); fl.pospolity = fl.dowodca ? "" : (d.get("pospolity") || "").trim();
+      fl.bohaterowie = d.getAll("b").filter(id => id !== fl.dowodca);
+      fl.oddzialy = j.map((x, k) => ({ jednostka: x, liczba: Math.max(0, parseInt(String(n[k]).replace(/\s/g, "")) || 0) }));
+      if (poj > 0) fl.pojemnosc = poj; else delete fl.pojemnosc;
+    };
+    form.onchange = () => { odczyt(); zapiszF(); };
+    form.onsubmit = e => e.preventDefault();
+    form.querySelector("[data-dodaj-oddzial]")?.addEventListener("click", () => { odczyt(); fl.oddzialy.push({ jednostka: f.jednostki.find(j => j.morska).nazwa, liczba: 0 }); zapiszF(); });
+    form.querySelectorAll("[data-usun-oddzial]").forEach(b => b.onclick = () => { odczyt(); fl.oddzialy.splice(+b.dataset.usunOddzial, 1); zapiszF(); });
+    form.querySelector("[data-przestaw]").onclick = () => {
+      celowanieFloty = { f, fl, tryb: "przestaw" }; mapa.kursor(true);
+      napisz(".komunikat-floty", `${fl.nazwa}: kliknij na mapie akwen (morze albo jezioro), gdzie ją postawić. Ruch nie zużywa tury. Esc — anuluj.`);
+    };
+    form.querySelector("[data-cel]").onclick = () => {
+      celowanieFloty = { f, fl, tryb: "cel" }; mapa.kursor(true);
+      napisz(".komunikat-floty", `${fl.nazwa}: kliknij na mapie akwen, do którego ma płynąć (1 akwen na turę). Esc — anuluj.`);
+    };
+    form.querySelector("[data-bez-celu]")?.addEventListener("click", () => { delete fl.cel; fl.przebyte = []; zapiszF(); });
+    form.querySelector("[data-rozwiaz]").onclick = () => {
+      if (!confirm(`Rozwiązać flotę „${fl.nazwa}”? Bohaterowie wrócą do stolicy.`)) return;
+      f.floty.splice(f.floty.indexOf(fl), 1); delete stan.pozycjeFlot?.[fl.id]; zapiszF();
     };
   });
 }
@@ -958,7 +1264,7 @@ function podepnijTajne(f) {
 // edycja opisów: GM zapisuje od razu, gracz swojego państwa wysyła propozycję do GM (etap 4.4)
 const POLA_FRAKCJI = [["stolica", "Stolica"], ["ustroj", "Ustrój"], ["wladca", "Władca"], ["godlo", "Godło"], ["motto", "Motto"], ["specjalizacja", "Specjalizacja"], ["tereny", "Tereny"]];
 const POLA_BOHATERA = [["tytul", "Tytuł"], ["funkcja", "Funkcja"], ["wiek", "Wiek"], ["bron", "Broń i wierzchowiec"], ["opis", "Opis", "dlugie"]];
-const etykieta = k => [...POLA_FRAKCJI, ...POLA_BOHATERA, ["osada", "Stolica"], ["budynki", "Budynki i złoże"], ["cel", "Cel armii"], ["traktat", "Traktat"], ["zerwij", "Zerwanie traktatu"]].find(([x]) => x === k)?.[1] || (k === "opis" ? "Opis" : k);
+const etykieta = k => [...POLA_FRAKCJI, ...POLA_BOHATERA, ["osada", "Stolica"], ["budynki", "Budynki i złoże"], ["cel", "Cel ruchu"], ["traktat", "Traktat"], ["zerwij", "Zerwanie traktatu"]].find(([x]) => x === k)?.[1] || (k === "opis" ? "Opis" : k);
 const mozeEdytowac = f => gm || (CHMURA && moja(f));
 const sekcjaEdycji = (s = { tytul: "", tekst: "" }) => `<li><input class="tytul-sekcji" maxlength="100" value="${esc(s.tytul)}" placeholder="Tytuł sekcji" aria-label="Tytuł sekcji">
   <button type="button" class="usun" aria-label="Usuń sekcję" title="Usuń sekcję">×</button>
@@ -1013,6 +1319,7 @@ function celPropozycji(p) {
   if (p.cel === "frakcja") return stan.frakcje.find(f => f.id === p.celId);
   if (p.cel === "bohater") return stan.bohaterowie.find(h => h.id === p.celId);
   if (p.cel === "ruch") return armiaPropozycji(p);
+  if (p.cel === "rejs") { const fl = frakcjaPo(p.frakcja)?.floty?.find(x => x.id === p.celId); return fl && stan.pozycjeFlot?.[fl.id] && AKWENY[p.zmiany.cel - 1] ? fl : null; }
   if (p.cel === "traktat") return p.zmiany.traktat.strony.every(w => wlascicielPo(w)) ? p.zmiany.traktat : null;
   if (p.cel === "zerwanie") { const t = stan.traktaty?.[p.celId]; return t && !t.zerwany ? t : null; }
   const pr = PROWINCJE.find(q => q.id === p.celId);
@@ -1025,7 +1332,7 @@ const armiaPropozycji = p => {   // ruch (7.14): armia gracza i cel muszą dalej
 };
 const RODZAJ_PROP = { frakcja: ["państwo", "Tego państwa już nie ma"], bohater: ["bohater", "Tego bohatera już nie ma"],
   stolica: ["stolica", "Ta prowincja albo miasto już nie należy do gracza (albo już jest stolicą)"], budynki: ["budynki", "Ta prowincja już nie należy do gracza"],
-  ruch: ["ruch armii", "Tej armii albo celu już nie ma"], traktat: ["traktat", "Którejś ze stron już nie ma"], zerwanie: ["zerwanie traktatu", "Ten traktat jest już zerwany albo usunięty"] };
+  ruch: ["ruch armii", "Tej armii albo celu już nie ma"], rejs: ["ruch floty", "Tej floty albo akwenu już nie ma"],traktat: ["traktat", "Którejś ze stron już nie ma"], zerwanie: ["zerwanie traktatu", "Ten traktat jest już zerwany albo usunięty"] };
 // traktat (7.15): zgodę dają gracze-frakcje ze stron (poza autorem); za kraje NPC decyduje GM
 const stronyDoZgody = p => p.cel === "traktat" ? (p.strony || []).filter(w => w !== p.frakcja && frakcjaPo(w)) : [];
 const wszyscyZgodni = p => stronyDoZgody(p).every(w => p.zgody?.[w] === true);
@@ -1035,17 +1342,18 @@ const opisTraktatu = t => `${TYPY_TRAKTATOW[t.typ] || t.typ} · strony: ${nazwyS
 ${t.opis}` : ""}`;
 const sameZmiany = (naglowek, txt) => `<div class="zmiana-pola"><h5>${esc(naglowek)}</h5><div class="po">${tekst(txt)}</div></div>`;
 // obecny stan pól propozycji — do porównania z „przed” (ktoś zmienił w międzyczasie?) i do pokazania przed → po
-const obecnie = (p, o) => ["traktat", "zerwanie"].includes(p.cel) ? {} : p.cel === "ruch" ? { cel: o.cel || null } : p.cel === "stolica" ? { osada: opisStolicy(p.frakcja) } : p.cel === "budynki" ? { budynki: tylkoBudynki(budynki(o)) } : o;
+const obecnie = (p, o) => ["traktat", "zerwanie"].includes(p.cel) ? {} : ["ruch", "rejs"].includes(p.cel) ? { cel: o.cel || null } : p.cel === "stolica" ? { osada: opisStolicy(p.frakcja) } : p.cel === "budynki" ? { budynki: tylkoBudynki(budynki(o)) } : o;
 const zmianyPropozycji = (p, o) => p.cel === "traktat" ? sameZmiany("Nowy traktat", opisTraktatu(p.zmiany.traktat)) + (stronyDoZgody(p).length ? `<p class="zgody">Zgoda stron: ${esc(zgodyTekst(p))}</p>` : "")
   : p.cel === "zerwanie" ? sameZmiany("Zerwanie traktatu", o ? `${o.nazwa}: ${opisTraktatu(o)}` : "—")
   : p.cel === "ruch" ? zmianaPola("cel", p.przed?.cel ? opisCelu({ cel: p.przed.cel }) : "brak celu", opisCelu({ cel: p.zmiany.cel }))
+  : p.cel === "rejs" ? zmianaPola("cel", p.przed?.cel ? nazwaAkwenuNr(p.przed.cel) : "brak celu", nazwaAkwenuNr(p.zmiany.cel))
   : p.cel === "stolica" ? zmianaPola("osada", p.przed?.osada, o && opisOsady(o, p.zmiany.osada))
   : p.cel === "budynki" ? (o ? zmianaPola("budynki", tekstBudynkow(o, p.przed?.budynki), tekstBudynkow(o, p.zmiany.budynki)) : "")
   : Object.keys(p.zmiany).map(k => zmianaPola(k, p.przed?.[k], p.zmiany[k])).join("");
 function przyjmijPropozycje(p, o) {
   if (p.cel === "stolica") return ustawStolice(o, p.zmiany.osada);
   if (p.cel === "budynki") return ustawBudynki(o, p.zmiany.budynki);
-  if (p.cel === "ruch") { o.cel = p.zmiany.cel; o.przebyte = []; zapisz(stan); return pokazOsadyNaMapie(); }
+  if (["ruch", "rejs"].includes(p.cel)) { o.cel = p.zmiany.cel; o.przebyte = []; zapisz(stan); return pokazOsadyNaMapie(); }
   if (p.cel === "traktat") return zawrzyjTraktat({ ...p.zmiany.traktat });
   if (p.cel === "zerwanie") return zerwijTraktat(p.celId);
   Object.assign(o, p.zmiany); zapisz(stan);
@@ -1125,9 +1433,9 @@ function podepnijPropozycje() {
   }));
 }
 // bohaterowie: siatka kart + okno ze szczegółami; status zmienia GM/admin
-const STATUSY = { stolica: "W stolicy", misja: "Na misji", ranny: "Ranny", martwy: "Martwy" };
+const STATUSY = { stolica: "W stolicy", misja: "Na misji", ranny: "Ranny", martwy: "Martwy", niewola: "W niewoli" };   // niewola (7.1i): misja = u kogo
 const MISJE = ["z armią", "z flotą", "inne"];
-const statusTekst = h => STATUSY[h.status] + (h.status === "misja" && h.misja ? ` (${h.misja})` : "");
+const statusTekst = h => STATUSY[h.status] + (h.status === "misja" && h.misja ? ` (${h.misja})` : h.status === "niewola" && h.misja ? ` (u: ${h.misja})` : "");
 const inicjaly = imie => imie.replace(/[„”"]/g, "").split(/\s+/).filter(s => /^\p{Lu}/u.test(s)).slice(0, 2).map(s => s[0]).join("") || imie[0];
 // pixel art 128 px, a gdy go nie ma — inicjały na tle w kolorze frakcji
 const portret = (h, duzy) => {
@@ -1182,6 +1490,7 @@ function wybierz(id, zostanPrzewiniecie) {
     ${zasoby(f)}
     ${jednostki(f)}
     ${armie(f)}
+    ${floty(f)}
     ${kronikaFrakcji(f)}
     ${traktatyFrakcji(f)}
     ${budynkiFrakcji(f)}
@@ -1190,7 +1499,7 @@ function wybierz(id, zostanPrzewiniecie) {
     ${widocznosc(f)}
     ${f.opis.map(s => `<section><h3>${esc(s.tytul)}</h3>${tekst(s.tekst)}</section>`).join("")}
   </article>`;
-  podepnijStany(f); podepnijZasoby(f); podepnijJednostki(f); podepnijArmie(f); podepnijTajne(f); podepnijPropozycje();
+  podepnijStany(f); podepnijZasoby(f); podepnijJednostki(f); podepnijArmie(f); podepnijFloty(f); podepnijTajne(f); podepnijPropozycje();
   const edytuj = glowny.querySelector(".edytuj-opis"); if (edytuj) edytuj.onclick = () => edytujFrakcje(f);
   glowny.querySelectorAll(".pokaz-stolice").forEach(b => b.onclick = () => {
     const s = stolicaWl(f.id); pokazProwincje(PROWINCJE.indexOf(s.p) + 1); mapa.pokaz(s.o.x, s.o.y, 1.2);
@@ -1235,7 +1544,7 @@ function pokazPanelGM(zostanPrzewiniecie) {
   glowny.querySelector("#zamknij-ture").onclick = () => {
     const nr = stan.tury.length + 1;
     const slabe = stan.frakcje.flatMap(f => (f.armie || []).filter(a => liczebnosc(a) < 100).map(a => `${a.nazwa} (${f.nazwa})`));
-    if (!confirm(`Zamknąć turę ${nr}? Stany zasobów wszystkich frakcji zostaną zapisane, a armie z celem zrobią po 1 kroku.${slabe.length ? `\n\nZostaną rozwiązane (poniżej 100 żołnierzy): ${slabe.join(", ")}.` : ""}\n\nMożna to cofnąć.`)) return;
+    if (!confirm(`Zamknąć turę ${nr}? Stany zasobów wszystkich frakcji zostaną zapisane, a armie i floty z celem zrobią po 1 kroku.${slabe.length ? `\n\nZostaną rozwiązane (poniżej 100 żołnierzy): ${slabe.join(", ")}.` : ""}\n\nMożna to cofnąć.`)) return;
     stan.tury.push({ nr, data: new Date().toISOString(), frakcje: Object.fromEntries(stan.frakcje.map(f => [f.id, {
       stany: { ...f.stany }, unikalne: Object.fromEntries(f.zasoby.filter(z => z.ilosc !== undefined).map(z => [z.nazwa, z.ilosc])) }])) });
     ruchArmii(nr); rozwiazSlabe(nr); odswiezRaporty(); odswiez(); pokazOsadyNaMapie();
@@ -1244,7 +1553,7 @@ function pokazPanelGM(zostanPrzewiniecie) {
   if (cofnij) cofnij.onclick = () => {
     // usuwa tylko migawkę; obecne stany zostają, więc pomyłkowe zamknięcie nic nie psuje
     const nr = ostatniaTura().nr, ruchy = stan.cofnijRuchy?.nr === nr;
-    if (!confirm(`Cofnąć zamknięcie tury ${nr}? Wróci tura ${nr}, a zmiany +/- będą liczone od poprzedniej migawki.${ruchy ? " Armie wrócą na pozycje sprzed ruchu." : ""}`)) return;
+    if (!confirm(`Cofnąć zamknięcie tury ${nr}? Wróci tura ${nr}, a zmiany +/- będą liczone od poprzedniej migawki.${ruchy ? " Armie i floty wrócą na pozycje sprzed ruchu." : ""}`)) return;
     cofnijRozwiazanie(nr); cofnijRuchArmii(nr); stan.tury.pop(); odswiezRaporty();
     for (const [id, k] of Object.entries(stan.kronika || {})) if (k.zam === nr) usunWpis("kronika", id);   // wpisy z cofniętego zamknięcia
     odswiez(); pokazOsadyNaMapie();
@@ -1619,6 +1928,7 @@ function odswiezWidok() {
   oznaczKronike(false);
   if (widok === "kronika") return pokazKronike();
   if (widok.startsWith("p:")) return pokazProwincje(+widok.slice(2), true);
+  if (widok.startsWith("a:")) return pokazAkwen(+widok.slice(2));
   widok === "gm" ? (gm ? pokazPanelGM(true) : zamknijSzuflade()) : wybierz(widok, true);
 }
 function wejdz() {
@@ -1667,7 +1977,7 @@ naZmianeKonta(async user => {
   if (!CHMURA) return;
   formularz.classList.toggle("zalogowany", Boolean(user));
   document.getElementById("wyloguj").hidden = !user;
-  if (!user) { widok = null; gm = false; sluchajUzytkownikowJesliGM(); odpieciePropozycji(); propozycje = []; document.getElementById("konto-mail").textContent = ""; return; }
+  if (!user) { widok = null; gm = false; sluchajUzytkownikowJesliGM(); odpieciePropozycji(); propozycje = []; odpiecieObecnosci(); obecnosc = {}; oznaczObecnosc(); document.getElementById("konto-mail").textContent = ""; return; }
   try {
     profil = await mojProfil(user); await ustawRole();
     // rola nadana albo zmieniona przez admina działa od razu, bez przeładowania
@@ -1689,6 +1999,8 @@ async function ustawRole() {
     return;
   }
   pokazBlad(""); sluchajPropozycjiDlaRoli();
+  zglosObecnosc(zalogowany.uid, profil.frakcja);   // też po zmianie państwa przez admina (nowy wpis „online” z nową frakcją)
+  odpiecieObecnosci(); odpiecieObecnosci = sluchajObecnosci(o => { obecnosc = o; oznaczObecnosc(); });
   if (wczytane) return odswiezWidok();
   await polacz(odswiezWidok); wczytane = true;
   if (jestAdmin()) {
@@ -1706,9 +2018,13 @@ function coNowego() {
   if (byla === pakiet.version) return;
   // wszystkie wersje od ostatnio widzianej do bieżącej (kilka aktualizacji naraz → jedna pełna lista, najnowsze na górze);
   // bez zapamiętanej wersji (aktualizacja ze starej wersji bez tego okienka, wyczyszczone dane) — cała historia
-  const wpisy = ZMIANY.filter(z => !nowsza(z.wersja, pakiet.version) && (!byla || nowsza(z.wersja, byla)));
+  const wpisy = ZMIANY.filter(z => z.zmiany.length && !nowsza(z.wersja, pakiet.version) && (!byla || nowsza(z.wersja, byla)));
   if (!wpisy.length) return;
-  const od = wpisy.length > 1 ? (byla ? `zmiany od wersji ${esc(byla)} do ${esc(pakiet.version)}` : `wszystkie zmiany do wersji ${esc(pakiet.version)}`) : `wersja ${esc(pakiet.version)}`;
+  pokazZmiany(wpisy, wpisy.length > 1 ? (byla ? `zmiany od wersji ${esc(byla)} do ${esc(pakiet.version)}` : `wszystkie zmiany do wersji ${esc(pakiet.version)}`) : `wersja ${esc(pakiet.version)}`);
+}
+// przycisk „Co nowego” przy logowaniu: cała historia do bieżącej wersji (puste wpisy niewydanej wersji pominięte)
+document.getElementById("pokaz-zmiany").onclick = () => pokazZmiany(ZMIANY.filter(z => z.zmiany.length && !nowsza(z.wersja, pakiet.version)), `wszystkie zmiany do wersji ${esc(pakiet.version)}`);
+function pokazZmiany(wpisy, od) {
   oknoZmian.innerHTML = `<div class="okno-glowa"><div><h2>Co nowego</h2><p class="rasa">${od}</p></div><button type="button" class="zamknij" aria-label="Zamknij">×</button></div>`
     + wpisy.map(z => `<h3>Wersja ${esc(z.wersja)} <span>${esc(z.data)}</span></h3><ul>${z.zmiany.map(t => `<li>${esc(t)}</li>`).join("")}</ul>`).join("");
   oknoZmian.querySelector(".zamknij").onclick = () => oknoZmian.close();

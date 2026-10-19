@@ -7,4 +7,6 @@ export const firebaseConfig = {
   storageBucket: "fantasy-rp-2f462.firebasestorage.app",
   messagingSenderId: "506695878466",
   appId: "1:506695878466:web:69c83afc2ef39ced24aadb",
+  // obecność graczy (online / ostatnio): adres Realtime Database z konsoli Firebase; pusty = funkcja wyłączona
+  databaseURL: "https://fantasy-rp-2f462-default-rtdb.europe-west1.firebasedatabase.app",
 };

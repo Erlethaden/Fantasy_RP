@@ -2,11 +2,25 @@
 // podświetlenie pod kursorem, zaznaczenie wybranej. Prowincje: obraz z indeksem w kolorze (R*256+G, 0 = woda) w skali 1/2 rysunku.
 // onKlik(indeks, x, y) — klik bez przeciągania; indeks prowincji (1…) albo 0 (woda / góry / poza mapą); x, y w px mapa.png. ramki[indeks-1] = [x0, y0, x1, y1] w px obrazu indeksów.
 // kafle: { rozmiar, poziomy: {poziom: szerokość w px}, kafle: {poziom: ["x_y"]} }, pliki w `mapa/kafle/<poziom>/<x>_<y>.png` — ostrość przy przybliżeniu.
-// granice: linie [x0, y0, x1, y1, …] w px mapa.png — granice między prowincjami, rysowane przerywaną kreską jak na rysunku
+// granice: linie [x0, y0, x1, y1, …] w px mapa.png — granice między prowincjami, rysowane przerywaną kreską jak na rysunku; graniceMorskie — między akwenami (7.8a), od przybliżenia 0.5
 // ikony: {miasto, wioska, stolica} → adresy obrazków pixel art (brakujące = prosty znacznik z CSS)
 // rozmiar: [szer, wys] układu współrzędnych mapy (px mapa.png), gdy rysunek ma inną rozdzielczość (teren.png 2500² pokazywany ×2 — 7.6b)
 // teren: { maska, tekstury: {typ: url} } — tekstury typów terenu prowincji nakładane w przeglądarce na zwykły ląd (maska R), wersje 0–7 z maski G
-export function utworzMape(kontener, { rysunek, rozmiar, teren, indeksy, ramki, kafle, granice, ikony = {}, onKlik }) {
+// wygładzenie łamanej (Chaikin, 3 razy): każdy narożnik zastąpiony punktami na 1/4 i 3/4 odcinków; końce zostają
+export const wygladz = pkt => {
+  for (let n = 0; n < 3 && pkt.length > 2; n++)
+    pkt = [pkt[0], ...pkt.slice(0, -1).flatMap((p, i) => { const q = pkt[i + 1]; return [[p[0] * 0.75 + q[0] * 0.25, p[1] * 0.75 + q[1] * 0.25], [p[0] * 0.25 + q[0] * 0.75, p[1] * 0.25 + q[1] * 0.75]]; }).slice(1, -1), pkt.at(-1)];
+  return pkt;
+};
+// trasa lądowa nie od linijki (użytkownik 2026-10-20): na środku każdego odcinka lekkie wygięcie w bok (do 15% długości, zawsze takie samo
+// dla tych samych punktów — nie skacze przy odświeżaniu), potem wygładzenie
+export const krzywa = pkt => wygladz(pkt.flatMap((q, i) => {
+  if (!i) return [q];
+  const [x0, y0] = pkt[i - 1], [x1, y1] = q, dl = Math.hypot(x1 - x0, y1 - y0); if (!dl) return [q];
+  const w = (Math.sin(x0 * 12.9898 + y1 * 78.233 + x1 * 3.17) * 43758.5453 % 1) * 0.15 * dl;
+  return [[(x0 + x1) / 2 - (y1 - y0) / dl * w, (y0 + y1) / 2 + (x1 - x0) / dl * w], q];
+}));
+export function utworzMape(kontener, { rysunek, rozmiar, teren, indeksy, ramki, kafle, granice, graniceMorskie, morzeOd = Infinity, ikony = {}, onKlik }) {   // morzeOd: pierwszy indeks akwenu (7.8a)
   const warstwa = document.createElement("div"); warstwa.className = "mapa-warstwa";
   const img = new Image(); img.src = rysunek; img.alt = "Mapa świata"; img.draggable = false; img.className = "mapa-obraz";
   const nak = document.createElement("canvas"); nak.className = "mapa-nakladka"; nak.setAttribute("aria-hidden", "true");
@@ -23,7 +37,8 @@ export function utworzMape(kontener, { rysunek, rozmiar, teren, indeksy, ramki, 
   let SZ = 0, WY = 0;   // rozmiar mapy w px mapa.png
   const plotnoGranic = document.createElement("canvas"); plotnoGranic.className = "mapa-granice"; plotnoGranic.setAttribute("aria-hidden", "true");
   const sciezka = new Path2D();
-  for (const l of granice || []) { sciezka.moveTo(l[0], l[1]); for (let k = 2; k < l.length; k += 2) sciezka.lineTo(l[k], l[k + 1]); }
+  const morskie = new Path2D();
+  for (const [s, ll] of [[sciezka, granice], [morskie, graniceMorskie]]) for (const l of ll || []) { s.moveTo(l[0], l[1]); for (let k = 2; k < l.length; k += 2) s.lineTo(l[k], l[k + 1]); }
   const znaczniki = document.createElement("div"); znaczniki.className = "mapa-osady";   // nieskalowane: ikonki mają stały rozmiar na ekranie
   kontener.append(warstwa, plotnoGranic, znaczniki);
   const w = { s: 1, x: 0, y: 0 };
@@ -39,6 +54,7 @@ export function utworzMape(kontener, { rysunek, rozmiar, teren, indeksy, ramki, 
     const k = Math.min(1, 0.45 + w.s * 0.6);   // przy oddaleniu cieńsze i krótsze kreski, żeby mapa nie zrobiła się szara
     c.lineWidth = 1.4 * k / w.s; c.setLineDash([7 * k / w.s, 5 * k / w.s]); c.lineCap = "round";
     c.strokeStyle = "rgba(25, 20, 12, .8)"; c.stroke(sciezka);
+    if (w.s >= 0.5) { c.setLineDash([3 / w.s, 6 / w.s]); c.lineWidth = 1.2 / w.s; c.strokeStyle = "rgba(225, 240, 255, .55)"; c.stroke(morskie); }   // akweny: jasne kropki na wodzie
     // trasy armii (7.1c): przebyta część ciągła i ciemna, dalsza przerywana w kolorze frakcji, przy celu napis „za N tur”
     c.lineCap = c.lineJoin = "round";
     for (const t of trasy) {
@@ -73,7 +89,7 @@ export function utworzMape(kontener, { rysunek, rozmiar, teren, indeksy, ramki, 
   function odswiezOsady() {
     const cw = kontener.clientWidth, ch = kontener.clientHeight, chce = new Set();
     osady.forEach((o, i) => {
-      if (w.s < { stolica: 0.3, armia: 0.3, bitwa: 0.3, miasto: 0.8, most: 0.8, wioska: 1.2 }[o.typ]) return;
+      if (w.s < { stolica: 0.3, armia: 0.3, flota: 0.3, bitwa: 0.3, miasto: 0.8, most: 0.8, wioska: 1.2 }[o.typ]) return;
       const sx = w.x + o.x * w.s, sy = w.y + o.y * w.s; if (sx < -60 || sy < -30 || sx > cw + 60 || sy > ch + 30) return;
       chce.add(i);
       let el = osadyWDom.get(i);
@@ -191,6 +207,64 @@ export function utworzMape(kontener, { rysunek, rozmiar, teren, indeksy, ramki, 
     const x = Math.floor((cx - w.x) / w.s * IW / SZ), y = Math.floor((cy - w.y) / w.s * IH / WY);
     return x >= 0 && y >= 0 && x < IW && y < IH ? ind[y * IW + x] : 0;
   };
+  // droga floty po wodzie (7.8d): A* po siatce co K px obrazu indeksów, po wodzie w okolicy (akweny trasy tanie, inne 4× droższe — poszarpane
+  // akweny łączą się czasem tylko przez sąsiada), z dala od brzegu; potem
+  // prostowanie (linia widzenia) i wygładzenie (Chaikin), żeby zakręty były łagodne. a, b w px mapa.png → [[x, y]] albo null (brak drogi / mapa niewczytana)
+  const drogaWodna = (akweny, a, b) => {
+    const r = akweny.map(i => ramki[i - 1]).filter(Boolean); if (!ind || !r.length) return null;
+    const K = 4, s = IW / SZ, zb = new Set(akweny);
+    const M = 20, gx0 = Math.max(0, Math.floor(Math.min(...r.map(q => q[0])) / K) - M), gy0 = Math.max(0, Math.floor(Math.min(...r.map(q => q[1])) / K) - M);
+    const GW = Math.min(Math.ceil(IW / K), Math.ceil(Math.max(...r.map(q => q[2])) / K) + M) - gx0, GH = Math.min(Math.ceil(IH / K), Math.ceil(Math.max(...r.map(q => q[3])) / K) + M) - gy0, N = GW * GH;
+    const d = new Uint8Array(N), trasa = new Uint8Array(N), kol = [];   // d: odległość od lądu w kratkach (0 = ląd), do 8; trasa: kratka w akwenie trasy
+    for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {
+      const k = y * GW + x; let woda = false;   // woda, gdy którykolwiek piksel kratki jest akwenem (wąskie cieśniny)
+      for (let py = (gy0 + y) * K; py < Math.min(IH, (gy0 + y + 1) * K); py++) for (let px = (gx0 + x) * K; px < Math.min(IW, (gx0 + x + 1) * K); px++) {
+        const v = ind[py * IW + px]; if (v >= morzeOd) woda = true; if (zb.has(v)) trasa[k] = 1;
+      }
+      if (woda) d[k] = 255; else kol.push(k);
+    }
+    for (let n = 0; n < kol.length; n++) {
+      const k = kol[n], x = k % GW, v = d[k] + 1; if (v > 8) continue;
+      for (const j of [x > 0 && k - 1, x < GW - 1 && k + 1, k - GW, k + GW]) if (j !== false && j >= 0 && j < N && d[j] > v) { d[j] = v; kol.push(j); }
+    }
+    const kratka = ([X, Y]) => {   // punkt → najbliższa kratka wody akwenu trasy (środek akwenu może wypaść na wyspie)
+      const cx = Math.round(X * s / K) - gx0, cy = Math.round(Y * s / K) - gy0;
+      for (let R = 0; R < 40; R++) for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+        if (Math.max(Math.abs(dx), Math.abs(dy)) !== R) continue;
+        const x = cx + dx, y = cy + dy; if (x >= 0 && y >= 0 && x < GW && y < GH && d[y * GW + x] && trasa[y * GW + x]) return y * GW + x;
+      }
+      return -1;
+    };
+    const A = kratka(a), B = kratka(b); if (A < 0 || B < 0) return null;
+    const g = new Float64Array(N).fill(Infinity), skad = new Int32Array(N).fill(-1), kopiec = [[0, A]]; g[A] = 0;
+    const bx = B % GW, by = B / GW | 0, h = k => Math.hypot(k % GW - bx, (k / GW | 0) - by);
+    const wloz = e => { kopiec.push(e); for (let i = kopiec.length - 1; i > 0;) { const p = (i - 1) >> 1; if (kopiec[p][0] <= kopiec[i][0]) break; [kopiec[p], kopiec[i]] = [kopiec[i], kopiec[p]]; i = p; } };
+    const zdejmij = () => { const top = kopiec[0], l = kopiec.pop(); if (kopiec.length) { kopiec[0] = l;
+      for (let i = 0; ;) { let m = i; const L = 2 * i + 1, P = L + 1; if (L < kopiec.length && kopiec[L][0] < kopiec[m][0]) m = L; if (P < kopiec.length && kopiec[P][0] < kopiec[m][0]) m = P; if (m === i) break; [kopiec[m], kopiec[i]] = [kopiec[i], kopiec[m]]; i = m; } } return top; };
+    while (kopiec.length) {
+      const [f, k] = zdejmij(); if (k === B) break; if (f > g[k] + h(k) + 1e-6) continue;
+      const x = k % GW, y = k / GW | 0;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx, ny = y + dy, j = ny * GW + nx; if ((!dx && !dy) || nx < 0 || ny < 0 || nx >= GW || ny >= GH || !d[j]) continue;
+        if (dx && dy && !d[y * GW + nx] && !d[ny * GW + x]) continue;   // po skosie tylko, gdy obok jest woda (cieśniny po skosie)
+        const c = g[k] + (dx && dy ? Math.SQRT2 : 1) * (1 + 4 / Math.min(d[j], 8)) * (trasa[j] ? 1 : 4);   // blisko brzegu i poza akwenami trasy drożej
+        if (c < g[j]) { g[j] = c; skad[j] = k; wloz([c + h(j), j]); }
+      }
+    }
+    if (skad[B] < 0 && A !== B) return null;
+    const sciezka = []; for (let k = B; k !== -1; k = skad[k]) sciezka.unshift(k);
+    const widac = (i, j) => {   // prosty odcinek bez zbliżania się do brzegu bardziej niż na końcach
+      const p = sciezka[i], q = sciezka[j], x0 = p % GW, y0 = p / GW | 0, x1 = q % GW, y1 = q / GW | 0, min = Math.min(3, d[p], d[q]);
+      const n = Math.ceil(Math.hypot(x1 - x0, y1 - y0) * 2);
+      for (let t = 1; t < n; t++) { const k = Math.round(y0 + (y1 - y0) * t / n) * GW + Math.round(x0 + (x1 - x0) * t / n); if (d[k] < min) return false; }
+      return true;
+    };
+    let pkt = [sciezka[0]];
+    for (let i = 0; i < sciezka.length - 1;) { let j = sciezka.length - 1; while (j > i + 1 && !widac(i, j)) j--; pkt.push(sciezka[j]); i = j; }
+    pkt = pkt.map(k => [((k % GW + gx0) * K + K / 2) / s, (((k / GW | 0) + gy0) * K + K / 2) / s]);
+    pkt[0] = a; pkt[pkt.length - 1] = b;
+    return wygladz(pkt);
+  };
   // prowincje w promieniu r wokół punktu (x, y, r w px mapa.png) → Map(indeks → najmniejsza odległość w px obrazu indeksów); do mostów na rzekach
   const wokol = (x, y, r) => {
     const m = new Map(); if (!ind) return m;
@@ -204,6 +278,7 @@ export function utworzMape(kontener, { rysunek, rozmiar, teren, indeksy, ramki, 
   };
   let pod = 0, wybrana = 0;
   const KOLOR_POD = [200, 150, 70, 70], KOLOR_WYBR = [190, 120, 30, 90], KRAWEDZ = [90, 40, 0, 255];   // mnożone z teksturami — lekko, żeby teren był widać
+  const MORZE_POD = [255, 220, 120, 70], MORZE_WYBR = [255, 205, 90, 120], MORZE_KRAW = [255, 190, 40, 255];   // akweny: złoto (warstwa mnoży — jasne by zniknęło, brąz ginie na granacie)
   // przerysowanie tylko w ramce zmienionych prowincji (cały obraz ma ponad 6 mln pikseli)
   function rysujProwincje(...ktore) {
     const r = ktore.filter(Boolean).map(i => ramki[i - 1]);
@@ -214,7 +289,7 @@ export function utworzMape(kontener, { rysunek, rozmiar, teren, indeksy, ramki, 
       const gx = x + x0, gy = y + y0, i = gy * IW + gx, v = ind[i];
       if (!v || (v !== pod && v !== wybrana)) continue;
       const brzeg = v === wybrana && (gx === 0 || gy === 0 || gx === IW - 1 || gy === IH - 1 || ind[i - 1] !== v || ind[i + 1] !== v || ind[i - IW] !== v || ind[i + IW] !== v);
-      const k = brzeg ? KRAWEDZ : v === wybrana ? KOLOR_WYBR : KOLOR_POD, j = (y * bw + x) * 4;
+      const m = v >= morzeOd, k = brzeg ? (m ? MORZE_KRAW : KRAWEDZ) : v === wybrana ? (m ? MORZE_WYBR : KOLOR_WYBR) : (m ? MORZE_POD : KOLOR_POD), j = (y * bw + x) * 4;
       o[j] = k[0]; o[j + 1] = k[1]; o[j + 2] = k[2]; o[j + 3] = k[3];
     }
     nctx.putImageData(obraz, x0, y0);
@@ -281,5 +356,5 @@ export function utworzMape(kontener, { rysunek, rozmiar, teren, indeksy, ramki, 
   const doWidoku = (x, y) => { const sx = w.x + x * w.s, sy = w.y + y * w.s, m = 40;
     if (sx < m || sy < m || sx > kontener.clientWidth - m || sy > kontener.clientHeight - m) pokaz(x, y); };
   const kursor = k => kontener.classList.toggle("stawianie", Boolean(k));   // tryb stawiania osady: kursor celownika
-  return { dopasuj, wybierz, pokaz, doWidoku, ustawKolory, ustawOsady, ustawTrasy, ustawTereny, ustawHerby, kursor, wokol };
+  return { dopasuj, wybierz, pokaz, doWidoku, ustawKolory, ustawOsady, ustawTrasy, ustawTereny, ustawHerby, kursor, wokol, drogaWodna };
 }
