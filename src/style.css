@@ -36,6 +36,23 @@ button{font:600 15px Cinzel,Georgia,serif;letter-spacing:.06em;cursor:pointer}
 .mapa:focus-visible{outline:2px solid var(--zloto);outline-offset:-2px}
 .mapa-warstwa{position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none;mix-blend-mode:multiply}
 .mapa-obraz{display:block;user-select:none;max-width:none}
+.mapa-granice{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.mapa-osady{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+/* tymczasowe znaczniki (6.2a) — ikonki pixel art w 6.2b */
+.osada{position:absolute;left:0;top:0;width:0;height:0}
+.osada i{position:absolute;left:-6px;top:-6px;width:12px;height:12px;background:#3a2a14;border:2px solid #f0e2bc;box-shadow:0 1px 3px rgba(0,0,0,.6)}
+.osada.wioska i{left:-4px;top:-4px;width:8px;height:8px;border-radius:50%;background:#5a4426}
+.osada.most i{left:-5px;top:-5px;width:10px;height:10px;background:#8a6a3a;transform:rotate(45deg)}
+.osada.most img{left:-12px;top:-12px}
+.osada.armia{pointer-events:auto;cursor:pointer}.osada.armia img{left:4px;top:-24px}
+.osada.bitwa{pointer-events:auto;cursor:pointer}.osada.bitwa img{left:-12px;top:-12px}
+.osada.stolica i{left:-8px;top:-8px;width:16px;height:16px;background:var(--zloto);border-color:#3a2a14}
+.osada span{display:none;position:absolute;top:9px;left:0;transform:translateX(-50%);white-space:nowrap;font:600 12px Spectral,Georgia,serif;color:#2a1c08;text-shadow:0 0 3px #f3e7c6,0 0 3px #f3e7c6}
+.osada.podpis span{display:block}
+.osada img{position:absolute;left:-16px;top:-18px;image-rendering:pixelated;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5))}   /* rozmiar naturalny (32 px, wioska 24 px) — skala 1:1, bez rozjeżdżania pikseli */
+.osada.wioska img{left:-12px;top:-13px}
+.osada.stolica img{top:-20px}
+.osada:has(img) span{top:14px}
 .mapa-kafle{position:absolute;inset:0}.mapa-kafle img{position:absolute;display:block;max-width:none}
 .mapa-nakladka{position:absolute;inset:0;width:100%;height:100%;mix-blend-mode:multiply}
 .mapa.nad-prowincja:not(.ciagnie){cursor:pointer}
@@ -43,6 +60,20 @@ button{font:600 15px Cinzel,Georgia,serif;letter-spacing:.06em;cursor:pointer}
 .sasiedzi{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(200px,100%),1fr));gap:6px 16px}
 .sasiedzi button{display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;padding:6px 10px;background:#0b0c12;border:1px solid #2a2418;color:var(--tekst);font:inherit;letter-spacing:0;text-align:left}
 .sasiedzi button:hover,.sasiedzi button:focus-visible{border-color:var(--zloto2)}
+.lista-armii{list-style:none;margin:0 0 10px;padding:0}.lista-armii>li{padding:10px 0;border-bottom:1px solid #2a2418}
+.armia{display:grid;gap:8px}.armia label{display:grid;gap:2px}.armia fieldset{border:1px solid #2a2418;padding:6px 10px;margin:0}
+.armia .bohaterowie-armii label{display:inline-flex;align-items:center;gap:6px;margin:2px 14px 2px 0;white-space:nowrap}
+.bohaterowie-armii input{width:16px;height:16px;padding:0;margin:0;accent-color:var(--zloto)}
+.oddzial{display:flex;gap:6px;margin-bottom:6px}.oddzial input{width:90px}
+.wojna{color:#e07a5a;margin:8px 0}.nowa-wojna{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px}.armia-info{margin:0}.przyciski-armii{display:flex;flex-wrap:wrap;gap:6px;margin:0}.przejscia{border:1px solid #2a2418;padding:6px 10px;margin:10px 0 0}.przejscia label{display:inline-flex;align-items:center;gap:6px;margin-right:16px}.przejscia input{width:16px;height:16px;margin:0;accent-color:var(--zloto)}.ostrzezenie{color:#e07a5a}
+.budynki{list-style:none;margin:0 0 8px;padding:0}
+.budynki li{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:6px 0;border-bottom:1px solid #2a2418}
+.budynki .typ-osady{min-width:90px}.budynki .sloty{display:flex;flex-wrap:wrap;gap:6px}
+.slot{background:#0b0c12;color:var(--tekst);border:1px solid #2a2418;font:inherit;font-size:14px;padding:2px 4px}
+.zloze{margin:6px 0}
+.podsumowanie{list-style:none;margin:0;padding:0}.podsumowanie li{display:flex;justify-content:space-between;gap:12px;padding:4px 0;border-bottom:1px solid #2a2418}
+.sasiedzi li:has(select){display:flex;gap:6px}
+.sasiedzi select.granica{background:#0b0c12;font:inherit;font-size:13px;cursor:pointer}
 .sasiedzi small{display:block;font-size:12px;color:#bfae86}
 .edycja-prowincji{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(200px,100%),1fr));gap:10px 14px;margin:16px 0 4px}
 .edycja-prowincji label{margin:0;display:flex;flex-direction:column;gap:4px;font-size:13px;color:#bfae86}
@@ -50,7 +81,7 @@ button{font:600 15px Cinzel,Georgia,serif;letter-spacing:.06em;cursor:pointer}
 .edycja-prowincji input,.edycja-prowincji textarea{padding:8px 10px;background:rgba(5,5,10,.7);border:1px solid var(--zloto2);color:var(--tekst);font:inherit;resize:vertical}
 .edycja-prowincji select:disabled{opacity:.45}
 .granica{font-size:13px;padding:0 8px;border:1px solid currentColor;white-space:nowrap}
-.granica.g-zwykla{color:#bfae86}.granica.g-gory{color:#d08a4a}.granica.g-rzeka{color:#6aa8ff}
+.granica.g-zwykla{color:#bfae86}.granica.g-gory{color:#d08a4a}.granica.g-rzeka{color:#6aa8ff}.granica.g-most{color:#7ec8a0}
 .szuflada{position:relative;flex:0 0 min(760px,46vw);display:flex;flex-direction:column;min-height:0;border-left:1px solid #3a3020;background:radial-gradient(ellipse at 70% 0%,#1a1626,var(--tlo) 60%);box-shadow:-4px 0 16px rgba(0,0,0,.5);animation:wysun .18s ease-out}
 @keyframes wysun{from{transform:translateX(24px);opacity:.4}}
 @media (prefers-reduced-motion:reduce){.szuflada{animation:none}}
@@ -106,6 +137,18 @@ button{font:600 15px Cinzel,Georgia,serif;letter-spacing:.06em;cursor:pointer}
 .status{margin-top:4px;font:12px Spectral,Georgia,serif;padding:1px 8px;border:1px solid currentColor}
 .s-stolica{color:#9fc27a}.s-misja{color:#e0b24a}.s-ranny{color:#e07a4a}.s-martwy{color:#8f8268;text-decoration:line-through}
 .okno{width:min(760px,calc(100vw - 32px));max-height:calc(100vh - 48px);padding:20px 24px;background:#0e0f17 padding-box;color:var(--tekst);border:24px solid transparent;border-image:url("../assets/ramki/panel.png") 12/24px;image-rendering:pixelated;box-shadow:inset 0 3px 0 var(--kolor);line-height:1.65}
+.lista-bitew{list-style:none;margin:4px 0 0;padding:0;display:grid;gap:4px}.lista-bitew button{text-align:left;width:100%;letter-spacing:0;text-transform:none;font:inherit}
+.okno-bitwy{width:min(1100px,calc(100vw - 32px))}
+.okno-bitwy .strony{display:flex;gap:14px;align-items:stretch;margin-top:14px}.okno-bitwy .strona{flex:1;min-width:0;border-top:4px solid var(--kolor);background:#12131c;padding:10px 14px}
+.okno-bitwy .vs{align-self:center;font:700 26px Cinzel,Georgia,serif;color:var(--zloto)}
+.okno-bitwy h3{margin:0 0 8px}.okno-bitwy h4{margin:10px 0 4px}.okno-bitwy h5{margin:8px 0 2px;color:#bfae86;font-size:13px;text-transform:uppercase;letter-spacing:.08em}
+.okno-bitwy .straty{width:70px;margin-left:6px}.okno-bitwy .suma-bitwy{margin:10px 0 0;padding-top:8px;border-top:1px solid #2a2418}
+.okno-bitwy .bohaterowie-bitwy{display:flex;flex-wrap:wrap;gap:4px 14px}.okno-bitwy .bohaterowie-bitwy label{display:inline-flex;gap:6px;align-items:center}.okno-bitwy .bohaterowie-bitwy input{width:16px;height:16px;margin:0}
+.okno-bitwy .polegl{text-decoration:line-through;color:#8f8268}
+.okno-bitwy .sily{display:flex;height:10px;margin-top:12px;border:1px solid #2a2418}.okno-bitwy .sily span{min-width:2px}
+.okno-bitwy .wygrana{color:#7ec87e;font-size:14px}.okno-bitwy .porazka{color:#e07a5a;font-size:14px}.okno-bitwy .remis{color:#bfae86;font-size:14px}
+.okno-bitwy .koniec-bitwy,.okno-bitwy .wynik{margin-top:16px;display:grid;gap:8px}.okno-bitwy .koniec-bitwy label{display:grid;gap:2px}
+@media (max-width:760px){.okno-bitwy .strony{flex-direction:column}}
 .okno::backdrop{background:rgba(5,5,10,.75)}
 .okno-glowa{display:flex;gap:20px;align-items:center}.okno-glowa>div:not(.portret){flex:1}
 .okno h2{margin:0;font:700 28px/1.15 Cinzel,Georgia,serif;color:var(--zloto)}.okno .rasa{margin:4px 0 0;color:#bfae86}
@@ -217,3 +260,9 @@ select{padding:6px 10px;background:#05050a;border:1px solid var(--zloto2);color:
 .probka{flex:0 0 auto;width:22px;height:22px;border:2px solid #0b0c12;box-shadow:0 0 0 1px var(--zloto2)}
 .dodaj-npc{display:flex;flex-wrap:wrap;gap:8px}.dodaj-npc input{flex:2 1 180px;width:auto;padding:8px 10px}.dodaj-npc select{flex:1 1 120px;padding:8px 10px}
 .edycja-prowincji small{color:#8f8268}
+.osady{list-style:none!important;padding:0!important;margin:0}.osady li{padding:4px 0;border-bottom:1px solid #2a2418}.typ-osady{display:inline-block;min-width:70px;font:600 12px Cinzel,Georgia,serif;letter-spacing:.06em;color:#8f8268}
+.osady .nazwa-osady{width:auto;flex:1;padding:5px 8px;margin-left:8px}.osady li:has(.nazwa-osady){display:flex;align-items:center}
+.akcje-osady{display:flex;gap:4px;margin-left:8px}
+.typ-osady.stolica{color:var(--zloto)}
+.mapa.stawianie,.mapa.stawianie.nad-prowincja:not(.ciagnie){cursor:crosshair}
+.pokaz-stolice{margin-left:8px;padding:2px 10px;font-size:12px}

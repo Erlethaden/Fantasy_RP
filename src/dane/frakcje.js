@@ -124,6 +124,9 @@ Goblin może otworzyć sklep, warsztat, restaurację, bank, drukarnię albo dowo
 
 Gobliny nie pytają przybysza: „Ile masz pieniędzy?”. Pytają: „Czy masz jakiś interes?”. A jeśli odpowiedź brzmi „nie”, goblin prawdopodobnie odpowie: „Jeszcze.”` },
       { tytul: "Prawo i niewolnictwo", tekst: `Niewolnictwo jest absolutnie zakazane. Każda rasa przebywająca w państwie posiada podstawowe prawa i wolność osobistą. Gobliny wolą zatrudniać za wynagrodzenie — ich zdaniem wolny pracownik może sam zdecydować, gdzie chce pracować i na co wyda swoje pieniądze.` },
+      { dopisek: "2026-10-19", tytul: "Nauka", tekst: `Goblandia ma ogromne uczelnie we wszystkich dziedzinach. Raz w roku spotykają się tu największe umysły świata.` },
+      { dopisek: "2026-10-19", tytul: "Port i handel", tekst: `Dzięki dostępowi do morza Goblandia skupia się przede wszystkim na wymianie handlowej. Ma potężny port, którym zarządza kapitan Gobjack. Legenda głosi, że kiedyś uciekł krakenowi statkiem pełnym towaru.` },
+      { dopisek: "2026-10-19", tytul: "Rehabilitacja", tekst: `Kto próbuje ukraść towar albo zaatakuje Goblandię, a zostanie schwytany, trafia na rehabilitację: pracuje i odsiaduje swój wyrok w warunkach podobnych do norweskich więzień, nastawionych na poprawę, a nie na karę. Po rehabilitacji sam wybiera, czy zostać obywatelem Goblandii, czy wrócić do swojego państwa.` },
     ],
   },
   {
@@ -185,6 +188,12 @@ Porządku pilnują kultyści w czerwieni z dużymi tarczami z wygrawerowanym oki
       { tytul: "Prowincja Czarnolasu", tekst: `W samym sercu mrocznych gór wznosi się Prowincja Czarnolasu, kraina, którą niepodzielnie rządzi starożytny czarny smok Shire.` },
       { tytul: "Twierdza Czarnego Szczytu", tekst: `Zamek został wykuty bezpośrednio w zboczu wysokiej, skalistej góry. Jego czarne baszty i iglice wyrastają prosto ze skały, jakby sama góra wypluła je na świat. Mury są chropowate, pokryte starożytnymi runami i śladami smoczego ognia. Z najwyższych tarasów widać całe królestwo aż po horyzont, a z kominów i szczelin w skale unosi się wieczny, siwy dym.` },
       { tytul: "Mroczny Las Usychających", tekst: `U stóp góry rozciąga się Mroczny Las Usychających. Tysiącletnie drzewa stoją tu martwe i skręcone, ich gałęzie czarne i suche jak węgiel. Nie rosną liście, nie śpiewają ptaki – tylko wiatr wyje między suchymi konarami, a ziemia jest pokryta popiołem i szarym mchem. Las ten jest żywą granicą prowincji: każdy, kto wejdzie bez pozwolenia Shire, czuje, jak życie powoli opuszcza jego ciało.` },
+      { dopisek: "2026-10-19", tytul: "Przeklęta ziemia", tekst: `Czarny las otacza górę, a przed nim wznosi się zamek Czarnego Smoka. Jedyna droga do wejścia biegnie wzdłuż zbocza – góra nie wpuszcza śmiałków chcących się na nią wspiąć, więc kto chce przejść, musi iść prosto przed siebie.
+
+Zanim powstało królestwo, ziemia ta była cmentarzyskiem i grobowcem: umierały tu mroczne smoki, smoki i inne istoty. Ich ciała pochowano razem z ich esencją, która z czasem się skumulowała i zamieniła tę krainę w mroczną, magiczną ziemię. Każdy, kto na niej umrze, staje się jednym z nich i trwa, dopóki ta ziemia istnieje. Wielu uczonych próbowało zbadać, jak to działa i czy da się z tego stworzyć nową magię, lecz niewielu przetrwało tu choćby jedną noc. Uznano więc tę ziemię za przeklętą i niezdatną do życia.
+
+Mroczny las jest esencją tej ziemi: zbiera moc i zasoby, a z tych, którzy tu trafiają, tworzy armię.` },
+      { dopisek: "2026-10-19", tytul: "Zamek na wzgórzu", tekst: `Gdy nadszedł prawowity władca tej ziemi, zbudował na wzgórzu swój zamek – idealne miejsce dla bohaterów, do tworzenia nowej magii, inwestycji, szkół, a także do biesiad. Wiadomo, że koszmary, widma i upiory nie zawsze się ze sobą zgadzają, ale gdy panuje smok, słuchają bez słowa.` },
       { tytul: "Smok i poddani", tekst: `Smok rzadko opuszcza swoje komnaty w sercu góry. Kiedy jednak rozkłada skrzydła nad lasem, niebo ciemnieje, a z jego paszczy spływa czarny, trujący dym, który jeszcze bardziej usycha to, co już i tak jest martwe.
 
 Poddani – ludzie o bladych twarzach, koszmarne elfy i nieliczni magowie cienia – żyją w małych osadach na skraju lasu, płacąc daninę w srebrze, krwi i posłuszeństwie. Wiedzą, że dopóki smok panuje, nikt z zewnątrz nie odważy się najechać Czarnolasu.

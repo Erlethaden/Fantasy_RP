@@ -7,6 +7,7 @@ rules_version = '2';
 // - część tajna frakcji (tajne_zasoby / tajne_jednostki / tajne_statusy) czyta GM, admin i gracz tej frakcji;
 //   pozostali członkowie tylko wtedy, gdy GM ustawił w dokumencie frakcji jawne.<rodzaj> = true
 // - notatki_gracza: czyta i pisze gracz tej frakcji + GM; notatki_gm: tylko GM/admin
+// - nazwy_osad/{prowincja} (6.2, 2026-10-19): nazwy osad zmienia GM albo gracz, którego frakcja ma tę prowincję (gra/prowincje)
 service cloud.firestore {
   match /databases/{database}/documents {
     function zalogowany() { return request.auth != null; }
@@ -41,8 +42,25 @@ service cloud.firestore {
     match /frakcje/{id} { allow read: if czlonek(); allow write: if gm(); }
     match /bohaterowie/{id} { allow read: if czlonek(); allow write: if gm(); }
     match /gra/{id} { allow read: if czlonek(); allow write: if gm(); }
+    // nazwy osad (6.2): jeden mały dokument na prowincję { n: {numer osady: nazwa} }; pisze GM albo gracz, którego frakcja ma tę prowincję
+    function mojaProwincja(pid) {
+      return czlonek() && mojaFrakcja() != ""
+        && get(/databases/$(database)/documents/gra/prowincje).data.p.get(pid, {}).get("wlasciciel", "") == mojaFrakcja();
+    }
+    match /nazwy_osad/{pid} {
+      allow read: if czlonek();
+      allow create, update: if (gm() || mojaProwincja(pid))
+        && request.resource.data.keys().hasOnly(["n"]) && request.resource.data.n is map && request.resource.data.n.size() <= 10;
+      allow delete: if gm() || mojaProwincja(pid);
+    }
     match /tajne_zasoby/{f} { allow read: if gm() || wlasciciel(f) || jawne(f, "zasoby"); allow write: if gm(); }
     match /tajne_jednostki/{f} { allow read: if gm() || wlasciciel(f) || jawne(f, "jednostki"); allow write: if gm(); }
+    // budynki i złoża (6.4): domyślnie jawne — tajne dopiero, gdy GM ustawi jawne.budynki = false
+    match /tajne_budynki/{f} { allow read: if gm() || wlasciciel(f) || (czlonek() && get(/databases/$(database)/documents/frakcje/$(f)).data.get("jawne", {}).get("budynki", true) != false); allow write: if gm(); }
+    // armie (7.1): skład, dowódca, trasa — jak zasoby (domyślnie tajne); pozycje znaczników w gra/armie (jawne)
+    match /tajne_armie/{f} { allow read: if gm() || wlasciciel(f) || jawne(f, "armie"); allow write: if gm(); }
+    // raporty bitew (7.1h): skład obu stron — czyta GM i gracze krajów biorących udział
+    match /bitwy/{id} { allow read: if gm() || (czlonek() && mojaFrakcja() in resource.data.uczestnicy); allow write: if gm(); }
     match /tajne_statusy/{f} { allow read: if gm() || wlasciciel(f) || jawne(f, "statusy"); allow write: if gm(); }
     match /notatki_gracza/{f} {
       allow read: if gm() || wlasciciel(f);

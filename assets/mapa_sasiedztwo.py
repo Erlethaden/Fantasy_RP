@@ -27,11 +27,16 @@ def wczytaj():
     return w, p, gory, rzeki
 
 def prowincje_komorek(w, p):
-    """id komórki → id prowincji; komórki lądu bez numeru dostają własne „D<n>”."""
+    """id komórki → id prowincji. Każdy obszar to osobna prowincja (użytkownik 2026-10-18 — wcześniej zakładaliśmy 2 obszary na prowincję):
+    numer z rysunku z dwoma obszarami → „<n>a” i „<n>b” (a = wyżej, przy remisie bardziej z lewej); komórki lądu bez numeru → „D<n>”."""
     jez = set(p["jeziora"])
-    kom = {int(c): n for n, cs in p["prowincje"].items() for c in cs}
     ids = np.unique(w); ids = ids[(ids > 0)]
-    srodki = ndi.center_of_mass(np.ones_like(w), w, ids)
+    srodki = dict(zip(map(int, ids), ndi.center_of_mass(np.ones_like(w), w, ids)))
+    kom = {}
+    for n, cs in p["prowincje"].items():
+        cs = sorted(map(int, cs), key=lambda c: (round(srodki[c][0] / 250), srodki[c][1]))
+        for k, c in enumerate(cs): kom[c] = n if len(cs) == 1 else n + "ab"[k]
+    srodki = [srodki[int(c)] for c in ids]
     bez = sorted((int(round(y / 250)), x, int(c)) for c, (y, x) in zip(ids, srodki) if int(c) not in kom and int(c) not in jez)
     for i, (_, _, c) in enumerate(bez, 1): kom[c] = f"D{i}"
     return kom, jez
@@ -90,7 +95,7 @@ if __name__ == "__main__":
     for c, n in kom.items(): po[n].append(c)
     prow = {n: {"komorki": sorted(po[n]), "srodek": [round(x), round(y)], "pole": int(pole[i + 1])} for i, (n, (y, x)) in enumerate(zip(nazwy, sr))}
     json.dump({"opis": "skala 1/4 (5000x5000) jak komorki_final.png; granice: [a, b, typ, długość px, udział przy górach, udział przy rzece]; "
-               "typ: zwykła | góry | rzeka (mosty stawia GM w grze); D<n> = prowincje dolnych kontynentów bez numeru na rysunku",
+               "typ: zwykła | góry | rzeka (mosty stawia GM w grze); każdy obszar = prowincja: <n>a/<n>b = dwa obszary z tym samym numerem z rysunku, D<n> = dolne kontynenty bez numeru",
                "jeziora": sorted(jez), "prowincje": prow, "granice": gr}, open(M + "sasiedztwo.json", "w", encoding="utf-8"), ensure_ascii=False)
     sasiedzi = collections.Counter([g[0] for g in gr] + [g[1] for g in gr])
     print("prowincji:", len(nazwy), "(bez numeru:", sum(n[0] == "D" for n in nazwy), ") granic:", len(gr), dict(collections.Counter(g[2] for g in gr)))

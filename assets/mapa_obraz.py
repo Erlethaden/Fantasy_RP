@@ -3,7 +3,7 @@
 #                                → public/mapa/kafle/<poziom>/<x>_<y>.png — kafelki 1024² do ostrego przybliżenia:
 #                                  poziom 2 = skala 1/2 (10000²), poziom 1 = pełna rozdzielczość (20000²); pliki tylko tam, gdzie jest tusz
 # Numer/podpis = skupisko drobnych znaków (nie kreska granicy, nie linia, nie przy górach i rzekach) o wysokości cyfr.
-# Pojedyncze krótkie kreski granic mają za mało tuszu albo są za płaskie/wąskie, więc zostają.
+# Kreski granic komórek (wszystko poza długimi liniami, z dala od gór i rzek) też są usuwane — granice rysuje program.
 import sys
 import numpy as np
 from PIL import Image
@@ -25,6 +25,13 @@ for i, s in enumerate(ndi.find_objects(gr), 1):
     usun[i] = tusz[i - 1] >= 120 and h - 2 * px(24) >= px(60) and w - 2 * px(24) >= px(20) and h <= px(400) + 2 * px(24)
 maska = ndi.binary_dilation(znak & usun[gr], iterations=2)
 print("skupisk usuniętych:", int(usun.sum()), "z", n)
+# przerywane kreski granic komórek też znikają (użytkownik 2026-10-19: nie zgadzały się z prowincjami) — program rysuje granice
+# sam z assets/mapa/granice.json. Zostają tylko długie linie (wybrzeża, rzeki, góry) i wszystko przy górach i rzekach.
+gory4 = np.array(Image.open("materialy/mapa/gory_final.png").convert("L")) > 127
+przy = ndi.binary_dilation(np.repeat(np.repeat(gory4, 2, 0), 2, 1) | (warstwy[..., 0] > 0), iterations=px(40))
+kreski = (typ[lab] != 2) & (lab > 0) & ~przy
+maska |= ndi.binary_dilation(kreski, iterations=2)
+print("pikseli kresek granic usuniętych:", int(kreski.sum()))
 pelny = np.array(Image.open("materialy/Mapa RPG.png").convert("L"))
 pelny[np.repeat(np.repeat(maska, 2, 0), 2, 1)] = 255   # maska jest w skali 1/2
 Image.fromarray(pelny).reduce(4).save("assets/mapa/mapa.png", optimize=True)
