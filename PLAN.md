@@ -131,11 +131,18 @@ Aplikacja dla grupy grającej tekstowo na Discordzie w fantasy RP w stylu Age of
 - [ ] 7.3 Krótkie animacje portretów (oddech, mrugnięcie, błysk)
 
 ### Etap 7b — handel i dyplomacja (użytkownik 2026-10-19: PRZED samouczkami, „jak w WorldWatch”)
-- [ ] 7.4 Szlaki handlowe między krajami (najpierw krótki wywiad + podejrzeć `materialy/WorldWatch-stary projekt modern day rp/js/map.js`, szlaki handlowe)
-- [ ] 7.5 Traktaty między krajami (wywiad; WorldWatch jako wzór)
+- Handel i traktaty — wywiad 2026-10-19: traktaty wpisuje TYLKO GM (gracze ustalają na Discordzie). Typy: Sojusz, Pakt o nieagresji, Umowa handlowa, Traktat pokojowy, Wasalstwo, Prawo przejścia wojsk, Inny; nazwa dowolna, strony = 2+ krajów (frakcje i kraje NPC), opis tekstem, przełącznik „tajny” (tajny widzą tylko strony + GM — pilnują reguły). Skutki: traktat pokojowy kończy wojnę między stronami; wypowiedzenie wojny pyta o zerwanie sojuszu/paktu między nimi; reszta to informacja. Szlak handlowy = umowa handlowa: złota linia między stolicami — najkrótsza droga lądem po prowincjach (bez gór; rzeki można), a gdy lądem się nie da — linia przez morze (lądowa przerywana, morska ciągła). Linie sojuszy/paktów między stolicami. Na mapie przyciski „Szlaki” / „Sojusze” włączają warstwy.
+- [x] 7.4 Traktaty: dane `traktaty/{id}` (reguły: jawne albo strona), Panel GM (dodaj, zerwij, usuń), lista na karcie frakcji, pokój kończy wojnę, wojna pyta o zerwanie sojuszu
+- [x] 7.5 Szlaki handlowe i linie sojuszy na mapie + przyciski warstw
 
 ### Etap 7c — wygląd mapy (po handlu i dyplomacji)
-- [ ] 7.6 Teksturowanie mapy (bezszwowe kafelki pixel art: trawa, góry, woda, wybrzeże, las — wg masek) i ogólna poprawa graficzna mapy
+- Wygląd mapy — wywiad 2026-10-19: najpierw PRÓBKA wycinka mapy w 4 wariantach do wyboru: styl (pixel art z kafelków / malowany pergamin-akwarela) × kreski (jak teraz / jaśniejsze-cieńsze). Teren prowincji wybiera GM na karcie prowincji (równina, las, pustynia, bagno, tundra…, domyślnie równina) — startowo ustawiam sensowne regiony sam, GM może zmieniać. Dodatki: ozdobna ramka + róża wiatrów, animowana woda, mgła na krawędziach.
+- [x] 7.6a Próbka: wycinek mapy (wybrzeże, rzeka, góry) w 4 wariantach → użytkownik wybiera
+- [x] 7.6b Wybrany styl na całą mapę (warstwa pod kreskami) + typ terenu prowincji (karta prowincji, GM) + startowe regiony
+- [x] 7.6c Ramka i róża wiatrów, animowana woda, mgła na krawędziach
+
+### Etap 7d — podgląd na telefon (użytkownik 2026-10-19)
+- [ ] 7.7 Uproszczony podgląd sytuacji w przeglądarce telefonu przez GitHub Pages (ten sam kod, tryb tylko do czytania: mapa, frakcje, armie, bitwy, traktaty; logowanie jak w programie). Przed startem krótki wywiad: co ma być widać, czy coś da się klikać, kto ma dostęp.
 
 ### Etap 8 — samouczki (na sam koniec, gdy wszystkie funkcje gotowe)
 - [ ] 8.0 NAJPIERW poproś użytkownika o jego grafikę Zgrzyta (ma gotową) — na jej podstawie karta postaci i awatar; nie generuj Zgrzyta od zera
@@ -143,6 +150,7 @@ Aplikacja dla grupy grającej tekstowo na Discordzie w fantasy RP w stylu Age of
 - [ ] 8.2 Osobny samouczek dla GM z tym samym awatarem Zgrzyta: Panel GM, zasoby, tury, propozycje, edytor mapy, armie
 
 ## Decyzje
+- 2026-10-19: wygląd mapy = wariant F (`assets/mapa_tekstury.py`): tekstury pixel art Z GENERATORA (trawa, woda ×2, piasek; 512 px → 128 BOX + paleta 24, zszyte odbiciem, 8 wersji obrót/odbicie/przesunięcie w nieregularnych plamach), texel 2 px mapy, LEKKIE brązowe kreski wybrzeży/granic; rzeki i góry rysuje program (kreski rzek i gór z rysunku usunięte): rzeka = ciągłe koryto (domknięcie dyskiem R=12 skleja przerwy po mostach z rysunku) z ciemnym brzegiem; góry = gęste sprite'y pixel art ze śnieżną czapą (`gora_m*.png`, 3 warianty, 48/36 px) na ciemniejszym podgórzu.
 - 2026-10-19: nowe opisy frakcji od graczy dopisuję do `src/dane/frakcje.js` jako sekcje z polem `dopisek: "<data>"` — GM przy logowaniu wgrywa je do chmury sam (raz; usunięta przez GM nie wraca).
 - 2026-10-16: nowy projekt od zera (nie przerabiamy WorldWatch).
 - 2026-10-16: Electron + web z jednego kodu; przeglądarka (WebGL/PixiJS) wystarcza do pixel artu i animacji.

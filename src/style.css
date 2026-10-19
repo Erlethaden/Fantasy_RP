@@ -31,10 +31,19 @@ button{font:600 15px Cinzel,Georgia,serif;letter-spacing:.06em;cursor:pointer}
 .gora .tytul{flex:0 0 auto}
 .obszar{flex:1;min-height:0;display:flex}
 /* mapa: rysunek tuszem na pergaminie (multiply zabiera białe tło) */
+.obszar{position:relative}
+.warstwy-mapy{position:absolute;left:12px;bottom:12px;display:flex;gap:6px;z-index:2}
+.warstwy-mapy button{padding:5px 10px;background:rgba(14,15,23,.7);color:#8f8268;border:1px solid #3a3020;font:600 13px Spectral,Georgia,serif;letter-spacing:0;cursor:pointer}
+.warstwy-mapy button.wlaczona{color:var(--zloto);border-color:var(--zloto);background:rgba(40,30,10,.92)}
 .mapa{flex:1;min-width:0;position:relative;overflow:hidden;background:radial-gradient(ellipse at 50% 45%,#e9dcbc,#cdb98d);cursor:grab;touch-action:none;user-select:none;-webkit-user-drag:none}
 .mapa.ciagnie{cursor:grabbing}
 .mapa:focus-visible{outline:2px solid var(--zloto);outline-offset:-2px}
-.mapa-warstwa{position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none;mix-blend-mode:multiply}
+.mapa-warstwa{position:absolute;left:0;top:0;transform-origin:0 0;pointer-events:none}
+.mapa-obraz,.mapa-teren,.mapa-fale{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated}
+.mapa-nakladka.mapa-kolory{mix-blend-mode:normal;image-rendering:pixelated}
+.mapa-ramka{position:absolute;inset:-130px;border:130px solid transparent;border-image:url("../assets/ramki/panel.png") 12/130px;image-rendering:pixelated}
+.mapa-mgla{position:absolute;inset:0;background:linear-gradient(to right,rgba(214,222,228,.8),rgba(214,222,228,0) 5%),linear-gradient(to left,rgba(214,222,228,.8),rgba(214,222,228,0) 5%),linear-gradient(to bottom,rgba(214,222,228,.8),rgba(214,222,228,0) 5%),linear-gradient(to top,rgba(214,222,228,.8),rgba(214,222,228,0) 5%)}
+.mapa-roza{position:absolute;left:60px;bottom:60px;width:384px;height:384px;image-rendering:pixelated;opacity:.95}
 .mapa-obraz{display:block;user-select:none;max-width:none}
 .mapa-granice{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .mapa-osady{position:absolute;inset:0;pointer-events:none;overflow:hidden}
@@ -138,6 +147,11 @@ button{font:600 15px Cinzel,Georgia,serif;letter-spacing:.06em;cursor:pointer}
 .s-stolica{color:#9fc27a}.s-misja{color:#e0b24a}.s-ranny{color:#e07a4a}.s-martwy{color:#8f8268;text-decoration:line-through}
 .okno{width:min(760px,calc(100vw - 32px));max-height:calc(100vh - 48px);padding:20px 24px;background:#0e0f17 padding-box;color:var(--tekst);border:24px solid transparent;border-image:url("../assets/ramki/panel.png") 12/24px;image-rendering:pixelated;box-shadow:inset 0 3px 0 var(--kolor);line-height:1.65}
 .lista-bitew{list-style:none;margin:4px 0 0;padding:0;display:grid;gap:4px}.lista-bitew button{text-align:left;width:100%;letter-spacing:0;text-transform:none;font:inherit}
+.lista-traktatow{list-style:none;margin:0 0 10px;padding:0}.lista-traktatow li{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid #2a2418}
+.lista-traktatow li>span:first-child{display:grid;gap:2px}.lista-traktatow small{color:#bfae86}.lista-traktatow .zerwany{opacity:.55}.lista-traktatow .zerwany b{text-decoration:line-through}
+.opis-traktatu{font-size:14px;white-space:pre-line}
+.nowy-traktat{display:grid;gap:8px}.nowy-traktat>label{display:grid;gap:2px}.strony-traktatu{border:1px solid #2a2418;padding:6px 10px;margin:0}
+.strony-traktatu label,.nowy-traktat .tajny{display:inline-flex;align-items:center;gap:6px;margin-right:14px}.strony-traktatu input,.nowy-traktat .tajny input{width:16px;height:16px;margin:0;accent-color:var(--zloto)}
 .okno-bitwy{width:min(1100px,calc(100vw - 32px))}
 .okno-bitwy .strony{display:flex;gap:14px;align-items:stretch;margin-top:14px}.okno-bitwy .strona{flex:1;min-width:0;border-top:4px solid var(--kolor);background:#12131c;padding:10px 14px}
 .okno-bitwy .vs{align-self:center;font:700 26px Cinzel,Georgia,serif;color:var(--zloto)}

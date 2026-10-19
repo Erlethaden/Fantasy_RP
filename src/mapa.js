@@ -4,13 +4,22 @@
 // kafle: { rozmiar, poziomy: {poziom: szerokość w px}, kafle: {poziom: ["x_y"]} }, pliki w `mapa/kafle/<poziom>/<x>_<y>.png` — ostrość przy przybliżeniu.
 // granice: linie [x0, y0, x1, y1, …] w px mapa.png — granice między prowincjami, rysowane przerywaną kreską jak na rysunku
 // ikony: {miasto, wioska, stolica} → adresy obrazków pixel art (brakujące = prosty znacznik z CSS)
-export function utworzMape(kontener, { rysunek, indeksy, ramki, kafle, granice, ikony = {}, onKlik }) {
+// rozmiar: [szer, wys] układu współrzędnych mapy (px mapa.png), gdy rysunek ma inną rozdzielczość (teren.png 2500² pokazywany ×2 — 7.6b)
+// teren: { maska, tekstury: {typ: url} } — tekstury typów terenu prowincji nakładane w przeglądarce na zwykły ląd (maska R), wersje 0–7 z maski G
+export function utworzMape(kontener, { rysunek, rozmiar, teren, indeksy, ramki, kafle, granice, ikony = {}, onKlik }) {
   const warstwa = document.createElement("div"); warstwa.className = "mapa-warstwa";
   const img = new Image(); img.src = rysunek; img.alt = "Mapa świata"; img.draggable = false; img.className = "mapa-obraz";
   const nak = document.createElement("canvas"); nak.className = "mapa-nakladka"; nak.setAttribute("aria-hidden", "true");
   const kol = document.createElement("canvas"); kol.className = "mapa-nakladka mapa-kolory"; kol.setAttribute("aria-hidden", "true");
   const ostre = document.createElement("div"); ostre.className = "mapa-kafle";
-  warstwa.append(img, ostre, kol, nak);
+  const ter = document.createElement("canvas"); ter.className = "mapa-teren"; ter.setAttribute("aria-hidden", "true");
+  const fale = document.createElement("canvas"); fale.className = "mapa-fale"; fale.setAttribute("aria-hidden", "true");
+  // ozdoby (7.6c): ramka pixel art wokół mapy, mgła przy krawędziach, róża wiatrów na morzu (lewy dolny róg)
+  const ramka = document.createElement("div"); ramka.className = "mapa-ramka";
+  const mgla = document.createElement("div"); mgla.className = "mapa-mgla";
+  const roza = new Image(); roza.className = "mapa-roza"; roza.alt = ""; roza.draggable = false; if (ikony.roza) roza.src = ikony.roza;
+  warstwa.append(img, ter, fale, mgla, ostre, kol, nak, ramka, ...(ikony.roza ? [roza] : []));
+  let SZ = 0, WY = 0;   // rozmiar mapy w px mapa.png
   const plotnoGranic = document.createElement("canvas"); plotnoGranic.className = "mapa-granice"; plotnoGranic.setAttribute("aria-hidden", "true");
   const sciezka = new Path2D();
   for (const l of granice || []) { sciezka.moveTo(l[0], l[1]); for (let k = 2; k < l.length; k += 2) sciezka.lineTo(l[k], l[k + 1]); }
@@ -32,6 +41,12 @@ export function utworzMape(kontener, { rysunek, indeksy, ramki, kafle, granice, 
     c.lineCap = c.lineJoin = "round";
     for (const t of trasy) {
       const p = t.punkty; if (p.length < 2) continue;
+      if (t.styl) {   // szlak / sojusz (7.5): jedna linia, bez napisu; kreska w px ekranu
+        c.beginPath(); c.moveTo(...p[0]); for (let k = 1; k < p.length; k++) c.lineTo(...p[k]);
+        c.setLineDash([]); c.lineWidth = 4.5 / w.s; c.strokeStyle = "rgba(20, 12, 4, .45)"; c.stroke();
+        c.setLineDash({ lad: [8, 5], morze: [], sojusz: [2, 6] }[t.styl].map(v => v / w.s)); c.lineWidth = 2.5 / w.s; c.strokeStyle = t.kolor; c.stroke();
+        continue;
+      }
       const linia = (od, doo) => { c.beginPath(); c.moveTo(...p[od]); for (let k = od + 1; k <= doo; k++) c.lineTo(...p[k]); c.stroke(); };
       const b = Math.min(t.przebyte || 0, p.length - 1);
       if (b > 0) { c.setLineDash([]); c.lineWidth = 3 / w.s; c.strokeStyle = "rgba(40, 25, 10, .85)"; linia(0, b); }
@@ -47,7 +62,7 @@ export function utworzMape(kontener, { rysunek, indeksy, ramki, kafle, granice, 
       }
     }
   }
-  let trasy = [];   // [{punkty: [[x, y] px mapa.png], przebyte: ile odcinków już przebytych, kolor, napis}]
+  let trasy = [];   // [{punkty: [[x, y] px mapa.png], przebyte: ile odcinków już przebytych, kolor, napis, styl?: "lad" | "morze" | "sojusz"}]
   const ustawTrasy = l => { trasy = l; rysujGranice(); };
   // osady: [{x, y (px mapa.png), typ: "miasto" | "wioska" | "stolica" | "most" | "armia", nazwa?, tytul?, ikona?, klik?, dx? (px ekranu)}]; stolice od przybliżenia 0.3, miasta od 0.8, wioski od 1.2 (wcześniej zaśmiecały oddaloną mapę), podpisy (gdy jest nazwa) od 0.9 / 1.6
   let osady = []; const osadyWDom = new Map();
@@ -68,10 +83,10 @@ export function utworzMape(kontener, { rysunek, indeksy, ramki, kafle, granice, 
   // kafle: poziom dobrany do przybliżenia (rysunek podstawowy ma 1/4 oryginału); w DOM tylko widoczne, reszta usuwana
   const istnieje = Object.fromEntries(Object.entries(kafle?.kafle || {}).map(([p, l]) => [p, new Set(l)])), wDom = new Map();
   function odswiezKafle() {
-    if (!kafle || !img.naturalWidth) return;
+    if (!kafle || !SZ) return;
     const skala = w.s * devicePixelRatio, poziom = skala > 2.2 ? "1" : skala > 1.1 ? "2" : null, chce = new Set();
     if (poziom) {
-      const k = kafle.rozmiar * img.naturalWidth / kafle.poziomy[poziom];   // bok kafla w px rysunku podstawowego
+      const k = kafle.rozmiar * SZ / kafle.poziomy[poziom];   // bok kafla w px rysunku podstawowego
       const x0 = Math.max(0, Math.floor(-w.x / w.s / k)), y0 = Math.max(0, Math.floor(-w.y / w.s / k));
       const x1 = Math.floor((kontener.clientWidth - w.x) / w.s / k), y1 = Math.floor((kontener.clientHeight - w.y) / w.s / k);
       for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (istnieje[poziom].has(`${x}_${y}`)) {
@@ -86,23 +101,23 @@ export function utworzMape(kontener, { rysunek, indeksy, ramki, kafle, granice, 
     }
     for (const [klucz, el] of wDom) if (!chce.has(klucz)) { el.remove(); wDom.delete(klucz); }
   }
-  const minS = () => Math.min(kontener.clientWidth / img.naturalWidth, kontener.clientHeight / img.naturalHeight) * 0.9;
+  const minS = () => Math.min(kontener.clientWidth / SZ, kontener.clientHeight / WY) * 0.9;
   // mapa nie ucieka poza ekran: zawsze zostaje widoczna co najmniej ćwiartka okna
   const ogranicz = () => {
-    const sw = img.naturalWidth * w.s, sh = img.naturalHeight * w.s, cw = kontener.clientWidth, ch = kontener.clientHeight;
+    const sw = SZ * w.s, sh = WY * w.s, cw = kontener.clientWidth, ch = kontener.clientHeight;
     w.x = Math.min(cw * 0.75, Math.max(cw * 0.25 - sw, w.x)); w.y = Math.min(ch * 0.75, Math.max(ch * 0.25 - sh, w.y));
   };
   const dopasuj = () => {
-    if (!img.naturalWidth || !kontener.clientWidth) return;
-    w.s = minS(); w.x = (kontener.clientWidth - img.naturalWidth * w.s) / 2; w.y = (kontener.clientHeight - img.naturalHeight * w.s) / 2; ustaw();
+    if (!SZ || !kontener.clientWidth) return;
+    w.s = minS(); w.x = (kontener.clientWidth - SZ * w.s) / 2; w.y = (kontener.clientHeight - WY * w.s) / 2; ustaw();
   };
   const zoom = (k, cx, cy) => {
     const s = Math.min(4, Math.max(minS(), w.s * k));
     w.x = cx - (cx - w.x) * s / w.s; w.y = cy - (cy - w.y) * s / w.s; w.s = s; ogranicz(); ustaw();
   };
-  img.onload = () => { warstwa.style.width = img.naturalWidth + "px"; warstwa.style.height = img.naturalHeight + "px"; dopasuj(); };
+  img.onload = () => { [SZ, WY] = rozmiar || [img.naturalWidth, img.naturalHeight]; warstwa.style.width = SZ + "px"; warstwa.style.height = WY + "px"; dopasuj(); };
   let dopasowana = false;
-  new ResizeObserver(() => { if (!dopasowana && img.naturalWidth && kontener.clientWidth) { dopasowana = true; dopasuj(); } else { ogranicz(); ustaw(); } }).observe(kontener);
+  new ResizeObserver(() => { if (!dopasowana && SZ && kontener.clientWidth) { dopasowana = true; dopasuj(); } else { ogranicz(); ustaw(); } }).observe(kontener);
 
   // --- prowincje ---
   let ind = null, IW = 0, IH = 0, nctx = null;
@@ -113,16 +128,66 @@ export function utworzMape(kontener, { rysunek, indeksy, ramki, kafle, granice, 
     const d = cx.getImageData(0, 0, IW, IH).data; ind = new Uint16Array(IW * IH);
     for (let i = 0; i < ind.length; i++) ind[i] = d[i * 4] * 256 + d[i * 4 + 1];
     nctx = nak.getContext("2d"); rysujProwincje(pod, wybrana); rysujKolory();
+    if (teren) await wczytajTeren();
   })().catch(e => console.error("mapa prowincji:", e));
+  // --- tereny prowincji (7.6b) ---
+  let mR = null, mG = null, tex = {}, typy = [], tctx = null;
+  const piksele = async url => { const b = await createImageBitmap(await (await fetch(url)).blob(), { colorSpaceConversion: "none", premultiplyAlpha: "none" });
+    const c = new OffscreenCanvas(b.width, b.height), x = c.getContext("2d", { willReadFrequently: true }); x.drawImage(b, 0, 0); return x.getImageData(0, 0, b.width, b.height); };
+  async function wczytajTeren() {
+    const m = await piksele(teren.maska); mR = new Uint8Array(IW * IH); mG = new Uint8Array(IW * IH);
+    const wodaPx = [];
+    for (let i = 0; i < mR.length; i++) { mR[i] = m.data[i * 4]; mG[i] = m.data[i * 4 + 1] >> 5; if (m.data[i * 4 + 2] > 127 && (i & 63) === 0) wodaPx.push(i); }
+    animujFale(wodaPx);
+    for (const [t, url] of Object.entries(teren.tekstury)) tex[t] = new Uint32Array((await piksele(url)).data.buffer);
+    ter.width = IW; ter.height = IH; tctx = ter.getContext("2d");
+    rysujTeren(...typy.map((_, i) => i + 1));
+  }
+  // fale (7.6c): odblaski — krótkie jasne kreski na wodzie, które pojawiają się i gasną (kilka klatek na sekundę, stoją przy ukrytej karcie)
+  function animujFale(wodaPx) {
+    if (!wodaPx.length || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    fale.width = IW; fale.height = IH; const c = fale.getContext("2d");
+    const N = 1400, odb = Array.from({ length: N }, () => ({ i: wodaPx[Math.random() * wodaPx.length | 0], f: Math.random() * 30 | 0, d: 2 + (Math.random() * 3 | 0) }));
+    setInterval(() => {
+      if (document.hidden) return;
+      for (const o of odb) {
+        const x = o.i % IW, y = o.i / IW | 0; c.clearRect(x - 1, y, o.d + 2, 1);
+        if (++o.f >= 30) Object.assign(o, { f: 0, i: wodaPx[Math.random() * wodaPx.length | 0], d: 2 + (Math.random() * 3 | 0) });
+        const a = Math.sin(o.f / 30 * Math.PI);
+        if (a > 0.15) { c.fillStyle = `rgba(200, 230, 255, ${(a * 0.85).toFixed(2)})`; c.fillRect(o.i % IW, o.i / IW | 0, o.d, 1); }
+      }
+    }, 120);
+  }
+  // próbka tekstury 128² w wersji v (0–7: obrót, odbicie, przesunięcie) — odbicie 2x2 daje okres 256 bez szwów, jak w mapa_teren.py
+  function probka(t, v, x, y) {
+    let a = (y + v * 97) & 255, b = (x + v * 61) & 255;
+    if (v >= 4) b = 255 - b;
+    for (let k = v & 3; k; k--) { const c = a; a = b; b = 255 - c; }
+    return t[(a < 128 ? a : 255 - a) * 128 + (b < 128 ? b : 255 - b)];
+  }
+  function rysujTeren(...ktore) {
+    const r = ktore.filter(i => i && ramki[i - 1]).map(i => ramki[i - 1]);
+    if (!tctx || !r.length) return;
+    const x0 = Math.min(...r.map(q => q[0])), y0 = Math.min(...r.map(q => q[1])), x1 = Math.max(...r.map(q => q[2])), y1 = Math.max(...r.map(q => q[3]));
+    const bw = x1 - x0, bh = y1 - y0, obraz = tctx.getImageData(x0, y0, bw, bh), u = new Uint32Array(obraz.data.buffer), zmien = new Set(ktore);
+    for (let y = 0; y < bh; y++) for (let x = 0; x < bw; x++) {
+      const gx = x + x0, gy = y + y0, i = gy * IW + gx, v = ind[i];
+      if (!zmien.has(v)) continue;
+      const t = tex[typy[v - 1]]; u[y * bw + x] = t && mR[i] ? probka(t, mG[i], gx, gy) : 0;
+    }
+    tctx.putImageData(obraz, x0, y0);
+  }
+  // typy[indeks-1] = "las" | "pustynia" | … | brak (równina — tekstura bazowa z teren.png); przerysowuje tylko zmienione prowincje
+  const ustawTereny = l => { const zm = l.map((t, i) => t !== typy[i] ? i + 1 : 0).filter(Boolean); typy = l; rysujTeren(...zm); };
   const naIndeks = (cx, cy) => {   // punkt ekranu (względem kontenera) → indeks prowincji
     if (!ind) return 0;
-    const x = Math.floor((cx - w.x) / w.s * IW / img.naturalWidth), y = Math.floor((cy - w.y) / w.s * IH / img.naturalHeight);
+    const x = Math.floor((cx - w.x) / w.s * IW / SZ), y = Math.floor((cy - w.y) / w.s * IH / WY);
     return x >= 0 && y >= 0 && x < IW && y < IH ? ind[y * IW + x] : 0;
   };
   // prowincje w promieniu r wokół punktu (x, y, r w px mapa.png) → Map(indeks → najmniejsza odległość w px obrazu indeksów); do mostów na rzekach
   const wokol = (x, y, r) => {
     const m = new Map(); if (!ind) return m;
-    const k = IW / img.naturalWidth, cx = x * k, cy = y * k, R = r * k;
+    const k = IW / SZ, cx = x * k, cy = y * k, R = r * k;
     for (let yy = Math.max(0, Math.floor(cy - R)); yy <= Math.min(IH - 1, cy + R); yy++)
       for (let xx = Math.max(0, Math.floor(cx - R)); xx <= Math.min(IW - 1, cx + R); xx++) {
         const v = ind[yy * IW + xx], d = Math.hypot(xx - cx, yy - cy);
@@ -131,7 +196,7 @@ export function utworzMape(kontener, { rysunek, indeksy, ramki, kafle, granice, 
     return m;
   };
   let pod = 0, wybrana = 0;
-  const KOLOR_POD = [200, 150, 70, 110], KOLOR_WYBR = [190, 120, 30, 170], KRAWEDZ = [90, 40, 0, 255];   // mnożone z pergaminem, więc ciemniejsze niż wyglądają
+  const KOLOR_POD = [200, 150, 70, 70], KOLOR_WYBR = [190, 120, 30, 90], KRAWEDZ = [90, 40, 0, 255];   // mnożone z teksturami — lekko, żeby teren był widać
   // przerysowanie tylko w ramce zmienionych prowincji (cały obraz ma ponad 6 mln pikseli)
   function rysujProwincje(...ktore) {
     const r = ktore.filter(Boolean).map(i => ramki[i - 1]);
@@ -149,11 +214,19 @@ export function utworzMape(kontener, { rysunek, indeksy, ramki, kafle, granice, 
   }
   // kolory właścicieli: kolory[indeks-1] = [r, g, b] albo brak (ziemia niczyja)
   let kolory = [];
+  // kolor kraju (7.6c): półprzezroczyste wypełnienie + wyraźny pas 3 px wzdłuż granicy państwa (tam, gdzie obok jest inny kraj, ziemia niczyja albo woda)
   function rysujKolory() {
     if (!ind) return;
-    const c = kol.getContext("2d"), obraz = c.createImageData(IW, IH), u = new Uint32Array(obraz.data.buffer), A = 150 << 24;
-    const lut = new Uint32Array(kolory.length + 1); kolory.forEach((k, i) => { if (k) lut[i + 1] = A | k[2] << 16 | k[1] << 8 | k[0]; });
-    for (let i = 0; i < ind.length; i++) u[i] = lut[ind[i]];
+    const c = kol.getContext("2d"), obraz = c.createImageData(IW, IH), u = new Uint32Array(obraz.data.buffer);
+    const kraj = new Uint32Array(kolory.length + 1); kolory.forEach((k, i) => { if (k) kraj[i + 1] = k[2] << 16 | k[1] << 8 | k[0] | 1 << 24; });   // 1<<24 = „ma właściciela”
+    const ws = new Uint32Array(ind.length); for (let i = 0; i < ind.length; i++) ws[i] = kraj[ind[i]];
+    const PAS = 3, WYP = 95 << 24 >>> 0, BRZ = 235 << 24 >>> 0;
+    for (let y = 0; y < IH; y++) for (let x = 0; x < IW; x++) {
+      const i = y * IW + x, k = ws[i]; if (!k) continue;
+      let brzeg = false;
+      for (let d = 1; d <= PAS && !brzeg; d++) brzeg = x < d || y < d || x >= IW - d || y >= IH - d || ws[i - d] !== k || ws[i + d] !== k || ws[i - d * IW] !== k || ws[i + d * IW] !== k;
+      u[i] = (k & 0xffffff) | (brzeg ? BRZ : WYP);
+    }
     c.putImageData(obraz, 0, 0);
   }
   const ustawKolory = k => { kolory = k; rysujKolory(); };
@@ -201,5 +274,5 @@ export function utworzMape(kontener, { rysunek, indeksy, ramki, kafle, granice, 
   const doWidoku = (x, y) => { const sx = w.x + x * w.s, sy = w.y + y * w.s, m = 40;
     if (sx < m || sy < m || sx > kontener.clientWidth - m || sy > kontener.clientHeight - m) pokaz(x, y); };
   const kursor = k => kontener.classList.toggle("stawianie", Boolean(k));   // tryb stawiania osady: kursor celownika
-  return { dopasuj, wybierz, pokaz, doWidoku, ustawKolory, ustawOsady, ustawTrasy, kursor, wokol };
+  return { dopasuj, wybierz, pokaz, doWidoku, ustawKolory, ustawOsady, ustawTrasy, ustawTereny, kursor, wokol };
 }

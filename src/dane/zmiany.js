@@ -1,7 +1,18 @@
 // „Co nowego” po aktualizacji: najnowsza wersja na górze; przed każdym wydaniem dopisz wpis z numerem z package.json (INSTRUKCJA-WYDANIE.md)
 export const ZMIANY = [
   {
-    wersja: "0.3.0", data: "19-10-2026", zmiany: [
+    wersja: "0.3.0", data: "tbd", zmiany: [
+      "Kraje są dużo lepiej widoczne: wypełnienie w kolorze kraju i gruby pas w tym kolorze wzdłuż granic państwa.",
+      "Mapa ma złotą ramkę, różę wiatrów, mgłę przy krawędziach i lekko migoczące odblaski na wodzie.",
+      "Nowy wygląd mapy: pixel art — trawa, morze (płytkie i głębokie), plaże, rzeki i pasma ośnieżonych gór zamiast kresek z rysunku.",
+      "Każda prowincja ma teren: równina, las, pustynia, bagno albo tundra (startowo ustawione, GM zmienia na karcie prowincji) — widać go na mapie.",
+      "Traktaty: GM wpisuje w Panelu GM traktaty między krajami (sojusz, pakt o nieagresji, umowa handlowa, traktat pokojowy, wasalstwo, prawo przejścia wojsk, inny) — nazwa, strony, opis, opcjonalnie tajny (widzą go tylko strony i GM). Na karcie frakcji jest lista jej traktatów.",
+      "Traktat pokojowy kończy wojnę między stronami; przy wypowiedzeniu wojny program pyta, czy zerwać sojusz albo pakt między nimi. Traktat można zerwać (zostaje w historii) albo usunąć.",
+      "Mapa: umowa handlowa rysuje złoty szlak między stolicami — lądem przez prowincje (omija góry), a gdy się nie da — przez morze. Sojusze i pakty jako kropkowane linie. Przyciski „Szlaki” i „Sojusze” w rogu mapy włączają te warstwy.",
+    ],
+  },
+  {
+    wersja: "0.2.4", data: "19-10-2026", zmiany: [
       "Armie: GM zakłada armię na karcie frakcji (staje w stolicy), ustawia dowódcę — bohatera albo pospolitego dowódcę z imieniem — dodaje bohaterów i oddziały z listy jednostek z liczbą żołnierzy. Bohater w armii dostaje sam status „na misji (z armią)”, po rozwiązaniu armii wraca do stolicy.",
       "Armie są na mapie: sztandar w kolorze frakcji (widać go po przybliżeniu, każdy gracz). Kliknięcie sztandaru otwiera kartę frakcji przy jej armiach.",
       "GM wyznacza armii cel: „Wyznacz cel” i klik na mapie — prowincja, osada (klik blisko niej) albo sztandar innej armii (pościg). Program liczy najkrótszą trasę i pokazuje ją na mapie z napisem „za N tur”; trasę widzi właściciel i GM.",

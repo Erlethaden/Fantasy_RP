@@ -61,6 +61,8 @@ service cloud.firestore {
     match /tajne_armie/{f} { allow read: if gm() || wlasciciel(f) || jawne(f, "armie"); allow write: if gm(); }
     // raporty bitew (7.1h): skład obu stron — czyta GM i gracze krajów biorących udział
     match /bitwy/{id} { allow read: if gm() || (czlonek() && mojaFrakcja() in resource.data.uczestnicy); allow write: if gm(); }
+    // traktaty (7.4): jawne czytają wszyscy, tajne tylko strony i GM; pisze GM
+    match /traktaty/{id} { allow read: if gm() || (czlonek() && (resource.data.tajny == false || mojaFrakcja() in resource.data.strony)); allow write: if gm(); }
     match /tajne_statusy/{f} { allow read: if gm() || wlasciciel(f) || jawne(f, "statusy"); allow write: if gm(); }
     match /notatki_gracza/{f} {
       allow read: if gm() || wlasciciel(f);

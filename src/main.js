@@ -1,15 +1,16 @@
 import "./style.css";
 import "../assets/sala_tronow/animacje.js"; // ustawia window.Sala
 import pakiet from "../package.json";
-import { czytajBitwe, stan, wczytaj, zapisz, CHMURA, polacz, odlacz, naZmianeKonta, zaloguj, zalozKonto, zalogujGoogle, wyloguj, ustawBladZapisu,
+import { usunTraktat, czytajBitwe, stan, wczytaj, zapisz, CHMURA, polacz, odlacz, naZmianeKonta, zaloguj, zalozKonto, zalogujGoogle, wyloguj, ustawBladZapisu,
   ROLE, mojProfil, sluchajProfilu, sluchajUzytkownikow, ustawUzytkownika, ustawDostep, sprzatnijLogi, ostatnieLogi, licznik, KOLEKCJE, policzDokumenty, rozmiaryWczytanych, szukajSmieci, zapiszWszystko,
   zaproponuj, sluchajPropozycji, rozpatrz, wycofaj, sprzatnijPropozycje, zapiszProwincje, zapiszNazwyOsad } from "./dane/magazyn.js";
 import { ZMIANY } from "./dane/zmiany.js";
 import { utworzMape } from "./mapa.js";
-import mapaUrl from "../assets/mapa/mapa.png";
+import terenUrl from "../assets/mapa/teren.png";
+import terenMaskaUrl from "../assets/mapa/teren_maska.png";
+import TERENY from "../assets/mapa/tereny.json";
 import indeksyUrl from "../assets/mapa/prowincje.png";
 import PROWINCJE from "../assets/mapa/prowincje.json";
-import KAFLE from "../assets/mapa/kafle.json";
 import GRANICE from "../assets/mapa/granice.json";
 // ikonki osad (6.2b): assets/mapa/ikony/<miasto|wioska|stolica>.png — dopóki ich nie ma, mapa rysuje proste znaczniki
 const IKONY_OSAD = Object.fromEntries(Object.entries(import.meta.glob(["../assets/mapa/ikony/*.png", "!../assets/mapa/ikony/*_1024.png"], { eager: true, query: "?url", import: "default" }))
@@ -88,7 +89,10 @@ function zamknijSzuflade() {
 document.getElementById("zamknij-szuflade").onclick = zamknijSzuflade;
 addEventListener("keydown", e => { if (e.key === "Escape" && !szuflada.hidden && !document.querySelector("dialog[open]")) zamknijSzuflade(); });
 // klik w prowincję otwiera jej kartę, klik w wodę zamyka szufladę
-const mapa = utworzMape(document.getElementById("mapa"), { rysunek: mapaUrl, indeksy: indeksyUrl, ramki: PROWINCJE.map(p => p.ramka), kafle: KAFLE, granice: GRANICE, ikony: IKONY_OSAD,
+// teren (7.6b): teren.png (2500²) pokazywany jako mapa 5000², tekstury typów terenu prowincji (assets/mapa/tekstury/<typ>.png)
+const TEKSTURY = Object.fromEntries(Object.entries(import.meta.glob("../assets/mapa/tekstury/*.png", { eager: true, query: "?url", import: "default" }))
+  .map(([k, url]) => [k.split("/").pop().slice(0, -4), url]));
+const mapa = utworzMape(document.getElementById("mapa"), { rysunek: terenUrl, rozmiar: [5000, 5000], teren: { maska: terenMaskaUrl, tekstury: TEKSTURY }, indeksy: indeksyUrl, ramki: PROWINCJE.map(p => p.ramka), granice: GRANICE, ikony: IKONY_OSAD,
   onKlik: (i, x, y) => celowanie ? celWProwincji(i, x, y) : stawianie ? postawOsade(i, x, y) : i ? pokazProwincje(i) : !szuflada.hidden && zamknijSzuflade() });
 // karta prowincji: właściciel, nazwa, opis — edytuje GM/admin, widzą wszyscy (decyzje 6.3)
 // stan.prowincje[id] = { wlasciciel: idFrakcji | "npc:<id>", nazwa, opis }; brak wpisu = ziemia niczyja
@@ -202,7 +206,7 @@ addEventListener("keydown", e => { if (e.key === "Escape" && stawianie) { const 
 const mozeNazywac = d => gm || (Boolean(profil?.frakcja) && d.wlasciciel === profil.frakcja);
 const NAZWY_TYPOW = { miasto: "Miasto", wioska: "Wioska", stolica: "Stolica" };
 const mostyNaMapie = () => Object.entries(stan.prowincje || {}).flatMap(([a, d]) => Object.entries(d.mosty || {}).filter(([b]) => a < b).map(([, [x, y]]) => ({ typ: "most", x, y })));
-const pokazOsadyNaMapie = () => { mapa.ustawOsady(PROWINCJE.flatMap(osadyProwincji).concat(mostyNaMapie(), armieNaMapie(), bitwyNaMapie())); mapa.ustawTrasy(trasyNaMapie()); };
+const pokazOsadyNaMapie = () => { mapa.ustawOsady(PROWINCJE.flatMap(osadyProwincji).concat(mostyNaMapie(), armieNaMapie(), bitwyNaMapie())); mapa.ustawTrasy([...liniaTraktatowNaMapie(), ...trasyNaMapie()]); };
 // znaczniki armii (7.1b): sztandar armia.png z flagą w kolorach-kluczach (magenta) przemalowaną na kolor frakcji; kilka armii w jednym miejscu — obok siebie
 const szablonArmii = Object.assign(new Image(), { src: IKONY_OSAD.armia || "", onload: () => pokazOsadyNaMapie() }), ikonyArmii = new Map();
 function ikonaArmii(kolor) {
@@ -226,7 +230,12 @@ function armieNaMapie() {
       klik: () => celowanie ? (celowanie.a.id !== id && (celowanie.bitwa ? wymusBitwe(id) : !celowanie.przestaw && ustawCel({ armia: id }))) : (wybierz(f.id), glowny.querySelector("section.armie")?.scrollIntoView({ block: "start" })) }];
   });
 }
+// teren prowincji: zmiana GM (stan.prowincje[id].teren) albo startowy z tereny.json; „rownina” = trawa z teren.png
+const TYPY_TERENU = { rownina: "Równina", las: "Las", pustynia: "Pustynia", bagno: "Bagno", tundra: "Tundra" };
+const terenProwincji = p => stan.prowincje?.[p.id]?.teren || TERENY[p.id] || "rownina";
+const pokazTereny = () => mapa.ustawTereny(PROWINCJE.map(p => { const t = terenProwincji(p); return t === "rownina" ? undefined : t; }));
 function kolorujMape() {
+  pokazTereny();
   mapa.ustawKolory(PROWINCJE.map(p => { const w = wlascicielPo(stan.prowincje?.[p.id]?.wlasciciel); return w && rgb(w.kolor); }));
 }
 function sekcjaBudynkow(p, d) {
@@ -258,10 +267,11 @@ function pokazProwincje(i, zostanPrzewiniecie) {
     + (npc.length ? `<optgroup label="Kraje NPC">${npc.map(([id, n]) => opcja("npc:" + id, `${n.nazwa} (${RODZAJE_NPC[n.rodzaj] || "wasal"} ${frakcjaPo(n.zwierzchnik)?.nazwa || "?"})`)).join("")}</optgroup>` : "");
   const wlasciciel = wl ? `<b>${esc(wl.nazwa)}</b>${wl.opis ? ` — ${esc(wl.opis)}` : ""}` : "ziemia niczyja";
   glowny.innerHTML = `<article class="karta prowincja"><h2>${esc(nazwaProwincji(p))}</h2>
-    <p class="rasa">${wlasciciel}${d.nazwa ? ` · nr ${esc(p.id)}` : ""}</p>
+    <p class="rasa">${wlasciciel}${d.nazwa ? ` · nr ${esc(p.id)}` : ""} · ${TYPY_TERENU[terenProwincji(p)]}</p>
     ${gm ? `<form class="edycja-prowincji">
       <label class="szeroko">Właściciel <select name="wlasciciel">${opcjeWl}</select>${npc.length ? "" : `<small>Kraje NPC (wasale, marionetki) zakładasz w Panelu GM.</small>`}</label>
       <label class="szeroko">Nazwa <input name="nazwa" maxlength="80" value="${esc(d.nazwa || "")}" placeholder="Prowincja ${esc(p.id)}"></label>
+      <label class="szeroko">Teren <select name="teren">${Object.entries(TYPY_TERENU).map(([k, n]) => `<option value="${k}"${k === terenProwincji(p) ? " selected" : ""}>${n}</option>`).join("")}</select></label>
       <label class="szeroko">Opis <textarea name="opis" rows="4" maxlength="4000">${esc(d.opis || "")}</textarea></label></form>`
       : d.opis ? `<div class="opis">${tekst(d.opis)}</div>` : ""}
     <section><h3>Osady</h3><ul class="osady">${osadyProwincji(p).map((o, k) => `<li><span class="typ-osady${o.typ === "stolica" ? " stolica" : ""}">${o.typ === "stolica" ? "★ " : ""}${NAZWY_TYPOW[o.typ]}</span>
@@ -337,7 +347,8 @@ function pokazProwincje(i, zostanPrzewiniecie) {
   });
   const form = glowny.querySelector(".edycja-prowincji");
   if (form) form.onchange = () => {
-    const v = Object.fromEntries(new FormData(form)), n = { ...stan.prowincje?.[p.id], wlasciciel: v.wlasciciel, nazwa: v.nazwa.trim(), opis: v.opis.trim() };   // bieżący stan — nazwy osad mogły się zmienić po narysowaniu karty
+    const v = Object.fromEntries(new FormData(form)), n = { ...stan.prowincje?.[p.id], wlasciciel: v.wlasciciel, nazwa: v.nazwa.trim(), opis: v.opis.trim(),
+      teren: v.teren === (TERENY[p.id] || "rownina") ? "" : v.teren };   // zapisujemy tylko zmianę względem startowego   // bieżący stan — nazwy osad mogły się zmienić po narysowaniu karty
     if (n.wlasciciel !== d.wlasciciel && n.osady?.some(o => o.typ === "stolica")) n.osady = n.osady.map(o => o.typ === "stolica" ? { ...o, typ: "miasto" } : o);   // podbita stolica przestaje nią być
     // podbój (6.4): budynki i złoże przechodzą do nowego właściciela, poza unikalnymi zasobami starej frakcji
     const bud = n.wlasciciel !== d.wlasciciel && budynki(p), bezU = v => v?.startsWith("u:") ? "" : v || "";
@@ -465,14 +476,14 @@ const odmiana = (n, jeden, kilka, wiele) => n === 1 ? jeden : n % 10 >= 2 && n %
 const NR_PROWINCJI = new Map(PROWINCJE.map((p, i) => [p.id, i + 1]));
 const PRZEJSCIA = { gory: "przez góry", rzeki: "przez rzeki (bez mostu)" };
 const przechodzi = (f, t) => t === "zwykła" || t === "most" || (t === "góry" && Boolean(f?.przejscia?.gory)) || (t === "rzeka" && Boolean(f?.przejscia?.rzeki));
-function wyznaczTrase(f, start, cel) {   // → lista kroków [{p, o}] bez miejsca startu albo null, gdy nie ma drogi
+function wyznaczTrase(f, start, cel, moze = t => przechodzi(f, t)) {   // → lista kroków [{p, o}] bez miejsca startu albo null, gdy nie ma drogi; moze(typGranicy) — czy wolno przejść
   if (!start || !cel) return null;
   if (start.p === cel.p) return start.o === cel.o ? [] : [cel];
   const s = NR_PROWINCJI.get(start.p), k = NR_PROWINCJI.get(cel.p); if (!s || !k) return null;
   const skad = new Map([[s, 0]]), kolejka = [s];
   for (let n = 0; n < kolejka.length && !skad.has(k); n++) {
     const i = kolejka[n], p = PROWINCJE[i - 1];
-    for (const [j, t] of p.sasiedzi) if (!skad.has(j) && przechodzi(f, typGranicy(p, j, t))) { skad.set(j, i); kolejka.push(j); }
+    for (const [j, t] of p.sasiedzi) if (!skad.has(j) && moze(typGranicy(p, j, t))) { skad.set(j, i); kolejka.push(j); }
   }
   if (!skad.has(k)) return null;
   const droga = []; for (let i = k; i !== s; i = skad.get(i)) droga.unshift({ p: PROWINCJE[i - 1].id, o: -1 });
@@ -684,6 +695,45 @@ function pokazNoweBitwy() {
   if (!nowa) return;
   try { localStorage.setItem("frp-bitwy", JSON.stringify([...widziane, nowa[0]].slice(-50))); } catch {}
   pokazBitwe(nowa[0]);
+}
+// szlaki handlowe i linie traktatów na mapie (7.5): między stolicami stron (bez stolicy — środek pierwszej prowincji kraju)
+// szlak = umowa handlowa: najkrótsza droga lądem po prowincjach (bez gór, rzeki wolno), a gdy lądem się nie da — prosto przez morze
+const KOLORY_TRAKTATOW = { sojusz: "#3fa34d", pakt: "#4a7bd0", wasalstwo: "#9a5ad0", przejscie: "#8a8a8a", inny: "#e8e0c8" };
+let warstwy = { szlaki: true, sojusze: false };
+try { warstwy = { ...warstwy, ...JSON.parse(localStorage.getItem("frp-warstwy") || "{}") }; } catch {}
+function miejsceKraju(wl) {
+  const s = stolicaWl(wl); if (s) return { p: s.p.id, o: s.k };
+  const p = PROWINCJE.find(q => stan.prowincje?.[q.id]?.wlasciciel === wl); return p && { p: p.id, o: -1 };
+}
+const szlakiCache = new Map();   // klucz: miejsca + typy granic → punkty (BFS po ~900 prowincjach przy każdym odświeżeniu byłby zbędny)
+function szlak(a, b) {
+  const A = miejsceKraju(a), B = miejsceKraju(b); if (!A || !B) return null;
+  const klucz = JSON.stringify([A, B, Object.values(stan.prowincje || {}).map(d => [d.granice, d.mosty])]);
+  if (!szlakiCache.has(klucz)) {
+    const tr = wyznaczTrase(null, A, B, t => t !== "góry");
+    szlakiCache.set(klucz, tr ? { styl: "lad", punkty: [A, ...tr].map(punktMiejsca).filter(Boolean) } : { styl: "morze", punkty: [punktMiejsca(A), punktMiejsca(B)].filter(Boolean) });
+    if (szlakiCache.size > 200) szlakiCache.delete(szlakiCache.keys().next().value);
+  }
+  return szlakiCache.get(klucz);
+}
+function liniaTraktatowNaMapie() {
+  const pary = t => t.strony.flatMap((a, i) => t.strony.slice(i + 1).map(b => [a, b]));
+  return aktywneTraktaty().flatMap(([, t]) => {
+    if (t.typ === "handel") return warstwy.szlaki ? pary(t).map(([a, b]) => szlak(a, b)).filter(Boolean).map(s => ({ ...s, kolor: "#e0a92a" })) : [];
+    if (t.typ === "pokoj" || !warstwy.sojusze) return [];
+    return pary(t).map(([a, b]) => [miejsceKraju(a), miejsceKraju(b)]).filter(([x, y]) => x && y)
+      .map(([x, y]) => ({ styl: "sojusz", kolor: KOLORY_TRAKTATOW[t.typ] || "#e8e0c8", punkty: [punktMiejsca(x), punktMiejsca(y)] }));
+  });
+}
+const przyciskiWarstw = document.getElementById("warstwy-mapy");
+function pokazPrzyciskiWarstw() {
+  przyciskiWarstw.innerHTML = [["szlaki", "💰 Szlaki"], ["sojusze", "🤝 Sojusze"]].map(([k, n]) =>
+    `<button type="button" data-warstwa="${k}" aria-pressed="${warstwy[k]}" class="${warstwy[k] ? "wlaczona" : ""}">${n}</button>`).join("");
+  przyciskiWarstw.querySelectorAll("button").forEach(b => b.onclick = () => {
+    warstwy[b.dataset.warstwa] = !warstwy[b.dataset.warstwa];
+    try { localStorage.setItem("frp-warstwy", JSON.stringify(warstwy)); } catch {}
+    pokazPrzyciskiWarstw(); pokazOsadyNaMapie();
+  });
 }
 // wybór celu (GM): „Wyznacz cel” → klik w prowincję (najbliższa osada w promieniu 30 px albo pole) albo w sztandar innej armii
 let celowanie = null;   // { f, a, przestaw? } — przestaw: GM stawia armię od razu w klikniętym miejscu (bez zużycia tury)
@@ -986,6 +1036,7 @@ function wybierz(id, zostanPrzewiniecie) {
     ${zasoby(f)}
     ${jednostki(f)}
     ${armie(f)}
+    ${traktatyFrakcji(f)}
     ${budynkiFrakcji(f)}
     ${mojePropozycje(f)}
     ${notatki(f)}
@@ -1026,6 +1077,7 @@ function pokazPanelGM(zostanPrzewiniecie) {
       ${ostatniaTura() ? `<button type="button" class="cofnij" id="cofnij-ture">Cofnij zamknięcie tury ${ostatniaTura().nr}</button>` : ""}</p>
       ${stan.tury.length ? `<ul class="lista-tur">${stan.tury.map(t => `<li>Tura ${t.nr} — zamknięta ${esc(new Date(t.data).toLocaleString("pl-PL"))}</li>`).reverse().join("")}</ul>` : ""}</section>
     ${wojnySekcja()}
+    ${traktatySekcja()}
     ${npcSekcja()}
     ${uzytkownicySekcja()}
     ${logiSekcja()}
@@ -1074,7 +1126,7 @@ function pokazPanelGM(zostanPrzewiniecie) {
     z.push({ id, nazwa, jednostka: d.get("jednostka").trim(), ikona: "" }); odswiez();
     glowny.querySelector(".dodaj-zasob input").focus();
   };
-  podepnijWojny(odswiez); podepnijNpc(); podepnijUzytkownikow(); podepnijPropozycje(); podepnijLogi(); podepnijDiagnostyke(); podepnijPorzadki(); podepnijKopie();
+  podepnijWojny(odswiez); podepnijTraktaty(odswiez); podepnijNpc(); podepnijUzytkownikow(); podepnijPropozycje(); podepnijLogi(); podepnijDiagnostyke(); podepnijPorzadki(); podepnijKopie();
   if (!zostanPrzewiniecie) glowny.scrollTop = 0;
   otworzSzuflade();
 }
@@ -1096,8 +1148,49 @@ function podepnijWojny(odswiez) {
   form.onsubmit = e => {
     e.preventDefault(); const a = form.k1.value, b = form.k2.value;
     if (a === b || wWojnie(a, b)) return;
+    const przyjazne = aktywneTraktaty().filter(([, t]) => ["sojusz", "pakt"].includes(t.typ) && t.strony.includes(a) && t.strony.includes(b));
+    if (przyjazne.length && confirm(`Te kraje łączy: ${przyjazne.map(([, t]) => t.nazwa).join(", ")}. Zerwać przy wypowiedzeniu wojny?`)) przyjazne.forEach(([, t]) => t.zerwany = stan.tury.length + 1);
     (stan.wojny ??= []).push([a, b]); odswiez();
   };
+}
+// traktaty (7.4): stan.traktaty = { id: { nazwa, typ, strony: [wł], tajny, opis, tura, zerwany?: tura } } — wpisuje GM; tajny widzą strony i GM
+const TYPY_TRAKTATOW = { sojusz: "Sojusz", pakt: "Pakt o nieagresji", handel: "Umowa handlowa", pokoj: "Traktat pokojowy", wasalstwo: "Wasalstwo", przejscie: "Prawo przejścia wojsk", inny: "Inny" };
+const aktywneTraktaty = () => Object.entries(stan.traktaty || {}).filter(([, t]) => !t.zerwany);
+const nazwyStron = t => t.strony.map(w => wlascicielPo(w)?.nazwa || w).join(", ");
+const wierszTraktatu = ([id, t], przyciski) => `<li${t.zerwany ? ` class="zerwany"` : ""}><span><b>${t.tajny ? "🔒 " : "📜 "}${esc(t.nazwa)}</b> <small>${TYPY_TRAKTATOW[t.typ] || t.typ} · ${esc(nazwyStron(t))} · tura ${t.tura}${t.zerwany ? ` · zerwany w turze ${t.zerwany}` : ""}</small>
+  ${t.opis ? `<span class="opis-traktatu">${esc(t.opis)}</span>` : ""}</span>${przyciski ? `<span class="akcje">${t.zerwany ? "" : `<button type="button" class="usun" data-zerwij="${esc(id)}" title="Zerwij traktat" aria-label="Zerwij traktat ${esc(t.nazwa)}">✂</button>`}<button type="button" class="usun" data-usun-traktat="${esc(id)}" title="Usuń (pomyłka)" aria-label="Usuń traktat ${esc(t.nazwa)}">×</button></span>` : ""}</li>`;
+const traktatySekcja = () => `<section class="traktaty"><h3>Traktaty</h3><p class="opis-sekcji">Wpisuje GM. Tajny traktat widzą tylko jego strony i GM. Traktat pokojowy kończy wojnę między stronami. Umowa handlowa rysuje szlak na mapie.</p>
+  ${Object.keys(stan.traktaty || {}).length ? `<ul class="lista-traktatow">${Object.entries(stan.traktaty).sort((a, b) => b[1].tura - a[1].tura).map(e => wierszTraktatu(e, true)).join("")}</ul>` : `<p class="puste">Brak traktatów.</p>`}
+  <form class="nowy-traktat"><label>Nazwa <input name="nazwa" required maxlength="100" placeholder="np. Pakt Kłów i Łusek"></label>
+    <label>Typ <select name="typ">${Object.entries(TYPY_TRAKTATOW).map(([k, n]) => `<option value="${k}">${n}</option>`).join("")}</select></label>
+    <fieldset class="strony-traktatu"><legend>Strony (co najmniej dwie)</legend>${opcjeKrajow().map(([id, n]) => `<label><input type="checkbox" name="strona" value="${esc(id)}"> ${esc(n)}</label>`).join("")}</fieldset>
+    <label>Opis / warunki <textarea name="opis" rows="3" maxlength="5000"></textarea></label>
+    <label class="tajny"><input type="checkbox" name="tajny"> Tajny (widzą tylko strony i GM)</label>
+    <button class="dodaj">Dodaj traktat</button> <span class="opis-sekcji komunikat-traktatu"></span></form></section>`;
+function podepnijTraktaty(odswiez) {
+  const form = glowny.querySelector(".nowy-traktat");
+  form.onsubmit = e => {
+    e.preventDefault();
+    const d = new FormData(form), strony = d.getAll("strona"), typ = d.get("typ");
+    if (strony.length < 2) return napisz(".komunikat-traktatu", "Zaznacz co najmniej dwie strony.");
+    (stan.traktaty ??= {})["t" + Date.now().toString(36)] = { nazwa: d.get("nazwa").trim(), typ, strony, tajny: d.get("tajny") === "on", opis: d.get("opis").trim(), tura: stan.tury.length + 1 };
+    if (typ === "pokoj") stan.wojny = (stan.wojny || []).filter(([a, b]) => !(strony.includes(a) && strony.includes(b)));   // pokój kończy wojnę między stronami
+    odswiez(); pokazOsadyNaMapie();
+  };
+  glowny.querySelectorAll("[data-zerwij]").forEach(b => b.onclick = () => {
+    const t = stan.traktaty[b.dataset.zerwij]; if (!confirm(`Zerwać traktat „${t.nazwa}”? Zostanie w historii.`)) return;
+    t.zerwany = stan.tury.length + 1; odswiez(); pokazOsadyNaMapie();
+  });
+  glowny.querySelectorAll("[data-usun-traktat]").forEach(b => b.onclick = () => {
+    const t = stan.traktaty[b.dataset.usunTraktat]; if (!confirm(`Usunąć traktat „${t.nazwa}” całkiem (np. wpisany przez pomyłkę)? Tego nie da się cofnąć.`)) return;
+    usunTraktat(b.dataset.usunTraktat); pokazPanelGM(true); pokazOsadyNaMapie();
+  });
+}
+// karta frakcji: traktaty, które ten gracz widzi, z udziałem frakcji (jej krajów NPC też)
+function traktatyFrakcji(f) {
+  const moje = new Set([f.id, ...Object.entries(stan.npc || {}).filter(([, n]) => n.zwierzchnik === f.id).map(([id]) => "npc:" + id)]);
+  const l = Object.entries(stan.traktaty || {}).filter(([, t]) => t.strony.some(w => moje.has(w))).sort((a, b) => !!a[1].zerwany - !!b[1].zerwany || b[1].tura - a[1].tura);
+  return l.length ? `<section class="traktaty"><h3>Traktaty</h3><ul class="lista-traktatow">${l.map(e => wierszTraktatu(e, false)).join("")}</ul></section>` : "";
 }
 const npcSekcja = () => `<section class="npc"><h3>Kraje NPC</h3><p class="opis-sekcji">Wasale i marionetki frakcji. Na mapie mają kolor w odcieniu zwierzchnika; prowincje przypisujesz w karcie prowincji (klik w mapę).</p>
   <ul class="lista-npc">${Object.entries(stan.npc || {}).sort((a, b) => a[1].nazwa.localeCompare(b[1].nazwa, "pl")).map(([id, n]) => `<li data-id="${esc(id)}">
@@ -1301,7 +1394,7 @@ function odswiezWidok() {
 }
 function wejdz() {
   if (aktualizacjaBlokuje()) return;
-  zamknijSzuflade(); zbudujListe(); przeniesStareProwincje(); kolorujMape(); pokazOsadyNaMapie(); przelacz(true); setTimeout(pokazNoweBitwy, 1500);   // start: sama mapa, karty otwiera klik w herb
+  zamknijSzuflade(); zbudujListe(); przeniesStareProwincje(); kolorujMape(); pokazPrzyciskiWarstw(); pokazOsadyNaMapie(); przelacz(true); setTimeout(pokazNoweBitwy, 1500);   // start: sama mapa, karty otwiera klik w herb
 }
 const blad = document.getElementById("blad-logowania");
 const pokazBlad = (t, info) => { blad.textContent = t; blad.hidden = !t; blad.classList.toggle("info", Boolean(info)); };
