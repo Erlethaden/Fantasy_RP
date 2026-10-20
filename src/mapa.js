@@ -354,11 +354,23 @@ export function utworzMape(kontener, { rysunek, rozmiar, teren, indeksy, ramki, 
     e.preventDefault(); const r = kontener.getBoundingClientRect();
     zoom(Math.exp(-e.deltaY * 0.0015), e.clientX - r.left, e.clientY - r.top);
   }, { passive: false });
-  let chwyt = null;
+  let chwyt = null, szczyp = null;
+  const palce = new Map();   // dotyk (telefon, 7.7b): aktywne palce; dwa palce = przybliżanie i przesuwanie, bez kliknięcia po puszczeniu
+  const srodek = () => { const [a, b] = [...palce.values()]; return { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; };
   // bez preventDefault przeglądarka zaczyna zaznaczanie / przeciąganie obrazka (kursor „kopiuj”) zamiast przesuwania
   kontener.addEventListener("dragstart", e => e.preventDefault());
-  kontener.addEventListener("pointerdown", e => { if (e.button !== 0) return; e.preventDefault(); kontener.focus({ preventScroll: true }); kontener.setPointerCapture(e.pointerId); chwyt = { x: e.clientX, y: e.clientY, wx: w.x, wy: w.y, ruch: 0 }; kontener.classList.add("ciagnie"); });
+  kontener.addEventListener("pointerdown", e => { if (e.button !== 0) return; e.preventDefault(); kontener.focus({ preventScroll: true }); kontener.setPointerCapture(e.pointerId); chwyt = { x: e.clientX, y: e.clientY, wx: w.x, wy: w.y, ruch: 0 }; kontener.classList.add("ciagnie");
+    if (e.pointerType === "touch") { palce.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (palce.size === 2) { szczyp = srodek(); chwyt = null; } }
+  });
   kontener.addEventListener("pointermove", e => {
+    if (palce.has(e.pointerId)) {
+      palce.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (szczyp && palce.size === 2) {
+        const t = srodek(), r = kontener.getBoundingClientRect();
+        w.x += t.x - szczyp.x; w.y += t.y - szczyp.y; zoom(t.d / szczyp.d, t.x - r.left, t.y - r.top); szczyp = t; return;
+      }
+      if (szczyp) return;   // po szczypaniu jeden palec zostaje — bez skoku mapy
+    }
     if (!chwyt) { if (e.pointerType === "mouse") { const r = kontener.getBoundingClientRect(); ustawPod(naIndeks(e.clientX - r.left, e.clientY - r.top)); } return; }
     chwyt.ruch = Math.max(chwyt.ruch, Math.hypot(e.clientX - chwyt.x, e.clientY - chwyt.y));
     w.x = chwyt.wx + e.clientX - chwyt.x; w.y = chwyt.wy + e.clientY - chwyt.y; ogranicz(); ustaw();
@@ -371,8 +383,9 @@ export function utworzMape(kontener, { rysunek, rozmiar, teren, indeksy, ramki, 
       else { const r = kontener.getBoundingClientRect(); const cx = e.clientX - r.left, cy = e.clientY - r.top; onKlik?.(naIndeks(cx, cy), (cx - w.x) / w.s, (cy - w.y) / w.s); }
     }
     chwyt = null; kontener.classList.remove("ciagnie");
+    palce.delete(e.pointerId); if (!palce.size) szczyp = null;
   });
-  kontener.addEventListener("pointercancel", () => { chwyt = null; kontener.classList.remove("ciagnie"); });
+  kontener.addEventListener("pointercancel", e => { chwyt = null; kontener.classList.remove("ciagnie"); palce.delete(e.pointerId); if (!palce.size) szczyp = null; });
   // klawiatura: mapa jest w kolejności Tab; strzałki przesuwają, +/- przybliża, 0 dopasowuje
   kontener.tabIndex = 0;
   kontener.addEventListener("keydown", e => {

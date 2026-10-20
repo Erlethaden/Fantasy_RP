@@ -146,7 +146,19 @@ Aplikacja dla grupy grającej tekstowo na Discordzie w fantasy RP w stylu Age of
     - [x] 7.8e-1 Trasa ląd–morze–ląd (`trasaPrzeprawy`: Dijkstra po akwenach, załadunek = 1 tura, 1 akwen/turę, wyładunek = 1 tura), opis na karcie armii, wybór flot do przeprawy przez GM (`a.transport`), pojemność i ostrzeżenie „nie mieści się”, trasa na mapie (też propozycji gracza). Użytkownik 2026-10-20: armia na pokładzie NIE ma osobnego znacznika — tylko ładunek na karcie floty
     - [x] 7.8e-2 Ruch: floty płyną do akwenu załadunku (GM: pomiń / przyspiesz), załadunek gdy armia i flota na miejscu, armia płynie z flotą, wyładunek; ładunek na karcie floty; cofnięcie tury; bitwy lądowe pomijają armie na pokładzie (pozycja na pokładzie `{f, a, floty}`; załadunek gdy floty na miejscu i armia się mieści; GM „Floty od razu do załadunku”; „Przestaw” zdejmuje z pokładu)
   - [x] 7.8f Bitwy morskie (+ użytkownik: wyeksportować PNG ekranu bitwy morskiej do `materialy/podglad_paneli/` jak lądowe). Skutki (wywiad 2026-10-19): los przegranej floty jak armii — odwrót (1 akwen w stronę własnego wybrzeża, domyślnie), zostaje, zatopiona (znika), poddana (znika — okrętów NIE przejmuje zwycięzca); armia na pokładzie dzieli los floty (straty wpisuje GM), przy zatopionej GM może „wysadzić na brzeg” — armia ocalała ląduje w wybranej sąsiedniej nadmorskiej prowincji; bohaterowie: poległ / ranny / niewola / uratowany: wykrywanie (akwen / mijanie), ekran bitwy z flotami i armiami na pokładzie, straty, kronika
-- [ ] 7.3 Krótkie animacje portretów (oddech, mrugnięcie, błysk)
+- [x] 7.3 Krótkie animacje portretów (oddech, mrugnięcie, błysk) — wywiad 2026-10-20:
+  - Gdzie: duży portret w oknie bohatera żyje stale; miniatury na karcie frakcji ożywają po najechaniu.
+  - Jak: w kodzie, jak Sala Tronów, bez nowych grafik — oddech (ruch tułowia), mrugnięcie (powieka w kolorze skóry na zaznaczonych oczach; oczy 37 portretów wyznacza Claude i pokazuje podgląd), błysk.
+  - Błysk (Claude): refleks światła lekko w kolorze frakcji przesuwający się ukosem po portrecie co 8–15 s; świecące oczy (gogle, demony) pulsują.
+  - Rytm: oddech ciągły i delikatny, mrugnięcie co 3–8 s (czasem podwójne), losowo; bez animacji przy systemowym „ograniczeniu ruchu” + przełącznik „Animacje portretów” (zapamiętany w przeglądarce).
+  - Technika: canvas ×4 z wyłączonym wygładzaniem (ruch co 1/4 piksela oryginału, ostry pixel art); konfiguracja portretów w osobnym pliku danych.
+  - [x] 7.3a Moduł animacji + duży portret i miniatury po najechaniu + przełącznik; konfiguracja oczu dla kilku portretów (próba)
+  - [x] 7.3b Oczy (i świecące oczy) wszystkich 37 portretów + podgląd do akceptacji (29 z oczami, w tym 16 świecących; tylko oddech i błysk: aretnuag, czarownik, gorzak, murog — oczy w cieniu lub niewyraźne; karevra — hełm; naelira — ma zamknięte; morthalass, widma — bez wyraźnej twarzy)
+- [x] 7.3c Dodatkowe animacje portretów (użytkownik 2026-10-20: wszystkie trzy):
+  - [x] 7.3c-1 Migotanie płomieni (świece, latarnie, ogień, lawa, kryształy — obszary w konfiguracji) + unoszące się drobinki (iskry / magia / popiół, rodzaj wg postaci) — moduł + próbka na kilku portretach + poprawka oczu urgasha
+  - [x] 7.3c-2 Płomienie i drobinki dla wszystkich portretów + arkusz podglądu
+  - [x] 7.3c-3 Ruch idle (użytkownik 2026-10-20): kołysanie włosów/peleryn (góra przypięta) + powolny ruch rąk i broni (fragment obraca się lekko wokół punktu zaczepienia, np. karevra z halabardą) — próbka na 2–3 postaciach, potem decyzja użytkownika
+  - [x] 7.3c-4 Ruch idle dla pozostałych portretów (po akceptacji próbki): broń (czarownik, surtr, tarael, krazh, murog), głowy smoków (linnr, shire), ogon merrli, warkocze (naelira, korvaar, velassara, aetharon); `tlo: "auto"` — zamalowanie części pod warstwą przejściem z sąsiednich pikseli
 
 ### Etap 7b — handel i dyplomacja (użytkownik 2026-10-19: PRZED samouczkami, „jak w WorldWatch”)
 - Handel i traktaty — wywiad 2026-10-19: traktaty wpisuje TYLKO GM (gracze ustalają na Discordzie). Typy: Sojusz, Pakt o nieagresji, Umowa handlowa, Traktat pokojowy, Wasalstwo, Prawo przejścia wojsk, Inny; nazwa dowolna, strony = 2+ krajów (frakcje i kraje NPC), opis tekstem, przełącznik „tajny” (tajny widzą tylko strony + GM — pilnują reguły). Skutki: traktat pokojowy kończy wojnę między stronami; wypowiedzenie wojny pyta o zerwanie sojuszu/paktu między nimi; reszta to informacja. Szlak handlowy = umowa handlowa: złota linia między stolicami — najkrótsza droga lądem po prowincjach (bez gór; rzeki można), a gdy lądem się nie da — linia przez morze (lądowa przerywana, morska ciągła). Linie sojuszy/paktów między stolicami. Na mapie przyciski „Szlaki” / „Sojusze” włączają warstwy.
@@ -186,6 +198,10 @@ Aplikacja dla grupy grającej tekstowo na Discordzie w fantasy RP w stylu Age of
 ### Obecność graczy (użytkownik 2026-10-19)
 - [x] Online / ostatnio: Realtime Database `obecnosc/{uid}` {f, on, t}; „online” przy zalogowaniu, „offline” zapisuje serwer przy rozłączeniu (onDisconnect — też Alt+F4), bez odświeżania. Widzą wszyscy zalogowani; zielona kropka przy herbie w górnym pasku + podpowiedź „ostatnio: …”. Reguły `database.rules.json` (testy na emulatorze OK). Wymaga włączenia Realtime Database w konsoli i `databaseURL` w `src/firebase-config.js`.
 
+### Porządki i logi (użytkownik 2026-10-20)
+- [x] „Szukaj śmieci” ze szczegółami (dokument · pole: w bazie → po sprzątaniu); naprawa: resztki `gra/prowincje` wracały po „Wyczyść” (zapisz() pomija ten dokument — teraz sprzątanie zapisuje go przez zapiszProwincje + usuwa pola starego formatu); szukanie także w tajne_budynki / tajne_armie
+- [x] Logi ze szczegółami: pole `zmiany` [{d, p, z, n}] (do 40 na wpis); log ze szczegółami odrzucony przez stare reguły → zapis ponawia się bez szczegółów; nowe `firestore.rules` (test `materialy/test_reguly_logi.mjs`) — użytkownik musi je opublikować
+
 ### Etap 7c — wygląd mapy (po handlu i dyplomacji)
 - Wygląd mapy — wywiad 2026-10-19: najpierw PRÓBKA wycinka mapy w 4 wariantach do wyboru: styl (pixel art z kafelków / malowany pergamin-akwarela) × kreski (jak teraz / jaśniejsze-cieńsze). Teren prowincji wybiera GM na karcie prowincji (równina, las, pustynia, bagno, tundra…, domyślnie równina) — startowo ustawiam sensowne regiony sam, GM może zmieniać. Dodatki: ozdobna ramka + róża wiatrów, animowana woda, mgła na krawędziach.
 - [x] 7.6a Próbka: wycinek mapy (wybrzeże, rzeka, góry) w 4 wariantach → użytkownik wybiera
@@ -197,7 +213,11 @@ Aplikacja dla grupy grającej tekstowo na Discordzie w fantasy RP w stylu Age of
   - [x] 7.6e-2 Góry i rzeki (lista użytkownika 2026-10-19): warstwa rzek urywała się za ostatnim mostem przed morzem, a koryto bez prowincji rysowało się jako góry. `mapa_teren.py`: dociąganie koryta po rysunku (wąski pas między brzegami przy rzece: ujścia za mostem bez maski gór, kawałki stykające się z brzegiem), domknięcie przerw do ~20 px, góry bez skrawków < 150 px i bez szczytów bliżej niż 12 px od rzeki; ręczne odcinki w `poprawki.json` („rzeki”: 143a/167a)
 
 ### Etap 7d — podgląd na telefon (użytkownik 2026-10-19: OSTATNI przed samouczkami)
-- [ ] 7.7 Uproszczony podgląd sytuacji w przeglądarce telefonu przez GitHub Pages (ten sam kod, tryb tylko do czytania: mapa, frakcje, armie, bitwy, traktaty; logowanie jak w programie). Przed startem krótki wywiad: co ma być widać, czy coś da się klikać, kto ma dostęp.
+- [x] 7.7 Podgląd na telefon przez GitHub Pages — wywiad 2026-10-20: wszystko tylko do czytania (mapa, frakcje, bohaterowie z animacjami, armie, bitwy, traktaty, bloki, kronika — każdy widzi to, co w programie, wg swoich uprawnień), logowanie jak w programie; ten sam program dopasowany do wąskiego ekranu (dolne menu, karty na całą szerokość, mapa palcem / dwoma palcami); publikacja automatem GitHub Actions po pushu na main.
+  - Technika (Claude): flaga budowania `VITE_PODGLAD=1` (tylko wersja na Pages) — UI jak bez uprawnień do edycji (bez Panelu GM, formularzy i propozycji), a magazyn nie wysyła żadnych zapisów; dane czytane z prawdziwą rolą (GM widzi wszystko). Konfiguracja Firebase jest w repo (`src/firebase-config.js`), więc workflow tylko buduje.
+  - [x] 7.7a Tryb podglądu: flaga, blokada zapisów w magazynie, ukrycie edycji i propozycji
+  - [x] 7.7b Układ na telefon: menu, karty, okna, mapa dotykiem (przesuwanie, przybliżanie dwoma palcami)
+  - [x] 7.7c Workflow `.github/workflows/podglad-telefon.yml` + `INSTRUKCJA-TELEFON.md` (włączenie Pages, domena w Firebase Auth) + test czystej kopii w podfolderze /Fantasy_RP/ na emulacji iPhone — czeka na pierwszy push użytkownika
 
 ### Etap 8 — samouczki (na sam koniec, gdy wszystkie funkcje gotowe)
 - [ ] 8.0 NAJPIERW poproś użytkownika o jego grafikę Zgrzyta (ma gotową) — na jej podstawie karta postaci i awatar; nie generuj Zgrzyta od zera

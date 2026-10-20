@@ -131,6 +131,11 @@ button{font:600 15px Cinzel,Georgia,serif;letter-spacing:.06em;cursor:pointer}
 .unikalne h3{margin-top:14px;font-size:16px}
 @media (max-width:900px){.gora{flex-wrap:wrap;gap:8px 16px;padding:8px 12px}.gora .tytul span{display:none}.frakcje{order:3;flex-basis:100%;justify-content:flex-start}}
 @media (max-width:700px){.szuflada{position:absolute;inset:0;flex:none;z-index:3}.obszar{position:relative}.glowny{padding:20px 16px}}
+/* telefon (7.7b): przyciski konta jako dolne menu, bez tytułu i e-maila; miejsce na pasek gestów (safe-area) */
+@media (max-width:700px){#aplikacja{padding-bottom:calc(54px + env(safe-area-inset-bottom))}.gora .tytul,#konto-mail{display:none}
+  .gora{padding:6px 10px}.frakcje{order:0}
+  .konto{position:fixed;left:0;right:0;bottom:0;z-index:5;gap:6px;justify-content:space-around;padding:6px 8px calc(6px + env(safe-area-inset-bottom));background:#08090e;border-top:1px solid #3a3020;box-shadow:0 -2px 12px rgba(0,0,0,.6)}
+  .konto button{flex:1;min-height:42px;padding:6px 4px;font-size:12px}}
 .zasoby{list-style:none;padding:0!important}.zasoby li{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:6px 0;border-bottom:1px solid #2a2418}
 .zasoby li.puste{color:#8f8268;font-style:italic;border:0}
 .usun{flex:0 0 auto;width:28px;height:28px;padding:0;background:transparent;border:1px solid #4a3c1e;color:#bfae86;font:16px/1 Spectral,Georgia,serif}.usun:hover{border-color:#c0392b;color:#ff8a7a}
@@ -143,7 +148,8 @@ button{font:600 15px Cinzel,Georgia,serif;letter-spacing:.06em;cursor:pointer}
 .bohater:hover,.bohater:focus-visible{border-color:var(--zloto2);outline:none}.bohater:focus-visible{box-shadow:0 0 0 2px var(--zloto)}
 .portret{display:grid;place-items:center;width:144px;height:144px;margin-bottom:6px;background:radial-gradient(circle at 35% 30%,color-mix(in srgb,var(--kolor) 70%,#fff 0%),color-mix(in srgb,var(--kolor) 35%,#05050a)) padding-box;border:8px solid transparent;border-image:url("../assets/ramki/portret.png") 8/8px;image-rendering:pixelated;color:#f6e7bf;font:900 30px Cinzel,Georgia,serif;text-shadow:0 2px 0 rgba(0,0,0,.6)}
 .portret.duzy{width:288px;height:288px;border-width:16px;border-image-width:16px;font-size:40px;margin:0}
-.portret img{width:100%;height:100%;image-rendering:pixelated}
+.portret img,.portret .portret-anim{width:100%;height:100%;image-rendering:pixelated}.portret{position:relative}.portret .portret-anim{position:absolute;inset:0}
+.anim-portretow{display:inline-flex;align-items:center;gap:6px;margin:8px 0 0;font-size:13px;color:#bfae86}.anim-portretow input{width:16px;height:16px;margin:0;accent-color:var(--zloto)}
 .bohater .imie{font:700 15px/1.25 Cinzel,Georgia,serif;color:var(--zloto)}
 .bohater .wladca{font:600 11px Cinzel,Georgia,serif;letter-spacing:.1em;color:#1a1206;background:var(--zloto);padding:1px 8px}
 .bohater .tytul{font:13px/1.35 Spectral,Georgia,serif;color:#bfae86}
@@ -238,6 +244,8 @@ select{padding:6px 10px;background:#05050a;border:1px solid var(--zloto2);color:
 .lista-logow{margin:12px 0 0;padding-left:0;list-style:none;font-size:14px;max-height:420px;overflow-y:auto}
 .lista-logow li{padding:5px 0;border-bottom:1px solid #2a2418}.lista-logow time{color:#bfae86;margin-right:8px;font-variant-numeric:tabular-nums}
 .lista-logow li.blad-logu{background:rgba(120,20,20,.18)}
+.zmiany-logu,.szczegoly-smieci{margin:3px 0 0 18px;padding:0;list-style:disc;font-size:12.5px;color:#cbbd9a;word-break:break-word}
+.zmiany-logu li,.szczegoly-smieci li{padding:1px 0;border:0}.zmiany-logu del{color:#d98b7a}.zmiany-logu ins{color:#9fd59a;text-decoration:none}
 .diagnostyka h4{margin:18px 0 6px;font:600 15px Cinzel,Georgia,serif;color:#bfae86}
 .diagnostyka small{color:#8f8268}
 .tabela-diag{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}

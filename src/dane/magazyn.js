@@ -10,6 +10,8 @@ import { getDatabase, ref as refRT, onValue, onDisconnect, set as setRT, serverT
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 
 export const CHMURA = Boolean(firebaseConfig.apiKey);
+// wersja na telefon (GitHub Pages, 7.7): budowana z VITE_PODGLAD=1 — tylko czytanie, żaden zapis nie wychodzi do bazy
+export const PODGLAD = import.meta.env.VITE_PODGLAD === "1";
 export const stan = {}; // jeden wspólny obiekt — moduły go mutują, magazyn go wypełnia i zapisuje
 
 const KLUCZ = "frp-demo";
@@ -51,6 +53,18 @@ const auth = app && getAuth(app);
 const ostatnio = new Map(); // ścieżka → JSON ostatnio zapisanego/odebranego dokumentu; zapisujemy tylko różnice
 // JSON z posortowanymi kluczami — Firestore oddaje pola w innej kolejności, a porównanie ma być po treści
 const json = x => JSON.stringify(x, (k, v) => v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a < b ? -1 : 1)) : v);
+// różnice dwóch wersji dokumentu do logów i porządków: [[pole, było, jest]] — schodzi do 4 poziomów, wartości skrócone do 60 znaków
+const krotko = v => { const t = v === undefined ? "—" : typeof v === "string" ? `„${v}”` : JSON.stringify(v); return t.length > 60 ? t.slice(0, 57) + "…" : t; };
+export function roznice(a, b, pole = "", wynik = [], gl = 0) {
+  if (json(a) === json(b)) return wynik;
+  const obiekt = x => x && typeof x === "object";
+  if (gl < 4 && obiekt(a) && obiekt(b) && Array.isArray(a) === Array.isArray(b))
+    for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) roznice(a[k], b[k], pole ? `${pole}.${k}` : k, wynik, gl + 1);
+  else wynik.push([pole || "(cały dokument)", krotko(a), krotko(b)]);
+  return wynik;
+}
+const MAX_ZMIAN = 40;   // wpisów „pole: było → jest” w jednym logu (dokument logu zostaje mały)
+const zmianyDok = (sciezka, stary, nowy) => roznice(stary ?? {}, nowy).slice(0, 15).map(([p, z, n]) => ({ d: sciezka, p, z, n }));
 // część tajna (etap 4.3): Firestore pilnuje dostępu do CAŁYCH dokumentów, więc tajne dane frakcji leżą osobno:
 //   tajne_zasoby/{f}    { stany, zasoby (unikalne z ilościami), tury: [{nr, stany, unikalne}] } — jawne, gdy f.jawne.zasoby
 //   tajne_jednostki/{f} { jednostki }                                                         — jawne, gdy f.jawne.jednostki
@@ -111,51 +125,70 @@ export const ustawBladZapisu = f => { bladZapisu = f; };
 export const licznik = { zapisy: 0, dokumenty: 0, odczyty: 0, bledy: [] }; // diagnostyka tej sesji (odczyty — w przybliżeniu)
 const kto = () => ({ uid: auth.currentUser?.uid || "", email: auth.currentUser?.email || "" });
 function zalogujBlad(e, co) {
+  if (PODGLAD) return;
   licznik.bledy.unshift({ czas: new Date().toISOString(), kod: e.code || "", opis: String(e.message || e).slice(0, 300), co });
   licznik.bledy.length = Math.min(licznik.bledy.length, 20);
   addDoc(collection(db, "logi"), { czas: new Date().toISOString(), ...kto(), typ: "blad", co, kod: e.code || String(e).slice(0, 100) }).catch(() => {});
 }
+let szczegolyLogow = true;   // false, gdy reguły w bazie nie znają jeszcze pola „zmiany” (nieopublikowane nowe firestore.rules)
+// paczka zapisów + wpis do logu; gdy reguły odrzucą szczegóły logu, ponawia bez nich — dane gry nie przepadają przez log
+function wyslij(operacje, log) {
+  const b = writeBatch(db); operacje(b);
+  if (log) b.set(doc(collection(db, "logi")), szczegolyLogow ? log : bez(log, ["zmiany"]));
+  return b.commit().catch(e => {
+    if (e.code === "permission-denied" && log?.zmiany && szczegolyLogow) { szczegolyLogow = false; return wyslij(operacje, log); }
+    throw e;
+  });
+}
 export function zapisz(s) {
+  if (PODGLAD) return;
   if (!CHMURA) { try { localStorage.setItem(KLUCZ, JSON.stringify(s)); } catch {} return; }
-  const batch = writeBatch(db), co = []; let ile = 0;
+  const zapisy = [], co = [], zmiany = []; let ile = 0;
   for (const [sciezka, dane] of dokumenty(s)) {
     // niewczytany dokument nie może nadpisać prawdziwego pustką; gracz zapisuje tylko swoje notatki (resztę i tak odrzuciłyby reguły)
     if (!wgrywanie && !zaladowane.has(sciezka) && !(dostep.gm && /^(bitwy|traktaty|kronika|bloki)\//.test(sciezka))) continue;   // raporty bitew, traktaty, kronikę i bloki GM zakłada sam
     if (!dostep.gm && !sciezka.startsWith("notatki_gracza/")) continue;
     if ((sciezka === "gra/prowincje" || sciezka.startsWith("nazwy_osad/")) && !wgrywanie) continue;   // te zapisują zapiszProwincje / zapiszNazwyOsad — po kawałku
     const j = json(dane);
-    if (ostatnio.get(sciezka) !== j) { batch.set(doc(db, sciezka), dane); ostatnio.set(sciezka, j); ile++; co.push(sciezka); }
+    if (ostatnio.get(sciezka) !== j) {
+      const stary = ostatnio.get(sciezka);
+      if (!wgrywanie && zmiany.length < MAX_ZMIAN) zmiany.push(...zmianyDok(sciezka, stary === undefined ? undefined : JSON.parse(stary), JSON.parse(j)));
+      zapisy.push([sciezka, dane]); ostatnio.set(sciezka, j); ile++; co.push(sciezka);
+    }
   }
   if (!ile) return;
-  if (!wgrywanie) batch.set(doc(collection(db, "logi")), { czas: new Date().toISOString(), ...kto(), typ: "zmiana", co: co.slice(0, 30) });
+  const log = wgrywanie ? null : { czas: new Date().toISOString(), ...kto(), typ: "zmiana", co: co.slice(0, 30), zmiany: zmiany.slice(0, MAX_ZMIAN) };
   licznik.zapisy++; licznik.dokumenty += ile;
-  batch.commit().catch(e => { console.error(e); zalogujBlad(e, co.slice(0, 30)); bladZapisu(e); });
+  wyslij(b => zapisy.forEach(([sc, d]) => b.set(doc(db, sc), d)), log).catch(e => { console.error(e); zalogujBlad(e, co.slice(0, 30)); bladZapisu(e); });
 }
 // prowincje i kraje NPC: w bazie zmieniane tylko wskazane pola (p.<id>, npc.<id>), nie cały dokument — dwóch GM
 // zmieniających naraz różne prowincje nie nadpisze sobie zmian. zmiany = [["p" | "npc" | "a", id], …] (a = akweny 7.8a: {id: {nazwa}}); wartości bierze ze stanu (brak = usuń)
 export function zapiszProwincje(zmiany) {
+  if (PODGLAD) return;
   if (!CHMURA) return zapisz(stan);
   if (!dostep.gm || !zmiany.length) return;
   const pola = zmiany.flatMap(([gdzie, id]) => [new FieldPath(gdzie, id), (gdzie === "p" ? stan.prowincje : gdzie === "a" ? stan.akweny : stan.npc)?.[id] ?? deleteField()]);
-  const log = () => ({ czas: new Date().toISOString(), ...kto(), typ: "zmiana", co: ["gra/prowincje"] });
-  const ref = doc(db, "gra/prowincje"), batch = writeBatch(db);
-  batch.update(ref, ...pola); batch.set(doc(collection(db, "logi")), log());
+  const stare = ostatnio.has("gra/prowincje") ? JSON.parse(ostatnio.get("gra/prowincje")) : {};
+  const zmianyLogu = zmiany.flatMap(([gdzie, id]) => zmianyDok("gra/prowincje", { [gdzie]: { [id]: stare[gdzie]?.[id] } },
+    { [gdzie]: { [id]: (gdzie === "p" ? stan.prowincje : gdzie === "a" ? stan.akweny : stan.npc)?.[id] } })).slice(0, MAX_ZMIAN);
+  const log = () => ({ czas: new Date().toISOString(), ...kto(), typ: "zmiana", co: ["gra/prowincje"], zmiany: zmianyLogu });
+  const ref = doc(db, "gra/prowincje");
   licznik.zapisy++; licznik.dokumenty++;
-  batch.commit().catch(e => {
+  wyslij(b => b.update(ref, ...pola), log()).catch(e => {
     if (e.code !== "not-found") { console.error(e); zalogujBlad(e, ["gra/prowincje"]); return bladZapisu(e); }
     // dokumentu jeszcze nie ma (pierwsza prowincja w grze): zakładamy go z całym obecnym stanem
-    const b2 = writeBatch(db); b2.set(ref, { p: stan.prowincje || {}, npc: stan.npc || {}, a: stan.akweny || {} }); b2.set(doc(collection(db, "logi")), log());
-    b2.commit().catch(e2 => { console.error(e2); zalogujBlad(e2, ["gra/prowincje"]); bladZapisu(e2); });
+    wyslij(b => b.set(ref, { p: stan.prowincje || {}, npc: stan.npc || {}, a: stan.akweny || {} }), log()).catch(e2 => { console.error(e2); zalogujBlad(e2, ["gra/prowincje"]); bladZapisu(e2); });
   });
 }
 // nazwy osad: nazwy_osad/{prowincja} = { n: {numer osady: nazwa} } — GM albo gracz, którego frakcja ma prowincję (reguła mojaProwincja)
 export function zapiszNazwyOsad(id) {
+  if (PODGLAD) return;
   if (!CHMURA) return zapisz(stan);
-  const n = stan.nazwyOsad?.[id] || {}, ref = doc(db, "nazwy_osad", id), batch = writeBatch(db);
-  Object.keys(n).length ? batch.set(ref, { n }) : batch.delete(ref);
-  batch.set(doc(collection(db, "logi")), { czas: new Date().toISOString(), ...kto(), typ: "zmiana", co: [`nazwy_osad/${id}`] });
+  const n = stan.nazwyOsad?.[id] || {}, ref = doc(db, "nazwy_osad", id);
+  const log = { czas: new Date().toISOString(), ...kto(), typ: "zmiana", co: [`nazwy_osad/${id}`],
+    zmiany: Object.entries(n).slice(0, MAX_ZMIAN).map(([nr, nazwa]) => ({ d: `nazwy_osad/${id}`, p: `osada ${nr}`, z: "", n: krotko(nazwa) })) };
   licznik.zapisy++; licznik.dokumenty++;
-  batch.commit().catch(e => { console.error(e); zalogujBlad(e, [`nazwy_osad/${id}`]); bladZapisu(e); });
+  wyslij(b => Object.keys(n).length ? b.set(ref, { n }) : b.delete(ref), log).catch(e => { console.error(e); zalogujBlad(e, [`nazwy_osad/${id}`]); bladZapisu(e); });
 }
 // przywracanie kopii: zapis wszystkich dokumentów, także tych, których nie ma jeszcze w bazie
 export function zapiszWszystko(s) { wgrywanie = true; try { zapisz(s); } finally { wgrywanie = false; } }
@@ -179,35 +212,48 @@ export async function policzDokumenty() {
   licznik.odczyty += KOLEKCJE.length; return Object.fromEntries(wynik);
 }
 // porządki (admin): najpierw szukaj (bez zmian w bazie), potem wykonaj — z podglądem dla użytkownika
-const TAJNE_KOLEKCJE = ["tajne_zasoby", "tajne_jednostki", "tajne_statusy", "notatki_gracza", "notatki_gm"];
+const TAJNE_KOLEKCJE = ["tajne_zasoby", "tajne_jednostki", "tajne_statusy", "tajne_budynki", "tajne_armie", "notatki_gracza", "notatki_gm"];
+// pozycja: { opis, ile, szczegoly: [tekst] } — szczegoly mówią dokładnie, czego dotyczy (dokument, pole, wartość w bazie → po sprzątaniu)
 export async function szukajSmieci() {
   const frakcje = new Set(stan.frakcje.map(f => f.id)), typy = new Set(stan.zasoby.map(z => z.id)), pozycje = [];
-  const obceKlucze = o => Object.keys(o || {}).filter(k => !typy.has(k)).length;
-  const stany = stan.frakcje.reduce((n, f) => n + obceKlucze(f.stany), 0)
-    + stan.tury.reduce((n, t) => n + Object.values(t.frakcje || {}).reduce((m, x) => m + obceKlucze(x.stany), 0), 0);
-  if (stany) pozycje.push({ opis: "Stany i migawki tur usuniętych typów zasobów", ile: stany });
+  const nazwaF = id => stan.frakcje.find(f => f.id === id)?.nazwa || id;
+  const obceKlucze = o => Object.keys(o || {}).filter(k => !typy.has(k));
+  const stany = [...stan.frakcje.filter(f => obceKlucze(f.stany).length).map(f => `${nazwaF(f.id)}: ${obceKlucze(f.stany).join(", ")}`),
+    ...stan.tury.flatMap(t => Object.entries(t.frakcje || {}).filter(([, x]) => obceKlucze(x.stany).length).map(([id, x]) => `tura ${t.nr}, ${nazwaF(id)}: ${obceKlucze(x.stany).join(", ")}`))];
+  if (stany.length) pozycje.push({ opis: "Stany i migawki tur usuniętych typów zasobów", ile: stany.length, szczegoly: stany });
   const sieroty = stan.bohaterowie.filter(h => !frakcje.has(h.frakcja));
-  if (sieroty.length) pozycje.push({ opis: `Bohaterowie nieistniejących frakcji: ${sieroty.map(h => h.imie).join(", ")}`, ile: sieroty.length });
-  const obce = [];
+  if (sieroty.length) pozycje.push({ opis: "Bohaterowie nieistniejących frakcji", ile: sieroty.length, szczegoly: sieroty.map(h => `bohaterowie/${h.id} — ${h.imie} (frakcja „${h.frakcja}”)`) });
+  const obce = [], obceOpis = [];
   for (const k of TAJNE_KOLEKCJE) {
     const snap = await getDocs(collection(db, k)); licznik.odczyty += snap.size;
-    snap.docs.filter(d => !frakcje.has(d.id)).forEach(d => obce.push(d.ref));
+    snap.docs.filter(d => !frakcje.has(d.id)).forEach(d => { obce.push(d.ref); obceOpis.push(`${d.ref.path} — pola: ${Object.keys(d.data()).join(", ") || "brak"}`); });
   }
-  if (obce.length) pozycje.push({ opis: `Tajne dane i notatki nieistniejących frakcji: ${obce.map(r => r.path).join(", ")}`, ile: obce.length });
+  if (obce.length) pozycje.push({ opis: "Tajne dane i notatki nieistniejących frakcji", ile: obce.length, szczegoly: obceOpis });
   const dni = stan.ustawienia?.dniLogow ?? 30, granica = new Date(Date.now() - dni * 864e5).toISOString();
   const logi = (await getCountFromServer(query(collection(db, "logi"), where("czas", "<", granica)))).data().count; licznik.odczyty++;
-  if (logi) pozycje.push({ opis: `Logi starsze niż ${dni} dni`, ile: logi });
+  if (logi) pozycje.push({ opis: `Logi starsze niż ${dni} dni`, ile: logi, szczegoly: [] });
   const profile = await getDocs(collection(db, "uzytkownicy")); licznik.odczyty += profile.size;
   const zlePanstwo = profile.docs.filter(d => d.data().frakcja && !frakcje.has(d.data().frakcja));
-  if (zlePanstwo.length) pozycje.push({ opis: `Konta przypisane do nieistniejącego państwa: ${zlePanstwo.map(d => d.data().email).join(", ")}`, ile: zlePanstwo.length });
+  if (zlePanstwo.length) pozycje.push({ opis: "Konta przypisane do nieistniejącego państwa", ile: zlePanstwo.length, szczegoly: zlePanstwo.map(d => `${d.data().email} → „${d.data().frakcja}”`) });
   // dokumenty, które po przeliczeniu wyglądają inaczej niż w bazie: stare pola, statusy usuniętych bohaterów itp.
-  const nieaktualne = [...dokumenty(stan)].filter(([sc, d]) => zaladowane.has(sc) && ostatnio.has(sc) && ostatnio.get(sc) !== json(d)).length;
-  if (nieaktualne) pozycje.push({ opis: "Dokumenty z resztkami starego formatu do przepisania", ile: nieaktualne });
+  const nieaktualne = [...dokumenty(stan)].filter(([sc, d]) => zaladowane.has(sc) && ostatnio.has(sc) && ostatnio.get(sc) !== json(d));
+  if (nieaktualne.length) pozycje.push({ opis: "Dokumenty z resztkami starego formatu do przepisania (pole: w bazie → po przepisaniu)", ile: nieaktualne.length,
+    szczegoly: nieaktualne.flatMap(([sc, d]) => roznice(JSON.parse(ostatnio.get(sc)), JSON.parse(json(d))).slice(0, 10).map(([pole, z, n]) => `${sc} · ${pole}: ${z} → ${n}`)) });
   return { pozycje, wykonaj: async () => {
     const czysc = o => o && Object.keys(o).forEach(k => typy.has(k) || delete o[k]);
     stan.frakcje.forEach(f => czysc(f.stany)); stan.tury.forEach(t => Object.values(t.frakcje || {}).forEach(x => czysc(x.stany)));
     stan.bohaterowie = stan.bohaterowie.filter(h => frakcje.has(h.frakcja));
     zapisz(stan);
+    // gra/prowincje zapisuje się tylko po kawałku (zapisz go pomija), więc bez tego jej „resztki” wracały przy każdym szukaniu
+    const prow = nieaktualne.find(([sc]) => sc === "gra/prowincje");
+    if (prow) {
+      const wBazie = JSON.parse(ostatnio.get("gra/prowincje")), lokalnie = JSON.parse(json(prow[1]));
+      const zmiany = ["p", "npc", "a"].flatMap(g => [...new Set([...Object.keys(wBazie[g] || {}), ...Object.keys(lokalnie[g] || {})])]
+        .filter(id => json(wBazie[g]?.[id]) !== json(lokalnie[g]?.[id])).map(id => [g, id]));
+      const zbedne = Object.keys(wBazie).filter(k => !(k in lokalnie));   // pola spoza p/npc/a (stary format)
+      if (zbedne.length) await updateDoc(doc(db, "gra/prowincje"), Object.fromEntries(zbedne.map(k => [k, deleteField()])));
+      if (zmiany.length) zapiszProwincje(zmiany);
+    }
     const batch = writeBatch(db);
     [...obce, ...sieroty.map(h => doc(db, "bohaterowie", h.id))].forEach(r => { batch.delete(r); ostatnio.delete(r.path); zaladowane.delete(r.path); });
     zlePanstwo.forEach(d => batch.update(d.ref, { frakcja: "" }));
@@ -355,7 +401,7 @@ export async function czytajBitwe(id) {
 // --- propozycje zmian od graczy (etap 4.4) ---
 // propozycje/{auto}: { czas, uid, email, frakcja, cel: "frakcja"|"bohater", celId, nazwa, zmiany: {pole: nowe}, przed: {pole: stare},
 //   status: "czeka"|"przyjeta"|"odrzucona", komentarz, rozpatrzono (ISO albo ""), rozpatrzyl }
-export const zaproponuj = p => addDoc(collection(db, "propozycje"), { ...p, czas: new Date().toISOString(), ...kto(),
+export const zaproponuj = p => PODGLAD ? Promise.reject(new Error("Podgląd na telefonie jest tylko do czytania.")) : addDoc(collection(db, "propozycje"), { ...p, czas: new Date().toISOString(), ...kto(),
   status: "czeka", komentarz: "", rozpatrzono: "", rozpatrzyl: "" });
 // GM: wszystkie oczekujące; gracz: swoje + propozycje traktatów, w których jego frakcja jest stroną (7.15)
 // (reguły wymagają zawężenia zapytań do własnego uid / strony)
@@ -371,12 +417,13 @@ export function sluchajPropozycji(czyGM, frakcja, cb, blad) {
   return () => odpiecia.forEach(o => o());
 }
 // zgoda (true) albo odmowa (false) strony traktatu na propozycję innego gracza (7.15)
-export const zgodaStrony = (id, frakcja, tak) => updateDoc(doc(db, "propozycje", id), new FieldPath("zgody", frakcja), tak);
-export const rozpatrz = (id, status, komentarz) => updateDoc(doc(db, "propozycje", id),
+export const zgodaStrony = (id, frakcja, tak) => PODGLAD ? Promise.reject(new Error("Podgląd na telefonie jest tylko do czytania.")) : updateDoc(doc(db, "propozycje", id), new FieldPath("zgody", frakcja), tak);
+export const rozpatrz = (id, status, komentarz) => PODGLAD ? Promise.reject(new Error("Podgląd na telefonie jest tylko do czytania.")) : updateDoc(doc(db, "propozycje", id),
   { status, komentarz, rozpatrzono: new Date().toISOString(), rozpatrzyl: auth.currentUser?.email || "" });
-export const wycofaj = id => deleteDoc(doc(db, "propozycje", id));
+export const wycofaj = id => PODGLAD ? Promise.reject(new Error("Podgląd na telefonie jest tylko do czytania.")) : deleteDoc(doc(db, "propozycje", id));
 // usunięcie dokumentu z kolekcji z widocznością (traktaty, kronika, bloki) — GM, pomyłka albo cofnięcie tury; z pamięci i z bazy
 export function usunWpis(kolekcja, id) {
+  if (PODGLAD) return;
   delete stan[kolekcja]?.[id];
   if (!CHMURA) return zapisz(stan);
   ostatnio.delete(`${kolekcja}/${id}`); deleteDoc(doc(db, kolekcja, id)).catch(e => { console.error(e); zalogujBlad(e, [`${kolekcja}/${id}`]); bladZapisu(e); });
@@ -385,6 +432,7 @@ export const usunTraktat = id => usunWpis("traktaty", id);
 // zapis przez gracza (7.9b): blok i wpisy kroniki o bloku — po kolei (przegłosowany wniosek wykonuje się drugim zapisem, po głosie);
 // reguły pozwalają graczowi tylko na dozwolone zmiany bloku. W DEMO zwykły zapis.
 export async function zapiszBlokGracza(id, wpisyKroniki = []) {
+  if (PODGLAD) return;
   if (!CHMURA) return zapisz(stan);
   const b = stan.bloki?.[id];
   if (b) { await setDoc(doc(db, "bloki", id), b); ostatnio.set(`bloki/${id}`, json(b)); zaladowane.add(`bloki/${id}`); }

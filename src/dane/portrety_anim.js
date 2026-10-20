@@ -1,0 +1,45 @@
+// animacje portretów (7.3): klucz = nazwa pliku w assets/portrety bez .png; współrzędne w pikselach portretu 128×128.
+// oczy: [[x, y, w, h]] — prostokąt oka (powieka zakrywa elipsę w nim); powieka: kolor (domyślnie skóra tuż pod okiem);
+// swieca: kolor świecących oczu (pulsują zamiast mrugać); oddech: [x, y, w, h] — część, która „oddycha” (domyślnie dolne 60%).
+// ogien: [[x, y, w, h]] — migoczące płomienie, świece, lawa, kryształy; drobinki: { rodzaj: "iskry" | "magia" | "popiol", kolor, ile, obszar: [x, y, w, h] }.
+// ruch: [{ typ: "obrot" (część obraca się o ±kat° wokół os) | "kolys" (wiersze kołyszą się o ±amp px, góra przypięta), obszary: [[x, y, w, h]], okres [s], faza, tlo: kolor tła (część znika spod warstwy) }].
+// Portret bez wpisu tylko oddycha i błyska.
+export const PORTRETY_ANIM = {
+  aetharon: { oczy: [[59, 46, 7, 4], [73, 46, 7, 4]], ogien: [[53, 113, 11, 15], [73, 32, 4, 6], [44, 60, 4, 7], [109, 87, 8, 10], [8, 95, 3, 3], [102, 98, 3, 3], [119, 90, 3, 3]], drobinki: { rodzaj: "iskry", ile: 8 }, ruch: [{ typ: "kolys", obszary: [[25, 79, 22, 47], [76, 76, 13, 50]], amp: 0.75, okres: 5.2 }] },
+  aretnuag: { drobinki: { rodzaj: "popiol", ile: 10 } },
+  baba: { oczy: [[44, 30, 4, 2], [52, 30, 4, 2]], swieca: "#f33", ogien: [[96, 58, 22, 9], [74, 0, 54, 42]], drobinki: { rodzaj: "popiol", ile: 10 } },
+  bob: { oczy: [[56, 29, 9, 7], [72, 29, 9, 7]], swieca: "#4ff", ogien: [[76, 90, 5, 8], [113, 92, 6, 9], [51, 101, 5, 7]] },
+  bragga: { oczy: [[61, 42, 8, 3], [79, 44, 6, 3]], ogien: [[28, 38, 22, 42]], drobinki: { rodzaj: "iskry", obszar: [26, 20, 26, 50], ile: 10 } },
+  czarownik: { ogien: [[9, 5, 18, 28], [56, 59, 9, 10]], drobinki: { rodzaj: "magia", kolor: "#dfe8ff", ile: 10, obszar: [0, 0, 40, 60] }, ruch: [{ typ: "obrot", obszary: [[7, 3, 20, 38], [14, 41, 8, 30]], os: [18, 78], kat: 1.2, okres: 5.5, tlo: "auto" }] },
+  dagna: { oczy: [[41, 43, 10, 5], [62, 43, 10, 5]], ogien: [[8, 93, 4, 4], [20, 85, 4, 4], [85, 86, 5, 6], [100, 96, 5, 5], [109, 85, 10, 13], [118, 87, 4, 4], [93, 91, 5, 4]], drobinki: { rodzaj: "iskry", ile: 10 }, ruch: [{ typ: "kolys", obszary: [[31, 70, 10, 43], [62, 72, 16, 41]], amp: 0.75, okres: 4.5 }] },
+  drekki: { oczy: [[42, 36, 5, 3], [55, 36, 6, 3]], swieca: "#f42", ogien: [[69, 11, 30, 35], [86, 54, 32, 25], [89, 109, 22, 19], [9, 31, 13, 14], [2, 66, 21, 13], [2, 106, 9, 15]], drobinki: { rodzaj: "iskry", ile: 12 } },
+  drogath: { oczy: [[55, 29, 4, 2], [69, 29, 4, 2]], swieca: "#f82", drobinki: { rodzaj: "popiol", kolor: "#c9b8b0", ile: 8 } },
+  elmon: { oczy: [[60, 31, 3, 3], [50, 34, 2, 2], [98, 38, 3, 4]], swieca: "#f43", ogien: [[97, 50, 9, 9], [69, 65, 9, 8], [52, 65, 9, 8], [52, 94, 10, 11], [89, 104, 38, 24]], drobinki: { rodzaj: "iskry", ile: 14 } },
+  fyrgrim: { oczy: [[52, 36, 3, 3], [62, 36, 5, 3]], swieca: "#f42", ogien: [[14, 64, 20, 25], [92, 96, 20, 12], [84, 56, 32, 15]], drobinki: { rodzaj: "iskry", ile: 10 } },
+  gobjack: { oczy: [[67, 50, 9, 6]] },
+  gobloni: { oczy: [[46, 42, 5, 2], [62, 42, 6, 2]], ogien: [[9, 18, 16, 20]] },
+  gorzak: { drobinki: { rodzaj: "iskry", ile: 8 } },
+  gotrek: { oczy: [[54, 50, 5, 2], [70, 50, 5, 2]], swieca: "#fa3", ogien: [[24, 17, 20, 62], [94, 17, 18, 62], [44, 14, 50, 8], [34, 24, 5, 8], [104, 27, 5, 8], [19, 37, 5, 8], [101, 93, 5, 7]], drobinki: { rodzaj: "iskry", ile: 10 } },
+  henzix: { oczy: [[63, 28, 4, 3], [72, 29, 2, 2]], swieca: "#4fe", ogien: [[84, 72, 8, 8]], drobinki: { rodzaj: "magia", kolor: "#ffe08a", ile: 10 } },
+  kain: { oczy: [[32, 28, 3, 1], [39, 28, 2, 1]], swieca: "#f33", ogien: [[106, 11, 20, 28]], drobinki: { rodzaj: "magia", kolor: "#8dffb0", ile: 10, obszar: [96, 0, 32, 50] } },
+  karevra: { drobinki: { rodzaj: "popiol", ile: 8 }, oddech: [22, 52, 106, 76], ruch: [{ typ: "obrot", obszary: [[2, 0, 26, 46], [13, 46, 8, 40]], os: [16, 87], kat: 1.2, okres: 5, tlo: "#292b2c" }] },
+  korvaar: { oczy: [[40, 48, 7, 3], [58, 49, 7, 3]], ogien: [[17, 106, 10, 10], [74, 106, 10, 10]], drobinki: { rodzaj: "magia", kolor: "#ffd27a", ile: 8 }, ruch: [{ typ: "kolys", obszary: [[34, 79, 16, 47], [64, 79, 12, 45]], amp: 0.75, okres: 4.8 }] },
+  krazh: { oczy: [[72, 33, 7, 4]], ruch: [{ typ: "obrot", obszary: [[8, 36, 14, 80]], os: [18, 120], kat: 0.8, okres: 6, tlo: "auto" }] },
+  linnr: { oczy: [[47, 29, 4, 4]], swieca: "#f33", ogien: [[0, 16, 128, 112]], drobinki: { rodzaj: "magia", kolor: "#c77dff", ile: 12 }, ruch: [{ typ: "obrot", obszary: [[18, 20, 52, 58]], os: [72, 45], kat: 1.2, okres: 5, tlo: "auto" }] },
+  lucjan: { oczy: [[53, 39, 3, 2], [67, 37, 4, 3]], swieca: "#f82", ogien: [[54, 87, 9, 24]], drobinki: { rodzaj: "iskry", ile: 8 } },
+  merrla: { oczy: [[56, 27, 4, 2], [64, 27, 5, 2]], drobinki: { rodzaj: "magia", kolor: "#e6d6ff", ile: 12 }, ruch: [{ typ: "kolys", obszary: [[34, 72, 36, 52]], amp: 1.25, okres: 3.5 }] },
+  morthalass: { ogien: [[24, 71, 5, 9], [71, 84, 8, 9]], drobinki: { rodzaj: "magia", kolor: "#7ff5e6", ile: 10 } },
+  murog: { drobinki: { rodzaj: "magia", kolor: "#cfd8ff", ile: 10 }, ruch: [{ typ: "obrot", obszary: [[8, 5, 28, 26], [18, 31, 12, 60]], os: [24, 122], kat: 0.8, okres: 6, tlo: "auto" }] },
+  naelira: { drobinki: { rodzaj: "magia", kolor: "#fff1c7", ile: 10 }, ruch: [{ typ: "kolys", obszary: [[14, 71, 21, 55], [62, 71, 13, 50]], amp: 0.75, okres: 5 }] },
+  razhka: { oczy: [[62, 38, 5, 3], [69, 38, 6, 3]], ogien: [[64, 1, 56, 72], [7, 1, 32, 104]], drobinki: { rodzaj: "magia", kolor: "#7fd8ff", ile: 8 } },
+  seranya: { oczy: [[49, 46, 5, 3], [62, 46, 6, 3]], ogien: [[12, 81, 10, 19], [50, 82, 9, 13], [50, 100, 7, 12], [55, 31, 7, 8]], drobinki: { rodzaj: "magia", kolor: "#9fd8ff", ile: 8 } },
+  shire: { oczy: [[48, 56, 4, 3]], swieca: "#f22", drobinki: { rodzaj: "magia", kolor: "#8dff9a", ile: 8, obszar: [30, 10, 80, 80] }, ruch: [{ typ: "obrot", obszary: [[22, 12, 48, 76]], os: [75, 70], kat: 1.0, okres: 5.5, tlo: "auto" }] },
+  surtr: { oczy: [[53, 38, 6, 3]], ogien: [[84, 9, 34, 29], [89, 97, 23, 25], [79, 49, 40, 21]], drobinki: { rodzaj: "iskry", ile: 10 }, ruch: [{ typ: "obrot", obszary: [[78, 5, 42, 32], [76, 37, 10, 18]], os: [82, 56], kat: 1.0, okres: 5, tlo: "auto" }] },
+  tarael: { oczy: [[51, 44, 2, 2], [63, 43, 3, 2]], swieca: "#3fd", drobinki: { rodzaj: "magia", obszar: [20, 30, 90, 90], ile: 14 }, ruch: [{ typ: "obrot", obszary: [[4, 0, 14, 40], [11, 40, 14, 46]], os: [20, 93], kat: 1.0, okres: 5.5, tlo: "auto" }] },
+  theryn: { oczy: [[52, 42, 4, 3], [64, 42, 7, 3]], ogien: [[55, 91, 10, 18], [43, 58, 5, 10], [78, 56, 4, 10], [58, 30, 4, 6]], drobinki: { rodzaj: "magia", kolor: "#9dffb8", ile: 10 }, ruch: [{ typ: "kolys", obszary: [[30, 56, 15, 70], [75, 60, 15, 66]], amp: 0.75, okres: 5 }, { typ: "obrot", obszary: [[94, 74, 34, 54]], os: [104, 120], kat: 1.5, okres: 6, faza: 1 }] },
+  urgash: { oczy: [[74, 31, 6, 3], [87, 33, 4, 2]] },
+  vaelgor: { oczy: [[50, 33, 3, 3], [62, 32, 4, 3]], swieca: "#fff2c0", ogien: [[0, 30, 30, 98], [96, 20, 32, 108]], drobinki: { rodzaj: "iskry", ile: 16 } },
+  velassara: { oczy: [[44, 43, 8, 3], [65, 43, 7, 3]], ogien: [[53, 17, 8, 9], [55, 85, 6, 8], [27, 95, 5, 5], [88, 95, 5, 5]], drobinki: { rodzaj: "magia", kolor: "#d39cff", ile: 10 }, ruch: [{ typ: "kolys", obszary: [[32, 79, 14, 47], [77, 76, 14, 50]], amp: 0.75, okres: 5 }] },
+  what: { oczy: [[59, 22, 4, 2], [67, 22, 4, 2]], swieca: "#fd3" },
+  widma: { drobinki: { rodzaj: "popiol", kolor: "#d9c6ff", ile: 14 } },
+};

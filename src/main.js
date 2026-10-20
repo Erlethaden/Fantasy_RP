@@ -3,9 +3,10 @@ import "../assets/sala_tronow/animacje.js"; // ustawia window.Sala
 import pakiet from "../package.json";
 import { usunWpis, usunTraktat, czytajBitwe, stan, wczytaj, zapisz, CHMURA, polacz, odlacz, naZmianeKonta, zaloguj, zalozKonto, zalogujGoogle, wyloguj, ustawBladZapisu,
   ROLE, mojProfil, sluchajProfilu, sluchajUzytkownikow, ustawUzytkownika, ustawDostep, sprzatnijLogi, ostatnieLogi, licznik, KOLEKCJE, policzDokumenty, rozmiaryWczytanych, szukajSmieci, zapiszWszystko,
-  zaproponuj, zapiszBlokGracza, sluchajPropozycji, zgodaStrony, zglosObecnosc, sluchajObecnosci, rozpatrz, wycofaj, sprzatnijPropozycje, zapiszProwincje, zapiszNazwyOsad } from "./dane/magazyn.js";
+  zaproponuj, zapiszBlokGracza, sluchajPropozycji, zgodaStrony, zglosObecnosc, sluchajObecnosci, rozpatrz, wycofaj, sprzatnijPropozycje, zapiszProwincje, zapiszNazwyOsad, PODGLAD } from "./dane/magazyn.js";
 import { ZMIANY } from "./dane/zmiany.js";
 import { utworzMape, krzywa, wygladz } from "./mapa.js";
+import { ozywPortrety, zatrzymajPortrety, animacjePortretow, ustawAnimacjePortretow } from "./portrety_anim.js";
 import terenUrl from "../assets/mapa/teren.png";
 import terenMaskaUrl from "../assets/mapa/teren_maska.png";
 import TERENY from "../assets/mapa/tereny.json";
@@ -24,7 +25,8 @@ const adres = plik => obrazy["../assets/sala_tronow/" + plik];
 // portrety 128 px: plik = jedno ze słów imienia małymi literami (dagna.png, seranya.png)
 const portrety = import.meta.glob(["../assets/portrety/*.png", "!../assets/portrety/*_1024.png"], { eager: true, query: "?url", import: "default" });
 // portret po słowie z imienia, a gdy imię zmieniono (np. edycją GM), po słowie ze stałego id
-const plikPortretu = h => `${h.imie} ${h.id}`.toLowerCase().split(/[^a-ząćęłńóśźż]+/).map(s => portrety[`../assets/portrety/${s}.png`]).find(Boolean);
+const slowoPortretu = h => `${h.imie} ${h.id}`.toLowerCase().split(/[^a-ząćęłńóśźż]+/).find(s => portrety[`../assets/portrety/${s}.png`]);   // = nazwa pliku (animacje 7.3)
+const plikPortretu = h => portrety[`../assets/portrety/${slowoPortretu(h)}.png`];
 // ikony zasobów 32 px: plik = pole „ikona” typu zasobu (bron.png)
 const ikony = import.meta.glob(["../assets/ikony/*.png", "!../assets/ikony/*_1024.png"], { eager: true, query: "?url", import: "default" });
 // herby 64 px: plik = id frakcji (krag-mhor.png)
@@ -242,9 +244,9 @@ function postawMost(i, x, y) {
   zapiszProwincje([["p", p.id], ["p", PROWINCJE[q[0] - 1].id]]); pokazOsadyNaMapie(); pokazProwincje(i, true);
 }
 addEventListener("keydown", e => { if (e.key === "Escape" && stawianie) { const i = stawianie.i; stawianie = null; mapa.kursor(false); pokazProwincje(i, true); } });
-const mozeNazywac = d => gm || (Boolean(profil?.frakcja) && d.wlasciciel === profil.frakcja);
+const mozeNazywac = d => gm || (!PODGLAD && Boolean(profil?.frakcja) && d.wlasciciel === profil.frakcja);
 // gracz-właściciel prowincji wysyła GM propozycję (stolica, budynki — 7.12, 7.13)
-const propozycjaGracza = d => CHMURA && !gm && Boolean(profil?.frakcja) && d.wlasciciel === profil.frakcja;
+const propozycjaGracza = d => CHMURA && !PODGLAD && !gm && Boolean(profil?.frakcja) && d.wlasciciel === profil.frakcja;
 // stolica w osadzie k prowincji p (miasto) — stara stolica właściciela wraca do miasta
 function ustawStolice(p, k) {
   const wl = stan.prowincje?.[p.id]?.wlasciciel, zmiany = [["p", p.id]], stara = stolicaWl(wl);
@@ -270,7 +272,7 @@ const mostyNaMapie = () => Object.entries(stan.prowincje || {}).flatMap(([a, d])
 const pokazOsadyNaMapie = () => { mapa.ustawOsady(PROWINCJE.flatMap(osadyProwincji).concat(mostyNaMapie(), armieNaMapie(), flotyNaMapie(), bitwyNaMapie())); mapa.ustawTrasy([...liniaTraktatowNaMapie(), ...trasyNaMapie()]); blokiNaMapie(); };
 // znaczniki armii (7.1b): sztandar armia.png z flagą w kolorach-kluczach (magenta) przemalowaną na kolor frakcji; kilka armii w jednym miejscu — obok siebie
 // floty (7.8c): okręt flota.png, ten sam mechanizm kolorów-kluczy
-const szablony = Object.fromEntries(["armia", "flota"].map(t => [t, Object.assign(new Image(), { src: IKONY_OSAD[t] || "", onload: () => pokazOsadyNaMapie() })])), ikonyKraju = new Map();
+const szablony = Object.fromEntries(["armia", "flota"].map(t => [t, Object.assign(new Image(), { src: IKONY_OSAD[t] || "", onload: () => stan.frakcje && pokazOsadyNaMapie() })])), ikonyKraju = new Map();   // przed zalogowaniem (chmura) stanu gry jeszcze nie ma
 const ikonaArmii = kolor => ikonaKraju("armia", kolor);
 function ikonaKraju(typ, kolor) {
   const szablon = szablony[typ], klucz = typ + kolor;
@@ -471,7 +473,7 @@ function ustawProwincje(p, n) {
   }
 }
 // edycję (zasoby, stany, tury, jednostki, statusy bohaterów) widzą tylko GM i admin; w DEMO każdy — ustawiane po zalogowaniu
-let gm = !CHMURA;
+let gm = !CHMURA && !PODGLAD;   // DEMO: każdy jest GM (podgląd na telefon — nikt)
 // część tajna: f._brak[rodzaj] = tej części nie wolno czytać (magazyn jej nie wczytał); f.jawne[rodzaj] = GM ujawnił ją wszystkim
 const RODZAJE_TAJNE = { zasoby: "Zasoby", jednostki: "Jednostki", statusy: "Statusy bohaterów", budynki: "Budynki i złoża", armie: "Armie i floty (skład, trasa)" };
 const tajne = (f, r) => Boolean(f._brak?.[r]);
@@ -1192,7 +1194,7 @@ function armie(f) {
       ${a.cel ? `<br>Cel: ${esc(opisCelu(a))} — ${opisDrogiArmii(f, a, n)}` : ""}</p>`;
     const proponowany = propozycje.find(p => p.cel === "ruch" && p.celId === a.id && p.status === "czeka");
     if (!gm) return `<li><h4>${esc(a.nazwa)}</h4>${opis}${bitwaJednostki(a) ? `<p><button type="button" class="cofnij" data-ekran-bitwy="${esc(bitwaJednostki(a)[0])}">Ekran bitwy</button></p>`
-      : CHMURA && moja(f) ? `<p>${proponowany ? `<small>Proponowany cel: ${esc(opisCelu({ cel: proponowany.zmiany.cel }))} — czeka na GM</small><br>` : ""}<button type="button" class="cofnij" data-prop-cel="${esc(a.id)}">Zaproponuj cel</button> <span class="opis-sekcji komunikat-armii"></span></p>` : ""}${(a.oddzialy || []).length ? `<ul class="podsumowanie">${a.oddzialy.map(o => `<li><span>${esc(o.jednostka)}</span><span>${+o.liczba || 0}</span></li>`).join("")}</ul>` : ""}</li>`;
+      : CHMURA && !PODGLAD && moja(f) ? `<p>${proponowany ? `<small>Proponowany cel: ${esc(opisCelu({ cel: proponowany.zmiany.cel }))} — czeka na GM</small><br>` : ""}<button type="button" class="cofnij" data-prop-cel="${esc(a.id)}">Zaproponuj cel</button> <span class="opis-sekcji komunikat-armii"></span></p>` : ""}${(a.oddzialy || []).length ? `<ul class="podsumowanie">${a.oddzialy.map(o => `<li><span>${esc(o.jednostka)}</span><span>${+o.liczba || 0}</span></li>`).join("")}</ul>` : ""}</li>`;
     const zajeci = new Set([...lista.filter(x => x !== a), ...(f.floty || [])].flatMap(wArmii));
     const wolni = bohF.filter(h => !zajeci.has(h.id));
     const jedn = (f.jednostki || []).filter(j => !j.morska);   // okręty są we flotach (7.8c), nie w armiach
@@ -1340,7 +1342,7 @@ function floty(f) {
       Mieści: ${poj ? `<b>${poj.ile}</b> ${odmiana(poj.ile, "żołnierza", "żołnierzy", "żołnierzy")} (${poj.skad})` : "bez limitu"}${ladunekFloty(f, fl)}${opisBitwy(fl)}
       ${fl.cel ? (() => { const tr = trasaFloty(f, fl); return `<br>Cel: ${esc(nazwaAkwenuNr(fl.cel))} — ${tr ? zaIle(tr.length) : `<b class="ostrzezenie">brak drogi (jezioro albo rzeka — potrzebna żegluga śródlądowa)</b>`}`; })() : ""}</p>`;
     const proponowany = propozycje.find(p => p.cel === "rejs" && p.celId === fl.id && p.status === "czeka");
-    if (!gm) return `<li><h4>${esc(fl.nazwa)}</h4>${opis}${bitwaFloty(fl.id) ? `<p><button type="button" class="cofnij" data-ekran-bitwy="${esc(bitwaFloty(fl.id)[0])}">Ekran bitwy</button></p>` : CHMURA && moja(f) ? `<p>${proponowany ? `<small>Proponowany cel: ${esc(nazwaAkwenuNr(proponowany.zmiany.cel))} — czeka na GM</small><br>` : ""}<button type="button" class="cofnij" data-prop-cel-floty="${esc(fl.id)}">Zaproponuj cel</button> <span class="opis-sekcji komunikat-floty"></span></p>` : ""}${(fl.oddzialy || []).length ? `<ul class="podsumowanie">${fl.oddzialy.map(o => `<li><span>${esc(o.jednostka)}</span><span>${+o.liczba || 0}</span></li>`).join("")}</ul>` : ""}</li>`;
+    if (!gm) return `<li><h4>${esc(fl.nazwa)}</h4>${opis}${bitwaFloty(fl.id) ? `<p><button type="button" class="cofnij" data-ekran-bitwy="${esc(bitwaFloty(fl.id)[0])}">Ekran bitwy</button></p>` : CHMURA && !PODGLAD && moja(f) ? `<p>${proponowany ? `<small>Proponowany cel: ${esc(nazwaAkwenuNr(proponowany.zmiany.cel))} — czeka na GM</small><br>` : ""}<button type="button" class="cofnij" data-prop-cel-floty="${esc(fl.id)}">Zaproponuj cel</button> <span class="opis-sekcji komunikat-floty"></span></p>` : ""}${(fl.oddzialy || []).length ? `<ul class="podsumowanie">${fl.oddzialy.map(o => `<li><span>${esc(o.jednostka)}</span><span>${+o.liczba || 0}</span></li>`).join("")}</ul>` : ""}</li>`;
     const zajeci = new Set([...(f.armie || []), ...lista.filter(x => x !== fl)].flatMap(wArmii)), wolni = bohF.filter(h => !zajeci.has(h.id));
     const opcjeJ = v => okrety.map(j => `<option${j.nazwa === v ? " selected" : ""}>${esc(j.nazwa)}</option>`).join("") + (v && !okrety.some(j => j.nazwa === v) ? `<option selected>${esc(v)}</option>` : "");
     return `<li><form class="armia flota" data-fl="${esc(fl.id)}">
@@ -1427,7 +1429,7 @@ const widocznosc = f => !gm || !CHMURA ? "" : `<section class="widocznosc"><h3>W
 const notatki = f => {
   const pole = (klucz, tytul, opis, mozna) => `<section class="notatki"><h3>${tytul}</h3><p class="opis-sekcji">${opis}</p>
     ${mozna ? `<textarea data-klucz="${klucz}" rows="4" maxlength="5000" aria-label="${tytul}">${esc(f[klucz] || "")}</textarea>` : f[klucz] ? tekst(f[klucz]) : `<p class="puste">Pusto.</p>`}</section>`;
-  return (f._brak?.notatkiGracza ? "" : pole("notatkiGracza", "Notatki gracza", "Widzi gracz tej frakcji i GM.", gm || moja(f)))
+  return (f._brak?.notatkiGracza ? "" : pole("notatkiGracza", "Notatki gracza", "Widzi gracz tej frakcji i GM.", gm || (!PODGLAD && moja(f))))
     + (f._brak?.notatkiGM || !gm ? "" : pole("notatkiGM", "Notatki GM", "Widzi tylko GM i admin.", true));
 };
 function podepnijTajne(f) {
@@ -1440,7 +1442,7 @@ function podepnijTajne(f) {
 const POLA_FRAKCJI = [["stolica", "Stolica"], ["ustroj", "Ustrój"], ["wladca", "Władca"], ["godlo", "Godło"], ["motto", "Motto"], ["specjalizacja", "Specjalizacja"], ["tereny", "Tereny"]];
 const POLA_BOHATERA = [["tytul", "Tytuł"], ["funkcja", "Funkcja"], ["wiek", "Wiek"], ["bron", "Broń i wierzchowiec"], ["opis", "Opis", "dlugie"]];
 const etykieta = k => [...POLA_FRAKCJI, ...POLA_BOHATERA, ["osada", "Stolica"], ["budynki", "Budynki i złoże"], ["cel", "Cel ruchu"], ["traktat", "Traktat"], ["zerwij", "Zerwanie traktatu"]].find(([x]) => x === k)?.[1] || (k === "opis" ? "Opis" : k);
-const mozeEdytowac = f => gm || (CHMURA && moja(f));
+const mozeEdytowac = f => gm || (CHMURA && !PODGLAD && moja(f));
 const sekcjaEdycji = (s = { tytul: "", tekst: "" }) => `<li><input class="tytul-sekcji" maxlength="100" value="${esc(s.tytul)}" placeholder="Tytuł sekcji" aria-label="Tytuł sekcji">
   <button type="button" class="usun" aria-label="Usuń sekcję" title="Usuń sekcję">×</button>
   <textarea class="tekst-sekcji" rows="6" maxlength="20000" aria-label="Treść sekcji">${esc(s.tekst)}</textarea></li>`;
@@ -1555,7 +1557,7 @@ const kartaPropozycji = p => {
 const propozycjeSekcja = () => !CHMURA || !gm ? "" : `<section class="propozycje"><h3>Propozycje graczy${propozycje.length ? ` <span class="licznik">${propozycje.length}</span>` : ""}</h3>
   ${propozycje.length ? propozycje.map(kartaPropozycji).join("") : `<p class="puste">Brak oczekujących propozycji.</p>`}</section>`;
 function mojePropozycje(f) {
-  if (!CHMURA || gm || !moja(f)) return "";
+  if (!CHMURA || PODGLAD || gm || !moja(f)) return "";
   const moje = propozycje.filter(p => p.frakcja === f.id), doZgody = propozycje.filter(p => p.cel === "traktat" && p.frakcja !== f.id && p.status === "czeka" && p.strony?.includes(f.id));
   return (doZgody.length ? `<section class="propozycje"><h3>Traktaty do Twojej zgody</h3><ul class="lista-propozycji">${doZgody.map(p => `<li data-id="${esc(p.id)}"><span><b>${esc(p.zmiany.traktat.nazwa)}</b> <small>od: ${esc(nazwaKraju(p.frakcja))}</small>
     ${tekst(opisTraktatu(p.zmiany.traktat))}<small>Zgoda stron: ${esc(zgodyTekst(p))}</small></span>
@@ -1615,7 +1617,7 @@ const inicjaly = imie => imie.replace(/[„”"]/g, "").split(/\s+/).filter(s =>
 // pixel art 128 px, a gdy go nie ma — inicjały na tle w kolorze frakcji
 const portret = (h, duzy) => {
   const url = plikPortretu(h);
-  return `<div class="portret${duzy ? " duzy" : ""}" aria-hidden="true">${url ? `<img src="${url}" alt="">` : esc(inicjaly(h.imie))}</div>`;
+  return `<div class="portret${duzy ? " duzy" : ""}" aria-hidden="true">${url ? `<img src="${url}" alt="" data-portret="${esc(slowoPortretu(h))}">` : esc(inicjaly(h.imie))}</div>`;
 };
 const bohaterowie = f => {
   const lista = stan.bohaterowie.filter(h => h.frakcja === f.id).sort((a, b) => b.wladca - a.wladca);
@@ -1630,6 +1632,7 @@ function pokazBohatera(h, f) {
   okno.innerHTML = `<div class="okno-glowa">${portret(h, true)}<div><h2>${esc(h.imie)}</h2><p class="rasa">${esc(f.nazwa)}${h.wladca ? " · władca" : ""}</p>
       ${mozeEdytowac(f) ? `<button type="button" class="cofnij edytuj-bohatera">${gm ? "✎ Edytuj" : "✎ Zaproponuj zmiany"}</button>` : ""}</div>
       <button type="button" class="zamknij" aria-label="Zamknij">×</button></div>
+    <label class="anim-portretow"${matchMedia("(prefers-reduced-motion: reduce)").matches ? ' title="Wyłączone: system ogranicza ruch"' : ""}><input type="checkbox" name="anim"${animacjePortretow() ? " checked" : ""}> Animacje portretów</label>
     <dl class="fakty">${pola.map(([k, w]) => `<div><dt>${k}</dt><dd>${esc(w)}</dd></div>`).join("")}</dl>
     ${gm ? "" : h._brak ? `<p class="status-tekst">Status: 🔒 tajny</p>` : `<p class="status-tekst">Status: <span class="status s-${h.status}">${esc(statusTekst(h))}</span></p>`}
     <form class="status-form"${gm ? "" : " hidden"}><label>Status <select name="status">${Object.entries(STATUSY).map(([k, w]) => `<option value="${k}"${k === h.status ? " selected" : ""}>${w}</option>`).join("")}</select></label>
@@ -1637,6 +1640,8 @@ function pokazBohatera(h, f) {
     <div class="opis">${h.opis ? tekst(h.opis) : `<p class="puste">Gracz nie dodał jeszcze opisu.</p>`}</div>`;
   okno.querySelector(".zamknij").onclick = () => okno.close();
   const edytuj = okno.querySelector(".edytuj-bohatera"); if (edytuj) edytuj.onclick = () => edytujBohatera(h, f);
+  okno.querySelector(".anim-portretow input").onchange = e => { ustawAnimacjePortretow(e.target.checked); if (e.target.checked) ozywPortrety(okno, f.kolor); };
+  ozywPortrety(okno, f.kolor);
   okno.querySelector(".status-form").onchange = e => {
     const d = new FormData(e.currentTarget); h.status = d.get("status"); h.misja = h.status === "misja" ? d.get("misja") : "";
     e.currentTarget.elements.misja.parentElement.hidden = h.status !== "misja";
@@ -1645,6 +1650,7 @@ function pokazBohatera(h, f) {
   okno.showModal();
 }
 okno.onclick = e => { if (e.target === okno) okno.close(); }; // klik w tło zamyka
+okno.addEventListener("close", () => zatrzymajPortrety(okno));   // animowany portret (7.3) nie chodzi w zamkniętym oknie
 let widok = null; // co jest otwarte: id frakcji albo "gm" — do odświeżenia po zmianach od innych osób
 function wybierz(id, zostanPrzewiniecie) {
   const f = stan.frakcje.find(x => x.id === id) || stan.frakcje[0]; widok = f.id; mapa.wybierz(0);
@@ -1675,6 +1681,7 @@ function wybierz(id, zostanPrzewiniecie) {
     ${f.opis.map(s => `<section><h3>${esc(s.tytul)}</h3>${tekst(s.tekst)}</section>`).join("")}
   </article>`;
   glowny.querySelector("[data-pokaz-bloki]")?.addEventListener("click", pokazBloki);
+  ozywPortrety(glowny, f.kolor);   // miniatury bohaterów ożywają po najechaniu (7.3)
   podepnijStany(f); podepnijZasoby(f); podepnijJednostki(f); podepnijArmie(f); podepnijFloty(f); podepnijTajne(f); podepnijPropozycje();
   const edytuj = glowny.querySelector(".edytuj-opis"); if (edytuj) edytuj.onclick = () => edytujFrakcje(f);
   glowny.querySelectorAll(".pokaz-stolice").forEach(b => b.onclick = () => {
@@ -1859,7 +1866,7 @@ const aktywnyBlok = b => !b.rozwiazany && b.czlonkowie.length > 0;
 const blokiWidoczne = () => Object.entries(stan.bloki || {}).filter(([, b]) => aktywnyBlok(b));
 // działanie jako kraj (7.9b): gracz — jego frakcja; w DEMO GM wybiera „działaj jako” (sprawdzenie ścieżek gracza bez chmury)
 let demoJako = "";
-const jakoKraj = () => CHMURA ? (!gm && profil?.frakcja) || "" : demoJako;
+const jakoKraj = () => PODGLAD ? "" : CHMURA ? (!gm && profil?.frakcja) || "" : demoJako;
 // wnioski (7.9b): b.wnioski = { id: { typ: zapros | wyrzuc | zmiana | tryb | rozwiaz, dane, autor, za: [wł], przeciw: [wł], tura } };
 // przechodzi, gdy „za” jest więcej niż połowa członków; odpada, gdy „przeciw” to co najmniej połowa. Za kraje NPC głosuje GM.
 const POLA_ZMIANY = { nazwa: "nazwa", skrot: "skrót", rodzaj: "rodzaj", kolor: "kolor", opis: "statut", tajny: "tajność", traktaty: "wspólne traktaty" };
@@ -2103,7 +2110,7 @@ function podepnijTraktaty(odswiez) {
 function traktatyFrakcji(f) {
   const moje = new Set([f.id, ...Object.entries(stan.npc || {}).filter(([, n]) => n.zwierzchnik === f.id).map(([id]) => "npc:" + id)]);
   const l = [...Object.entries(stan.traktaty || {}), ...traktatyBlokow()].filter(([, t]) => t.strony.some(w => moje.has(w))).sort((a, b) => !!a[1].zerwany - !!b[1].zerwany || b[1].tura - a[1].tura);
-  const gracz = CHMURA && !gm && moja(f);   // 7.15: gracz proponuje nowy traktat i zerwanie swojego
+  const gracz = CHMURA && !PODGLAD && !gm && moja(f);   // 7.15: gracz proponuje nowy traktat i zerwanie swojego
   const wiersz = e => wierszTraktatu(e, false).replace(/<\/li>$/, gracz && !e[1].zerwany && !e[1].blok && e[1].strony.includes(f.id)
     ? `<span class="akcje"><button type="button" class="usun" data-prop-zerwij="${esc(e[0])}" title="Zaproponuj GM zerwanie" aria-label="Zaproponuj zerwanie: ${esc(e[1].nazwa)}">✂</button></span></li>` : "</li>");
   return l.length || gracz ? `<section class="traktaty"><h3>Traktaty</h3>${l.length ? `<ul class="lista-traktatow">${l.map(wiersz).join("")}</ul>` : `<p class="puste">Brak traktatów.</p>`}
@@ -2157,6 +2164,7 @@ function podepnijNpc() {
   };
 }
 document.getElementById("panel-gm").onclick = () => widok === "gm" ? zamknijSzuflade() : pokazPanelGM();
+if (PODGLAD) document.getElementById("panel-gm").hidden = true;   // telefon: tylko czytanie
 document.getElementById("kronika").onclick = () => widok === "kronika" ? zamknijSzuflade() : pokazKronike();
 document.getElementById("bloki").onclick = () => widok === "bloki" ? zamknijSzuflade() : pokazBloki();
 // sprawy techniczne (logi, diagnostyka, porządki, kopie) — tylko admin (decyzja użytkownika: GM tego nie potrzebuje)
@@ -2169,13 +2177,17 @@ const opisSciezki = sc => {
   if (sc === "gra/prowincje") return "Prowincje";
   return k === "gra" ? NAZWY_KOLEKCJI.gra : `${NAZWY_KOLEKCJI[k] || k}: ${nazwa}`;
 };
+// pole z logu po ludzku: p.<id> → prowincja, npc.<id> → kraj NPC, a.<id> → akwen
+const opisPola = p => p.replace(/^p\.([^.]+)/, (_, id) => `prowincja ${stan.prowincje?.[id]?.nazwa || id}`).replace(/^npc\.([^.]+)/, (_, id) => `kraj NPC ${stan.npc?.[id]?.nazwa || id}`)
+  .replace(/^a\.([^.]+)/, (_, id) => `akwen ${stan.akweny?.[id]?.nazwa || id}`);
 let logi = null, sprzatanie = null; // logi = ostatnio pobrana lista; sprzatanie = { czas, ile } z ostatniego automatycznego sprzątania
 const logiSekcja = () => !CHMURA || !jestAdmin() ? "" : `<section class="logi"><h3>Logi zmian <span class="znacznik">tylko admin</span></h3>
-  <p class="opis-sekcji">Każdy zapis zostawia mały wpis: kto, kiedy, co. Starsze wpisy kasują się same przy logowaniu admina${sprzatanie ? ` (ostatnio: ${sprzatanie.ile} usuniętych)` : ""}.</p>
+  <p class="opis-sekcji">Każdy zapis zostawia mały wpis: kto, kiedy, co — i które pola zmienił (było → jest). Starsze wpisy kasują się same przy logowaniu admina${sprzatanie ? ` (ostatnio: ${sprzatanie.ile} usuniętych)` : ""}.</p>
   <form class="dni-logow"><label>Kasuj logi starsze niż <input name="dni" type="number" min="1" max="365" required value="${stan.ustawienia?.dniLogow ?? 30}"> dni</label>
     <button class="cofnij">Zapisz</button> <button type="button" class="dodaj" id="pokaz-logi">${logi ? "Odśwież" : "Pokaż ostatnie 50"}</button></form>
   ${logi ? `<ol class="lista-logow">${logi.map(l => `<li class="${l.typ === "blad" ? "blad-logu" : ""}"><time>${esc(new Date(l.czas).toLocaleString("pl-PL"))}</time>
-    <b>${esc(l.email || "?")}</b> ${l.typ === "blad" ? `<span class="zmiana minus">błąd ${esc(l.kod || "")}</span>` : ""} ${esc((l.co || []).map(opisSciezki).join(", "))}</li>`).join("")
+    <b>${esc(l.email || "?")}</b> ${l.typ === "blad" ? `<span class="zmiana minus">błąd ${esc(l.kod || "")}</span>` : ""} ${esc((l.co || []).map(opisSciezki).join(", "))}
+    ${l.zmiany?.length ? `<ul class="zmiany-logu">${l.zmiany.map(z => `<li><span>${esc(opisSciezki(z.d))} · ${esc(opisPola(z.p))}:</span> ${z.z ? `<del>${esc(z.z)}</del> → ` : ""}<ins>${esc(z.n)}</ins></li>`).join("")}</ul>` : ""}</li>`).join("")
     || "<li>Brak wpisów.</li>"}</ol>` : ""}</section>`;
 function podepnijLogi() {
   const f = glowny.querySelector(".dni-logow"); if (!f) return;
@@ -2223,7 +2235,7 @@ const porzadkiSekcja = () => !CHMURA || !jestAdmin() ? "" : `<section class="por
   <p class="opis-sekcji">Szuka niepotrzebnych danych, które zajmują miejsce w bazie. Najpierw pokazuje, co znalazł — nic nie usuwa bez potwierdzenia.</p>
   <p><button type="button" class="cofnij" id="szukaj-smieci">Szukaj śmieci</button></p>
   ${smieci?.gotowe ? `<p class="opis-sekcji">${esc(smieci.gotowe)}</p>` : smieci ? smieci.pozycje.length ? `<ul class="lista-smieci">${smieci.pozycje.map(p =>
-    `<li><b>${p.ile}</b> — ${esc(p.opis)}</li>`).join("")}</ul><p><button type="button" class="dodaj" id="wyczysc-smieci">Wyczyść (${smieci.pozycje.reduce((a, p) => a + p.ile, 0)})</button></p>`
+    `<li><b>${p.ile}</b> — ${esc(p.opis)}${p.szczegoly?.length ? `<ul class="szczegoly-smieci">${p.szczegoly.slice(0, 60).map(t => `<li>${esc(t)}</li>`).join("")}${p.szczegoly.length > 60 ? `<li>… i ${p.szczegoly.length - 60} więcej</li>` : ""}</ul>` : ""}</li>`).join("")}</ul><p><button type="button" class="dodaj" id="wyczysc-smieci">Wyczyść (${smieci.pozycje.reduce((a, p) => a + p.ile, 0)})</button></p>`
     : `<p class="opis-sekcji">Czysto — nic do usunięcia.</p>` : ""}</section>`;
 function podepnijPorzadki() {
   const szukaj = glowny.querySelector("#szukaj-smieci"); if (!szukaj) return;
@@ -2380,8 +2392,9 @@ naZmianeKonta(async user => {
   } catch (e) { pokazBlad(komunikat(e)); await wyloguj(); }
 });
 async function ustawRole() {
-  gm = ["admin", "gm"].includes(profil.rola);
-  ustawDostep({ gm, frakcja: profil.frakcja || "" });
+  const gmRola = ["admin", "gm"].includes(profil.rola);
+  gm = gmRola && !PODGLAD;   // podgląd na telefon: GM czyta wszystko (dostęp), ale bez Panelu GM i edycji
+  ustawDostep({ gm: gmRola, frakcja: profil.frakcja || "" });
   document.getElementById("konto-mail").textContent = `${zalogowany.email} · ${ROLE[profil.rola] || profil.rola}`;
   document.getElementById("panel-gm").hidden = !gm;
   sluchajUzytkownikowJesliGM();
@@ -2395,7 +2408,7 @@ async function ustawRole() {
   odpiecieObecnosci(); odpiecieObecnosci = sluchajObecnosci(o => { obecnosc = o; oznaczObecnosc(); });
   if (wczytane) return odswiezWidok();
   await polacz(odswiezWidok); wczytane = true;
-  if (jestAdmin()) {
+  if (jestAdmin() && !PODGLAD) {
     sprzatnijLogi(stan.ustawienia?.dniLogow ?? 30).then(ile => { sprzatanie = { czas: new Date(), ile }; }).catch(e => console.warn("sprzątanie logów", e));
     sprzatnijPropozycje(7).catch(e => console.warn("sprzątanie propozycji", e)); // rozpatrzone po 7 dniach (decyzja użytkownika)
   }

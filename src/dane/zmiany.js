@@ -2,6 +2,14 @@
 export const ZMIANY = [
   {
     wersja: "0.4.0", data: "", zmiany: [
+      "Portrety bohaterów ożyły: duży portret w oknie bohatera oddycha, mruga i co jakiś czas przebiega po nim błysk światła w kolorze frakcji; miniatury na karcie frakcji ożywają po najechaniu myszką. Przełącznik „Animacje portretów” w oknie bohatera (zapamiętany); przy systemowym ograniczeniu ruchu animacji nie ma.",
+      "Mrugają już niemal wszyscy bohaterowie (29 portretów), a świecące oczy — gogle, demony, smoki, nieumarli — pulsują zamiast mrugać.",
+      "Na portretach migoczą płomienie (ogień w dłoni, świece, latarnie, lawa), a wokół niektórych bohaterów unoszą się iskry, magiczne drobinki albo popiół.",
+      "Bohaterowie poruszają się w spoczynku: kołyszą się halabardy, włócznie, laski i młot (Karevra, Tarael, Krazh, Czarownik, Murog, Surtr), warkocze (Dagna, Theryn, Naelira, Korvaar, Velassara, Aetharon) i ogon Merrli, smoki Linnr i Shire poruszają łbem, a wilk Theryna kiwa głową.",
+      "Porządki (admin): „Szukaj śmieci” pokazuje dokładnie, czego dotyczy każde znalezisko — który dokument, które pole i jaka wartość jest w bazie, a jaka będzie po sprzątaniu. Naprawione: resztki w prowincjach wracały po każdym „Wyczyść”, bo sprzątanie ich nie zapisywało. Szukanie obejmuje też budynki i armie usuniętych frakcji.",
+      "Logi zmian (admin): pod każdym wpisem lista zmienionych pól z wartościami „było → jest” (np. prowincja, właściciel, armia, zasób). Wymaga opublikowania nowych reguł bazy — do tego czasu logi zapisują się jak dotąd, bez szczegółów.",
+      "Podgląd na telefonie: gra jest dostępna w przeglądarce pod adresem erlethaden.github.io/Fantasy_RP — po zalogowaniu widać mapę, frakcje, bohaterów, armie, bitwy, traktaty, bloki i kronikę (tylko do czytania; zmiany robi się w programie). Mapa: jeden palec przesuwa, dwa przybliżają; menu na dole ekranu.",
+      "Poprawka: ekran logowania nie zgłasza już błędu przy wczytywaniu ikon armii i flot.",
     ],
   },
   {

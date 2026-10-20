@@ -148,11 +148,12 @@ service cloud.firestore {
       allow update: if gm() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status", "komentarz", "rozpatrzono", "rozpatrzyl"]);
       allow delete: if gm() || (zalogowany() && resource.data.uid == request.auth.uid && resource.data.status == "czeka");
     }
-    // logi: wpis dodaje członek gry tylko pod własnym kontem (mały, o stałych polach); czyta i kasuje tylko admin
+    // logi: wpis dodaje członek gry tylko pod własnym kontem (mały, o stałych polach, do 40 zmienionych pól); czyta i kasuje tylko admin
     match /logi/{id} {
       allow create: if czlonek() && request.resource.data.uid == request.auth.uid
-        && request.resource.data.keys().hasOnly(["czas", "uid", "email", "typ", "co", "kod"])
-        && request.resource.data.typ in ["zmiana", "blad"] && request.resource.data.co.size() <= 30;
+        && request.resource.data.keys().hasOnly(["czas", "uid", "email", "typ", "co", "kod", "zmiany"])
+        && request.resource.data.typ in ["zmiana", "blad"] && request.resource.data.co.size() <= 30
+        && (!("zmiany" in request.resource.data) || request.resource.data.zmiany.size() <= 40);   // zmiany: [{d: dokument, p: pole, z: było, n: jest}]
       allow read, delete: if admin();
     }
     // wszystko inne: zamknięte
