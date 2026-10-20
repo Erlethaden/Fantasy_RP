@@ -10,6 +10,7 @@ export const ZMIANY = [
       "Logi zmian (admin): pod każdym wpisem lista zmienionych pól z wartościami „było → jest” (np. prowincja, właściciel, armia, zasób). Wymaga opublikowania nowych reguł bazy — do tego czasu logi zapisują się jak dotąd, bez szczegółów.",
       "Podgląd na telefonie: gra jest dostępna w przeglądarce pod adresem erlethaden.github.io/Fantasy_RP — po zalogowaniu widać mapę, frakcje, bohaterów, armie, bitwy, traktaty, bloki i kronikę (tylko do czytania; zmiany robi się w programie). Mapa: jeden palec przesuwa, dwa przybliżają; menu na dole ekranu.",
       "Poprawka: ekran logowania nie zgłasza już błędu przy wczytywaniu ikon armii i flot.",
+      "Przeglądarka nie wpisuje już sama zapamiętanego e-maila i hasła na ekranie logowania.",
     ],
   },
   {

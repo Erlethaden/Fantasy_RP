@@ -10,8 +10,9 @@ Zrobione (6): 7.3c-4 — ruch idle dla 12 kolejnych portretów; nowa opcja `tlo:
 Zrobione (7): wywiad 7.7 (zapisany w PLAN). 7.7a — `PODGLAD` (VITE_PODGLAD=1) w magazynie: zapisz / zapiszProwincje / zapiszNazwyOsad / usunWpis / zapiszBlokGracza / logi błędów nic nie wysyłają, propozycje odrzucają; main.js: UI bez gm (dostęp z prawdziwą rolą), bez edycji gracza, propozycji, bloków, sprzątania; Panel GM ukryty. Test `materialy/test_podglad.mjs` OK, test_budynki i test_armie OK.
 Zrobione (8): 7.7b — telefon (≤700 px): przyciski konta jako dolne menu (safe-area, viewport-fit=cover), bez tytułu i e-maila; mapa: przybliżanie i przesuwanie dwoma palcami (`src/mapa.js`, zdarzenia pointer typu touch; po szczypaniu brak kliknięcia i skoku). Sprawdzone na emulacji iPhone 13 (szczypanie przez CDP ×4), bez poziomego przewijania. Testy OK.
 Zrobione (9): 7.7c — workflow GitHub Actions `.github/workflows/podglad-telefon.yml` (push na main → `vite build` z VITE_PODGLAD=1 → Pages; Electron bez pobierania), `INSTRUKCJA-TELEFON.md`. Sprawdzone: czysta kopia plików z gita buduje się (21 MB) i działa w podfolderze /Fantasy_RP/ na emulacji iPhone 13. Przy okazji poprawka: onload ikon armii/flot wołał pokazOsadyNaMapie przed zalogowaniem (błąd flatMap na pustym stanie). Etap 7.7 zamknięty.
+Zrobione (10): strona Pages działa (Actions: build + deploy OK). Logowanie: przeglądarka nie autouzupełnia e-maila i hasła (autocomplete="off" + readonly do pierwszego dotknięcia) — prośba użytkownika; wpisywanie sprawdzone.
 W toku: nic.
-Do zrobienia: użytkownik — włączyć Pages (Source: GitHub Actions), dodać domenę erlethaden.github.io w Firebase Auth, push na main i sprawdzić stronę na telefonie; etap 8 (samouczki).
+Do zrobienia: strona https://erlethaden.github.io/Fantasy_RP/ działa (pierwsza budowa Actions OK, 2026-10-20) — użytkownik sprawdza logowanie na telefonie; etap 8 (samouczki).
 Następny krok: 8.0 — poprosić użytkownika o jego grafikę Zgrzyta (karta postaci + awatar do samouczków).
 Problemy / pytania do użytkownika: reguły opublikowane; sprawdzić „Szukaj śmieci” (co dokładnie było w prowincjach) i działanie strony na telefonie po pierwszym pushu.
 

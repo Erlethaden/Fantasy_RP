@@ -11,10 +11,10 @@
 
 <h1>Fantasy RP <br>dla autystów</h1>
 <p class="pod">Sala Tronów — zaloguj się, by wejść do gry</p>
-<form class="panel" id="logowanie">
+<form class="panel" id="logowanie" autocomplete="off">
   <div class="aktualizacja" id="aktualizacja" role="status" hidden></div>
-  <label for="mail">E-mail</label><input id="mail" type="email" autocomplete="username" placeholder="E-mail">
-  <label for="haslo">Hasło</label><input id="haslo" type="password" autocomplete="current-password" placeholder="Hasło">
+  <label for="mail">E-mail</label><input id="mail" type="email" autocomplete="off" readonly placeholder="E-mail">
+  <label for="haslo">Hasło</label><input id="haslo" type="password" autocomplete="off" readonly placeholder="Hasło">
   <p class="blad" id="blad-logowania" role="alert" hidden></p>
   <button class="wejdz" type="submit">Wejdź do sali</button>
   <button class="google" type="button" id="zaloz-konto" hidden>Załóż konto</button>

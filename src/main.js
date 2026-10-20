@@ -2354,6 +2354,8 @@ const KOMUNIKATY = {
 const komunikat = e => KOMUNIKATY[e.code] ?? `Coś poszło nie tak (${e.code || e.message}).`;
 ustawBladZapisu(e => alert("Nie udało się zapisać zmian: " + komunikat(e)));
 const formularz = document.getElementById("logowanie");
+// bez autouzupełniania loginu i hasła przez przeglądarkę (prośba użytkownika): pola są readonly do pierwszego dotknięcia, a takie menedżer haseł pomija
+formularz.querySelectorAll("#mail, #haslo").forEach(p => { const odblokuj = () => { p.readOnly = false; }; p.addEventListener("pointerdown", odblokuj); p.addEventListener("focus", odblokuj); });
 if (!CHMURA) {
   wczytaj();
   formularz.onsubmit = e => { e.preventDefault(); wejdz(); };
