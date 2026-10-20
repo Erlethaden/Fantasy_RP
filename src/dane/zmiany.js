@@ -1,10 +1,12 @@
 // „Co nowego” po aktualizacji: najnowsza wersja na górze; przed każdym wydaniem dopisz wpis z numerem z package.json (INSTRUKCJA-WYDANIE.md)
 export const ZMIANY = [
   {
-    wersja: "0.5.0", data: "", zmiany: [
+    wersja: "0.5.0", data: "20-10-2026", zmiany: [
       "Samouczek: Zgrzyt (przewodnik-hiena) oprowadza po programie — przy pierwszym wejściu sam proponuje pokaz, później w każdej chwili przycisk „Samouczek” w górnym pasku. Mówi, co gdzie jest, omawiane miejsce miga złotą obwódką, a kliknięcie przechodzi dalej; Esc albo „Zakończ” przerywa. Na czas samouczka mapa wypełnia cały ekran, a myszką i kółkiem można ją dalej przesuwać i przybliżać.",
       "Samouczek ma rozdziały do wyboru: mapa, twoja kraina (każda sekcja karty), bohaterowie, prowincje i morza, jednostki i armie, wojny i bitwy, traktaty i bloki, propozycje — a GM dodatkowo Panel GM, prowadzenie krain i edycję mapy. Złota strzałka prowadzi do omawianego miejsca.",
       "Pokazy w samouczku: Zgrzyt na niby zakłada armię i flotę, wyznacza trasę, zamyka turę, doprowadza do bitwy i otwiera jej ekran, podpisuje traktaty i zakłada blok. Pokaz widzi tylko oglądający — nic nie trafia do gry ani do innych graczy, a po rozdziale wszystko znika.",
+      "Dźwięki: kliknięcia (inne dla zatwierdzania, inne dla anulowania), szelest szuflad i okien oraz głos Zgrzyta — chrapliwe pomruki przy mówieniu i hieni rechot przy „tak tak”. Przycisk 🔊 w górnym pasku: osobno interfejs i Zgrzyt, wybór głosu (A/B/C) i głośność; ustawienia są zapamiętane.",
+      "Mapa: znaczniki armii, flot i bitew są dwa razy większe i zawsze nad osadami — sztandar armii stoi obok miasta, a nie chowa się za nim; kilka armii w jednym miejscu stoi w rzędzie.",
     ],
   },
   {

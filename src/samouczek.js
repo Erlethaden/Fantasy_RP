@@ -5,6 +5,7 @@
 import { ROZDZIALY } from "./dane/samouczek.js";
 import { wejdzDoPiaskownicy, wyjdzZPiaskownicy } from "./dane/magazyn.js";
 import portret from "../assets/portrety/zgrzyt.png?url";
+import { glos, rechot } from "./dzwieki.js";
 
 const KLUCZ = "frp-samouczek";   // { propozycja: true, przejrzane: [id] } — w tej przeglądarce
 const pamiec = () => { try { return JSON.parse(localStorage.getItem(KLUCZ)) || {}; } catch { return {}; } };
@@ -86,7 +87,10 @@ function pokazTekst(html, przyciski = "") {
   // pisanie litera po literze; kliknięcie w trakcie pokazuje od razu całość
   const caly = document.createElement("div"); caly.innerHTML = html; const tekst = caly.textContent; let n = 0;
   t.textContent = ""; t.dataset.pelny = html;
-  const timer = setInterval(() => { n += 2; t.textContent = tekst.slice(0, n); if (n >= tekst.length) { clearInterval(timer); t.innerHTML = html; delete t.dataset.pelny; } }, 18);
+  const timer = setInterval(() => {   // głos Zgrzyta (8.4): bip na sylabę, a na końcu „tak tak” hieni rechot
+    n += 2; t.textContent = tekst.slice(0, n); glos(tekst[n - 1] || "");
+    if (n >= tekst.length) { clearInterval(timer); t.innerHTML = html; delete t.dataset.pelny; if (/tak tak/i.test(tekst)) rechot(); }
+  }, 18);
   if (biezacy) biezacy.pisanie = timer;
 }
 const piszeSie = () => okno.querySelector(".samouczek-tekst").dataset.pelny !== undefined;

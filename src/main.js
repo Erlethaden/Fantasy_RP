@@ -8,6 +8,7 @@ import { ZMIANY } from "./dane/zmiany.js";
 import { utworzMape, krzywa, wygladz } from "./mapa.js";
 import { ozywPortrety, zatrzymajPortrety, animacjePortretow, ustawAnimacjePortretow } from "./portrety_anim.js";
 import { otworzSamouczek, zaproponujSamouczek, zakoncz as zakonczSamouczek } from "./samouczek.js";
+import { klik, zatwierdz, anuluj, otworz, zamknij as zamknijDzwiek, ustawieniaDzwiekow, ustawDzwieki } from "./dzwieki.js";
 import terenUrl from "../assets/mapa/teren.png";
 import terenMaskaUrl from "../assets/mapa/teren_maska.png";
 import TERENY from "../assets/mapa/tereny.json";
@@ -99,10 +100,34 @@ function oznaczObecnosc() {
 }
 // szuflada z prawej (karta frakcji, Panel GM): zwęża mapę; zamyka ją ✕, Esc albo klik w mapę
 // okna (bohater, bitwa, edycja): zwykle modalne; w samouczku (8.1) zwykłe, żeby warstwa Zgrzyta mogła być nad nimi
-const otworzOkno = d => document.body.classList.contains("w-samouczku") ? d.show() : d.showModal();
+const otworzOkno = d => { otworz(); document.body.classList.contains("w-samouczku") ? d.show() : d.showModal(); };
+// dźwięki (8.4): kliknięcie przycisku — zatwierdzenie, anulowanie/usunięcie albo zwykłe; zamknięcie okna — szelest
+document.addEventListener("click", e => {
+  const b = e.target.closest?.("button"); if (!b || b.disabled) return;
+  if (b.matches(".dodaj, .wejdz")) zatwierdz(); else if (b.matches(".usun, .zamknij")) anuluj(); else klik();
+}, true);
+for (const id of ["bohater", "bitwa", "zmiany"]) document.getElementById(id).addEventListener("close", () => zamknijDzwiek());
+// ustawienia dźwięków: 🔊 w pasku → mały panel (interfejs, głos Zgrzyta i jego wariant, głośność), zapamiętane w przeglądarce
+const przyciskDzwiekow = document.getElementById("dzwieki-przycisk"), panelDzwiekow = document.getElementById("dzwieki-panel");
+function pokazUstawieniaDzwiekow() {
+  const u = ustawieniaDzwiekow();
+  przyciskDzwiekow.textContent = u.ui || u.zgrzyt ? "🔊" : "🔇";
+  panelDzwiekow.innerHTML = `<label><input type="checkbox" name="ui"${u.ui ? " checked" : ""}> Dźwięki interfejsu</label>
+    <label><input type="checkbox" name="zgrzyt"${u.zgrzyt ? " checked" : ""}> Głos Zgrzyta</label>
+    <label>Głos <select name="glos">${[["chrapliwy", "A — chrapliwy"], ["piskliwy", "B — piskliwy"], ["pomruk", "C — pomruk"]].map(([k, n]) => `<option value="${k}"${k === u.glos ? " selected" : ""}>${n}</option>`).join("")}</select></label>
+    <label>Głośność <input type="range" name="glosnosc" min="0" max="1" step="0.05" value="${u.glosnosc}"></label>`;
+  panelDzwiekow.querySelectorAll("input, select").forEach(p => p.onchange = () => {
+    ustawDzwieki({ [p.name]: p.type === "checkbox" ? p.checked : p.type === "range" ? +p.value : p.value });
+    przyciskDzwiekow.textContent = ustawieniaDzwiekow().ui || ustawieniaDzwiekow().zgrzyt ? "🔊" : "🔇"; klik();
+  });
+}
+przyciskDzwiekow.onclick = () => { panelDzwiekow.hidden = !panelDzwiekow.hidden; if (!panelDzwiekow.hidden) pokazUstawieniaDzwiekow(); };
+document.addEventListener("click", e => { if (!panelDzwiekow.hidden && !e.target.closest("#dzwieki-panel, #dzwieki-przycisk")) panelDzwiekow.hidden = true; });
+pokazUstawieniaDzwiekow(); panelDzwiekow.hidden = true;
 const szuflada = document.getElementById("szuflada");
-function otworzSzuflade() { szuflada.hidden = false; }
+function otworzSzuflade() { if (szuflada.hidden) otworz(); szuflada.hidden = false; }
 function zamknijSzuflade() {
+  if (!szuflada.hidden) zamknijDzwiek();
   szuflada.hidden = true; widok = null; glowny.innerHTML = ""; mapa.wybierz(0);
   [...lista.children].forEach(b => b.setAttribute("aria-current", false));
 }
@@ -296,7 +321,7 @@ function flotyNaMapie() {
     const a = AKWENY[poz.a - 1], f = frakcjaPo(poz.f); if (!a || !f) return [];
     const n = wAkwenie.get(poz.a) || 0; wAkwenie.set(poz.a, n + 1);
     const fl = f.floty?.find(z => z.id === id);
-    return [{ typ: "flota", x: a.x, y: a.y, dx: n * 26, ikona: ikonaKraju("flota", f.kolor), tytul: `${f.nazwa} — ${fl ? `${fl.nazwa}, ${liczebnosc(fl)} ${odmiana(liczebnosc(fl), "okręt", "okręty", "okrętów")}` : "flota"}`,
+    return [{ typ: "flota", x: a.x, y: a.y, dx: n * 44, ikona: ikonaKraju("flota", f.kolor), tytul: `${f.nazwa} — ${fl ? `${fl.nazwa}, ${liczebnosc(fl)} ${odmiana(liczebnosc(fl), "okręt", "okręty", "okrętów")}` : "flota"}`,
       klik: () => (wybierz(f.id), glowny.querySelector("section.floty")?.scrollIntoView({ block: "start" })) }];
   });
 }
@@ -307,7 +332,7 @@ function armieNaMapie() {
     const o = poz.o >= 0 && osadyProwincji(p)[poz.o], x = o ? o.x : p.x, y = o ? o.y : p.y, miejsce = `${x},${y}`;
     const n = wMiejscu.get(miejsce) || 0; wMiejscu.set(miejsce, n + 1);
     const a = f.armie?.find(z => z.id === id);
-    return [{ typ: "armia", x, y, dx: n * 14, ikona: ikonaArmii(f.kolor), tytul: `${f.nazwa} — ${a ? `${a.nazwa}, ${liczebnosc(a)} żołnierzy` : "armia"}`,
+    return [{ typ: "armia", x, y, dx: n * 30, ikona: ikonaArmii(f.kolor), tytul: `${f.nazwa} — ${a ? `${a.nazwa}, ${liczebnosc(a)} żołnierzy` : "armia"}`,
       klik: () => celowanie ? (celowanie.a.id !== id && (celowanie.bitwa ? wymusBitwe(id) : !celowanie.przestaw && ustawCel({ armia: id }))) : (wybierz(f.id), glowny.querySelector("section.armie")?.scrollIntoView({ block: "start" })) }];
   });
 }
@@ -813,7 +838,7 @@ function bitwyNaMapie() {
   return aktywneBitwy().flatMap(([id, b]) => {
     const p = b.a ? AKWENY[b.a - 1] : PROWINCJE[NR_PROWINCJI.get(b.p) - 1]; if (!p) return [];
     const strony = [...new Set(uczestnicyBitwy(b).map(x => kraj(x, b)))];
-    return [{ typ: "bitwa", x: p.x, y: p.y, dx: -26, ikona: IKONY_OSAD.bitwa, tytul: `${b.a ? "Bitwa morska" : "Bitwa"}: ${strony.join(" ⚔ ")} — ${miejsceBitwy(b)}`,
+    return [{ typ: "bitwa", x: p.x, y: p.y, dx: -44, ikona: IKONY_OSAD.bitwa, tytul: `${b.a ? "Bitwa morska" : "Bitwa"}: ${strony.join(" ⚔ ")} — ${miejsceBitwy(b)}`,
       klik: () => pokazBitwe(id) }];
   });
 }

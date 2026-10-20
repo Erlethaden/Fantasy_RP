@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 
 // base "./" — zbudowana strona działa też z pliku (Electron, GitHub Pages w podfolderze)
-// chunkSizeWarningLimit: Firebase sam ma ~600 kB, a aplikacja ładuje się lokalnie (program/dysk), więc rozmiar nie przeszkadza
+// chunkSizeWarningLimit: Firebase ~600 kB + dane mapy + samouczek ≈ 1,5 MB (ok. 490 kB spakowane); program ładuje się z dysku, telefon pobiera raz — dzielenie niepotrzebne
 // edytor mapy (edytor-mapy/, tylko w trybie dev): zapis wyników do materialy/mapa/
 import { writeFileSync } from "node:fs";
 const PLIKI_EDYTORA = ["edycje.json", "komorki_final.png", "gory_final.png", "prowincje.json"];
@@ -18,4 +18,4 @@ const zapisEdytora = {
   },
 };
 
-export default defineConfig({ base: "./", build: { outDir: "dist", chunkSizeWarningLimit: 1500 }, plugins: [zapisEdytora] });
+export default defineConfig({ base: "./", build: { outDir: "dist", chunkSizeWarningLimit: 2500 }, plugins: [zapisEdytora] });

@@ -56,8 +56,10 @@ button{font:600 15px Cinzel,Georgia,serif;letter-spacing:.06em;cursor:pointer}
 .osada.wioska i{left:-4px;top:-4px;width:8px;height:8px;border-radius:50%;background:#5a4426}
 .osada.most i{left:-5px;top:-5px;width:10px;height:10px;background:#8a6a3a;transform:rotate(45deg)}
 .osada.most img{left:-12px;top:-12px}
-.osada.armia,.osada.flota{pointer-events:auto;cursor:pointer}.osada.armia img{left:4px;top:-24px}.osada.flota img{left:-12px;top:-18px}
-.osada.bitwa{pointer-events:auto;cursor:pointer}.osada.bitwa img{left:-12px;top:-12px}
+/* armie, floty i bitwy (0.5.0, prośba użytkownika): ikony 24 px pokazane ×2 (48 px, ostre piksele) i zawsze nad osadami — sztandar stoi obok miasta, nie za nim */
+.osada.armia,.osada.flota,.osada.bitwa{pointer-events:auto;cursor:pointer;z-index:3}
+.osada.armia img,.osada.flota img,.osada.bitwa img{width:48px;height:48px}
+.osada.armia img{left:12px;top:-46px}.osada.flota img{left:-24px;top:-36px}.osada.bitwa img{left:-24px;top:-24px}
 .osada.stolica i{left:-8px;top:-8px;width:16px;height:16px;background:var(--zloto);border-color:#3a2a14}
 .osada span{display:none;position:absolute;top:9px;left:0;transform:translateX(-50%);white-space:nowrap;font:600 12px Spectral,Georgia,serif;color:#2a1c08;text-shadow:0 0 3px #f3e7c6,0 0 3px #f3e7c6}
 .osada.podpis span{display:block}
@@ -328,3 +330,7 @@ select{padding:6px 10px;background:#05050a;border:1px solid var(--zloto2);color:
 .samouczek-rozdzialy{display:flex;flex-wrap:wrap;gap:8px;width:100%;margin-bottom:6px}
 @media (prefers-reduced-motion:reduce){.samouczek-obwodka,.samouczek-dalej,.samouczek-strzalka svg{animation:none}}
 .okno[open]:not(:modal){position:fixed;inset:0;margin:auto;z-index:40;height:fit-content;box-shadow:0 0 0 100vmax rgba(0,0,0,.45)}   /* okno w samouczku (8.1) */
+/* ustawienia dźwięków (8.4) */
+.dzwieki-panel{position:fixed;top:64px;right:16px;z-index:60;display:flex;flex-direction:column;gap:8px;min-width:240px;padding:12px 14px;background:#0b0d15;border:1px solid var(--zloto2);border-radius:6px;box-shadow:0 8px 30px rgba(0,0,0,.8);color:var(--tekst);font-size:14px}
+.dzwieki-panel label{display:flex;align-items:center;justify-content:flex-start;gap:8px;margin:0;text-align:left}.dzwieki-panel label input[type=checkbox]{width:18px;height:18px;flex:0 0 auto;margin:0}.dzwieki-panel label input[type=range]{flex:1;width:auto;min-width:0;margin:0;padding:0}.dzwieki-panel select{background:#07080d;color:var(--tekst);border:1px solid var(--zloto2);font:inherit}
+@media (max-width:700px){.dzwieki-panel{top:auto;bottom:calc(66px + env(safe-area-inset-bottom));right:8px}}
