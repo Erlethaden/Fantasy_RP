@@ -1,7 +1,14 @@
 // „Co nowego” po aktualizacji: najnowsza wersja na górze; przed każdym wydaniem dopisz wpis z numerem z package.json (INSTRUKCJA-WYDANIE.md)
 export const ZMIANY = [
   {
-    wersja: "0.4.0", data: "", zmiany: [
+    wersja: "0.5.0", data: "", zmiany: [
+      "Samouczek: Zgrzyt (przewodnik-hiena) oprowadza po programie — przy pierwszym wejściu sam proponuje pokaz, później w każdej chwili przycisk „Samouczek” w górnym pasku. Mówi, co gdzie jest, omawiane miejsce miga złotą obwódką, a kliknięcie przechodzi dalej; Esc albo „Zakończ” przerywa. Na czas samouczka mapa wypełnia cały ekran, a myszką i kółkiem można ją dalej przesuwać i przybliżać.",
+      "Samouczek ma rozdziały do wyboru: mapa, twoja kraina (każda sekcja karty), bohaterowie, prowincje i morza, jednostki i armie, wojny i bitwy, traktaty i bloki, propozycje — a GM dodatkowo Panel GM, prowadzenie krain i edycję mapy. Złota strzałka prowadzi do omawianego miejsca.",
+      "Pokazy w samouczku: Zgrzyt na niby zakłada armię i flotę, wyznacza trasę, zamyka turę, doprowadza do bitwy i otwiera jej ekran, podpisuje traktaty i zakłada blok. Pokaz widzi tylko oglądający — nic nie trafia do gry ani do innych graczy, a po rozdziale wszystko znika.",
+    ],
+  },
+  {
+    wersja: "0.4.0", data: "20-10-2026", zmiany: [
       "Portrety bohaterów ożyły: duży portret w oknie bohatera oddycha, mruga i co jakiś czas przebiega po nim błysk światła w kolorze frakcji; miniatury na karcie frakcji ożywają po najechaniu myszką. Przełącznik „Animacje portretów” w oknie bohatera (zapamiętany); przy systemowym ograniczeniu ruchu animacji nie ma.",
       "Mrugają już niemal wszyscy bohaterowie (29 portretów), a świecące oczy — gogle, demony, smoki, nieumarli — pulsują zamiast mrugać.",
       "Na portretach migoczą płomienie (ogień w dłoni, świece, latarnie, lawa), a wokół niektórych bohaterów unoszą się iskry, magiczne drobinki albo popiół.",

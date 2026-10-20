@@ -5,13 +5,26 @@ import { BOHATEROWIE } from "./bohaterowie.js";
 import { ZASOBY } from "./zasoby.js";
 import { firebaseConfig } from "../firebase-config.js";
 import { initializeApp } from "firebase/app";
-import { initializeFirestore, collection, doc, FieldPath, deleteField, onSnapshot, writeBatch, getDoc, getDocs, setDoc, updateDoc, addDoc, deleteDoc, query, where, orderBy, limit, getCountFromServer } from "firebase/firestore";
+import { initializeFirestore, connectFirestoreEmulator, collection, doc, FieldPath, deleteField, onSnapshot, writeBatch, getDoc, getDocs, setDoc, updateDoc, addDoc, deleteDoc, query, where, orderBy, limit, getCountFromServer } from "firebase/firestore";
 import { getDatabase, ref as refRT, onValue, onDisconnect, set as setRT, serverTimestamp as czasRT } from "firebase/database";
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
+import { getAuth, connectAuthEmulator, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup, signOut } from "firebase/auth";
 
 export const CHMURA = Boolean(firebaseConfig.apiKey);
 // wersja na telefon (GitHub Pages, 7.7): budowana z VITE_PODGLAD=1 — tylko czytanie, żaden zapis nie wychodzi do bazy
 export const PODGLAD = import.meta.env.VITE_PODGLAD === "1";
+// piaskownica samouczka (8.1): na czas rozdziału z pokazem nic nie wychodzi do bazy ani do localStorage, a zmiany z bazy czekają;
+// po wyjściu wraca stan sprzed rozdziału i dociągane są zaległe zmiany od innych
+let piaskownica = null;   // { kopia, odlozone: Map(klucz → funkcja) } albo null
+const tylkoCzytanie = () => PODGLAD || Boolean(piaskownica);
+export const wPiaskownicy = () => Boolean(piaskownica);
+export function wejdzDoPiaskownicy() { if (!piaskownica) piaskownica = { kopia: structuredClone(stan), odlozone: new Map() }; }
+export function wyjdzZPiaskownicy() {
+  if (!piaskownica) return;
+  const { kopia, odlozone } = piaskownica; piaskownica = null;
+  for (const k of Object.keys(stan)) delete stan[k];
+  Object.assign(stan, kopia); odlozone.forEach(f => f());
+}
+const naZywo = (klucz, f) => piaskownica ? piaskownica.odlozone.set(klucz, f) : f();
 export const stan = {}; // jeden wspólny obiekt — moduły go mutują, magazyn go wypełnia i zapisuje
 
 const KLUCZ = "frp-demo";
@@ -36,7 +49,9 @@ export function resetuj() { try { localStorage.removeItem(KLUCZ); } catch {} ret
 const app = CHMURA ? initializeApp(firebaseConfig) : null;
 // obecność graczy (2026-10-19) w Realtime Database: obecnosc/{uid} = { f: frakcja, on: online, t: czas (ms) }; „offline” zapisuje SERWER przy
 // rozłączeniu (onDisconnect — też Alt+F4, awaria, brak sieci), więc są tylko dwa zapisy na sesję. Bez databaseURL w konfiguracji — wyłączone.
-const rtdb = app && firebaseConfig.databaseURL ? getDatabase(app) : null;
+// testy (8.3): VITE_EMULATOR=1 — baza i logowanie z lokalnego emulatora Firebase, obecność wyłączona (nic nie dotyka prawdziwej gry)
+const EMULATOR = import.meta.env.VITE_EMULATOR === "1";
+const rtdb = app && firebaseConfig.databaseURL && !EMULATOR ? getDatabase(app) : null;
 let koniecObecnosci = () => Promise.resolve(), odpnijPolaczenie = () => {};
 export function zglosObecnosc(uid, frakcja) {
   if (!rtdb) return;
@@ -50,6 +65,7 @@ export function zglosObecnosc(uid, frakcja) {
 export const sluchajObecnosci = cb => rtdb ? onValue(refRT(rtdb, "obecnosc"), s => cb(s.val() || {}), e => { console.warn("obecność", e); cb({}); }) : () => {};
 const db = app && initializeFirestore(app, { ignoreUndefinedProperties: true });
 const auth = app && getAuth(app);
+if (EMULATOR && app) { connectFirestoreEmulator(db, "127.0.0.1", 8080); connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true }); }
 const ostatnio = new Map(); // ścieżka → JSON ostatnio zapisanego/odebranego dokumentu; zapisujemy tylko różnice
 // JSON z posortowanymi kluczami — Firestore oddaje pola w innej kolejności, a porównanie ma być po treści
 const json = x => JSON.stringify(x, (k, v) => v && typeof v === "object" && !Array.isArray(v) ? Object.fromEntries(Object.entries(v).sort(([a], [b]) => a < b ? -1 : 1)) : v);
@@ -125,7 +141,7 @@ export const ustawBladZapisu = f => { bladZapisu = f; };
 export const licznik = { zapisy: 0, dokumenty: 0, odczyty: 0, bledy: [] }; // diagnostyka tej sesji (odczyty — w przybliżeniu)
 const kto = () => ({ uid: auth.currentUser?.uid || "", email: auth.currentUser?.email || "" });
 function zalogujBlad(e, co) {
-  if (PODGLAD) return;
+  if (tylkoCzytanie()) return;
   licznik.bledy.unshift({ czas: new Date().toISOString(), kod: e.code || "", opis: String(e.message || e).slice(0, 300), co });
   licznik.bledy.length = Math.min(licznik.bledy.length, 20);
   addDoc(collection(db, "logi"), { czas: new Date().toISOString(), ...kto(), typ: "blad", co, kod: e.code || String(e).slice(0, 100) }).catch(() => {});
@@ -141,7 +157,7 @@ function wyslij(operacje, log) {
   });
 }
 export function zapisz(s) {
-  if (PODGLAD) return;
+  if (tylkoCzytanie()) return;   // też DEMO: piaskownica nie zapisuje do localStorage
   if (!CHMURA) { try { localStorage.setItem(KLUCZ, JSON.stringify(s)); } catch {} return; }
   const zapisy = [], co = [], zmiany = []; let ile = 0;
   for (const [sciezka, dane] of dokumenty(s)) {
@@ -164,7 +180,7 @@ export function zapisz(s) {
 // prowincje i kraje NPC: w bazie zmieniane tylko wskazane pola (p.<id>, npc.<id>), nie cały dokument — dwóch GM
 // zmieniających naraz różne prowincje nie nadpisze sobie zmian. zmiany = [["p" | "npc" | "a", id], …] (a = akweny 7.8a: {id: {nazwa}}); wartości bierze ze stanu (brak = usuń)
 export function zapiszProwincje(zmiany) {
-  if (PODGLAD) return;
+  if (tylkoCzytanie()) return;
   if (!CHMURA) return zapisz(stan);
   if (!dostep.gm || !zmiany.length) return;
   const pola = zmiany.flatMap(([gdzie, id]) => [new FieldPath(gdzie, id), (gdzie === "p" ? stan.prowincje : gdzie === "a" ? stan.akweny : stan.npc)?.[id] ?? deleteField()]);
@@ -182,7 +198,7 @@ export function zapiszProwincje(zmiany) {
 }
 // nazwy osad: nazwy_osad/{prowincja} = { n: {numer osady: nazwa} } — GM albo gracz, którego frakcja ma prowincję (reguła mojaProwincja)
 export function zapiszNazwyOsad(id) {
-  if (PODGLAD) return;
+  if (tylkoCzytanie()) return;
   if (!CHMURA) return zapisz(stan);
   const n = stan.nazwyOsad?.[id] || {}, ref = doc(db, "nazwy_osad", id);
   const log = { czas: new Date().toISOString(), ...kto(), typ: "zmiana", co: [`nazwy_osad/${id}`],
@@ -276,6 +292,7 @@ export function polacz(onZmiana) {
     let pierwszy = true;
     const migracja = (stare, nowe) => nowe === undefined ? undefined : nowe ?? stare; // brak nowego dokumentu → dane ze starego formatu
     const sklej = () => {
+      if (!pierwszy && piaskownica) return void piaskownica.odlozone.set("sklej", sklej);   // samouczek: dociągnie po wyjściu
       if (czesci.frakcje === null || czesci.bohaterowie === null || czesci.gra === undefined || czesci.prowincje === undefined || czesci.nazwy === null || czesci.armie === undefined) return;
       if (pierwszy && !czesci.gra) { // pusta baza — pierwsze logowanie: wgrywamy zapis z DEMO (jeśli jest w tej przeglądarce) albo dane startowe
         pierwszy = false; const { wersja, ...s } = zapisDemo() || start(); Object.assign(stan, s);
@@ -340,8 +357,7 @@ export function polacz(onZmiana) {
         licznik.odczyty += snap.docChanges().length;
         czesc.set(klucz, new Map(snap.docs.map(d => [d.id, d.data()])));
         snap.docs.forEach(d => { ostatnio.set(`${nazwa}/${d.id}`, json(d.data())); zaladowane.add(`${nazwa}/${d.id}`); });
-        stan[nazwa] = Object.fromEntries([...czesc.values()].flatMap(x => [...x]));
-        if (!pierwszy) onZmiana();
+        naZywo(nazwa, () => { stan[nazwa] = Object.fromEntries([...czesc.values()].flatMap(x => [...x])); if (!pierwszy) onZmiana(); });
       }, e => console.warn(nazwa, e.code));
       return dostep.gm ? [sub("wszystkie", collection(db, nazwa))]
         : [sub("jawne", query(collection(db, nazwa), where("tajny", "==", false))),
@@ -401,7 +417,7 @@ export async function czytajBitwe(id) {
 // --- propozycje zmian od graczy (etap 4.4) ---
 // propozycje/{auto}: { czas, uid, email, frakcja, cel: "frakcja"|"bohater", celId, nazwa, zmiany: {pole: nowe}, przed: {pole: stare},
 //   status: "czeka"|"przyjeta"|"odrzucona", komentarz, rozpatrzono (ISO albo ""), rozpatrzyl }
-export const zaproponuj = p => PODGLAD ? Promise.reject(new Error("Podgląd na telefonie jest tylko do czytania.")) : addDoc(collection(db, "propozycje"), { ...p, czas: new Date().toISOString(), ...kto(),
+export const zaproponuj = p => tylkoCzytanie() ? Promise.reject(new Error("Podgląd na telefonie i samouczek są tylko do czytania.")) : addDoc(collection(db, "propozycje"), { ...p, czas: new Date().toISOString(), ...kto(),
   status: "czeka", komentarz: "", rozpatrzono: "", rozpatrzyl: "" });
 // GM: wszystkie oczekujące; gracz: swoje + propozycje traktatów, w których jego frakcja jest stroną (7.15)
 // (reguły wymagają zawężenia zapytań do własnego uid / strony)
@@ -417,13 +433,13 @@ export function sluchajPropozycji(czyGM, frakcja, cb, blad) {
   return () => odpiecia.forEach(o => o());
 }
 // zgoda (true) albo odmowa (false) strony traktatu na propozycję innego gracza (7.15)
-export const zgodaStrony = (id, frakcja, tak) => PODGLAD ? Promise.reject(new Error("Podgląd na telefonie jest tylko do czytania.")) : updateDoc(doc(db, "propozycje", id), new FieldPath("zgody", frakcja), tak);
-export const rozpatrz = (id, status, komentarz) => PODGLAD ? Promise.reject(new Error("Podgląd na telefonie jest tylko do czytania.")) : updateDoc(doc(db, "propozycje", id),
+export const zgodaStrony = (id, frakcja, tak) => tylkoCzytanie() ? Promise.reject(new Error("Podgląd na telefonie i samouczek są tylko do czytania.")) : updateDoc(doc(db, "propozycje", id), new FieldPath("zgody", frakcja), tak);
+export const rozpatrz = (id, status, komentarz) => tylkoCzytanie() ? Promise.reject(new Error("Podgląd na telefonie i samouczek są tylko do czytania.")) : updateDoc(doc(db, "propozycje", id),
   { status, komentarz, rozpatrzono: new Date().toISOString(), rozpatrzyl: auth.currentUser?.email || "" });
-export const wycofaj = id => PODGLAD ? Promise.reject(new Error("Podgląd na telefonie jest tylko do czytania.")) : deleteDoc(doc(db, "propozycje", id));
+export const wycofaj = id => tylkoCzytanie() ? Promise.reject(new Error("Podgląd na telefonie i samouczek są tylko do czytania.")) : deleteDoc(doc(db, "propozycje", id));
 // usunięcie dokumentu z kolekcji z widocznością (traktaty, kronika, bloki) — GM, pomyłka albo cofnięcie tury; z pamięci i z bazy
 export function usunWpis(kolekcja, id) {
-  if (PODGLAD) return;
+  if (tylkoCzytanie()) return;
   delete stan[kolekcja]?.[id];
   if (!CHMURA) return zapisz(stan);
   ostatnio.delete(`${kolekcja}/${id}`); deleteDoc(doc(db, kolekcja, id)).catch(e => { console.error(e); zalogujBlad(e, [`${kolekcja}/${id}`]); bladZapisu(e); });
@@ -432,7 +448,7 @@ export const usunTraktat = id => usunWpis("traktaty", id);
 // zapis przez gracza (7.9b): blok i wpisy kroniki o bloku — po kolei (przegłosowany wniosek wykonuje się drugim zapisem, po głosie);
 // reguły pozwalają graczowi tylko na dozwolone zmiany bloku. W DEMO zwykły zapis.
 export async function zapiszBlokGracza(id, wpisyKroniki = []) {
-  if (PODGLAD) return;
+  if (tylkoCzytanie()) return;
   if (!CHMURA) return zapisz(stan);
   const b = stan.bloki?.[id];
   if (b) { await setDoc(doc(db, "bloki", id), b); ostatnio.set(`bloki/${id}`, json(b)); zaladowane.add(`bloki/${id}`); }

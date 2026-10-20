@@ -5,6 +5,7 @@ import assert from "node:assert";
 const b = await chromium.launch({ executablePath: process.env.LOCALAPPDATA + "/ms-playwright/chromium-1234/chrome-win64/chrome.exe" });
 const s = await b.newPage({ viewport: { width: 1400, height: 900 } });
 const bledy = []; s.on("pageerror", e => bledy.push(e.message));
+await s.addInitScript(() => localStorage.setItem("frp-samouczek", JSON.stringify({ propozycja: true })));   // bez propozycji Zgrzyta (8.1), zasłaniałaby mapę
 await s.route(/firebase-config\.js/, r => r.fulfill({ contentType: "text/javascript", body: "export const firebaseConfig = {};" }));
 await s.goto("http://localhost:5175/"); await s.waitForTimeout(1500);
 await s.evaluate(() => document.querySelectorAll("dialog[open]").forEach(d => d.close()));

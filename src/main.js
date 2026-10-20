@@ -3,10 +3,11 @@ import "../assets/sala_tronow/animacje.js"; // ustawia window.Sala
 import pakiet from "../package.json";
 import { usunWpis, usunTraktat, czytajBitwe, stan, wczytaj, zapisz, CHMURA, polacz, odlacz, naZmianeKonta, zaloguj, zalozKonto, zalogujGoogle, wyloguj, ustawBladZapisu,
   ROLE, mojProfil, sluchajProfilu, sluchajUzytkownikow, ustawUzytkownika, ustawDostep, sprzatnijLogi, ostatnieLogi, licznik, KOLEKCJE, policzDokumenty, rozmiaryWczytanych, szukajSmieci, zapiszWszystko,
-  zaproponuj, zapiszBlokGracza, sluchajPropozycji, zgodaStrony, zglosObecnosc, sluchajObecnosci, rozpatrz, wycofaj, sprzatnijPropozycje, zapiszProwincje, zapiszNazwyOsad, PODGLAD } from "./dane/magazyn.js";
+  zaproponuj, zapiszBlokGracza, sluchajPropozycji, zgodaStrony, zglosObecnosc, sluchajObecnosci, rozpatrz, wycofaj, sprzatnijPropozycje, zapiszProwincje, zapiszNazwyOsad, PODGLAD, wPiaskownicy } from "./dane/magazyn.js";
 import { ZMIANY } from "./dane/zmiany.js";
 import { utworzMape, krzywa, wygladz } from "./mapa.js";
 import { ozywPortrety, zatrzymajPortrety, animacjePortretow, ustawAnimacjePortretow } from "./portrety_anim.js";
+import { otworzSamouczek, zaproponujSamouczek, zakoncz as zakonczSamouczek } from "./samouczek.js";
 import terenUrl from "../assets/mapa/teren.png";
 import terenMaskaUrl from "../assets/mapa/teren_maska.png";
 import TERENY from "../assets/mapa/tereny.json";
@@ -97,6 +98,8 @@ function oznaczObecnosc() {
   }
 }
 // szuflada z prawej (karta frakcji, Panel GM): zwęża mapę; zamyka ją ✕, Esc albo klik w mapę
+// okna (bohater, bitwa, edycja): zwykle modalne; w samouczku (8.1) zwykłe, żeby warstwa Zgrzyta mogła być nad nimi
+const otworzOkno = d => document.body.classList.contains("w-samouczku") ? d.show() : d.showModal();
 const szuflada = document.getElementById("szuflada");
 function otworzSzuflade() { szuflada.hidden = false; }
 function zamknijSzuflade() {
@@ -269,10 +272,11 @@ async function wyslijPropozycje(p) {
 }
 const NAZWY_TYPOW = { miasto: "Miasto", wioska: "Wioska", stolica: "Stolica" };
 const mostyNaMapie = () => Object.entries(stan.prowincje || {}).flatMap(([a, d]) => Object.entries(d.mosty || {}).filter(([b]) => a < b).map(([, [x, y]]) => ({ typ: "most", x, y })));
-const pokazOsadyNaMapie = () => { mapa.ustawOsady(PROWINCJE.flatMap(osadyProwincji).concat(mostyNaMapie(), armieNaMapie(), flotyNaMapie(), bitwyNaMapie())); mapa.ustawTrasy([...liniaTraktatowNaMapie(), ...trasyNaMapie()]); blokiNaMapie(); };
+const pokazOsadyNaMapie = () => { if (!stan.frakcje) return;   // przed wczytaniem stanu (logowanie: propozycje i ikony przychodzą wcześniej)
+  mapa.ustawOsady(PROWINCJE.flatMap(osadyProwincji).concat(mostyNaMapie(), armieNaMapie(), flotyNaMapie(), bitwyNaMapie())); mapa.ustawTrasy([...liniaTraktatowNaMapie(), ...trasyNaMapie()]); blokiNaMapie(); };
 // znaczniki armii (7.1b): sztandar armia.png z flagą w kolorach-kluczach (magenta) przemalowaną na kolor frakcji; kilka armii w jednym miejscu — obok siebie
 // floty (7.8c): okręt flota.png, ten sam mechanizm kolorów-kluczy
-const szablony = Object.fromEntries(["armia", "flota"].map(t => [t, Object.assign(new Image(), { src: IKONY_OSAD[t] || "", onload: () => stan.frakcje && pokazOsadyNaMapie() })])), ikonyKraju = new Map();   // przed zalogowaniem (chmura) stanu gry jeszcze nie ma
+const szablony = Object.fromEntries(["armia", "flota"].map(t => [t, Object.assign(new Image(), { src: IKONY_OSAD[t] || "", onload: () => pokazOsadyNaMapie() })])), ikonyKraju = new Map();   // przed zalogowaniem (chmura) stanu gry jeszcze nie ma
 const ikonaArmii = kolor => ikonaKraju("armia", kolor);
 function ikonaKraju(typ, kolor) {
   const szablon = szablony[typ], klucz = typ + kolor;
@@ -889,7 +893,7 @@ oknoBitwy.onclick = e => { if (e.target === oknoBitwy) oknoBitwy.close(); };
 const sumaOddz = (o, poz) => o.filter(x => poz === undefined || x.poziom === poz).reduce((s, x) => s + x.liczba, 0);
 async function pokazBitwe(id) {
   const b = stan.bitwy?.[id]; if (!b) return;
-  const r = b.koniec ? stan.raportyBitew?.[id] || await czytajBitwe(id) : gm || !CHMURA ? raportBitwy(id) : await czytajBitwe(id);
+  const r = b.koniec ? stan.raportyBitew?.[id] || await czytajBitwe(id) : gm || !CHMURA || wPiaskownicy() ? raportBitwy(id) : await czytajBitwe(id);   // pokaz samouczka: bitwy nie ma w bazie
   const p = !b.a && PROWINCJE[NR_PROWINCJI.get(b.p) - 1], strony = r?.strony || (b.koniec?.strony || [...new Set(uczestnicyBitwy(b).map(x => kraj(x, b)))]).map(n => ({ nazwa: n, armie: null }));
   const k = b.koniec, straty = r?.koniec?.straty || {}, polegli = new Set(r?.koniec?.polegli || []), losBoh = r?.koniec?.bohaterowie || {}, losArmii = r?.koniec?.los || {};
   const ZNAK_BOH = { polegl: [" ✝", "polegl"], ranny: [" (ranny)", "ranny"], niewola: [" ⛓ w niewoli", "niewola"], uratowany: [" (uratowany)", "uratowany"] };
@@ -941,7 +945,7 @@ async function pokazBitwe(id) {
     zapisz(stan); pokazOsadyNaMapie(); oknoBitwy.close();
     if (widok && stan.frakcje.some(f => f.id === widok)) wybierz(widok, true);
   };
-  oknoBitwy.showModal();
+  otworzOkno(oknoBitwy);
 }
 // skutki bitwy (7.1i): los armii („auto” = przegrana cofa się, pozostałe zostają), bohaterów i ewentualne zdobycie prowincji;
 // zwraca { los: {idArmii: opis}, opis: [zdania do kroniki] }
@@ -1466,7 +1470,7 @@ function formularzEdycji({ naglowek, pola, wartosci, sekcje, onZapisz }) {
       .filter(s => s.tytul || s.tekst);
     onZapisz(nowe);
   };
-  okno.showModal();
+  otworzOkno(okno);
 }
 async function zapiszEdycje(cel, obiekt, f, nowe) {
   const zmiany = {}, przed = {};
@@ -1582,7 +1586,7 @@ function proponujTraktat(f) {
     okno.close();
     wyslijPropozycje({ frakcja: f.id, cel: "traktat", celId: "", nazwa: `Traktat: ${t.nazwa}`, strony, zgody: { [f.id]: true }, zmiany: { traktat: t }, przed: {} });
   };
-  okno.showModal();
+  otworzOkno(okno);
 }
 function podepnijPropozycje() {
   glowny.querySelectorAll("[data-akcja=wycofaj]").forEach(b => b.onclick = () => {
@@ -1647,7 +1651,7 @@ function pokazBohatera(h, f) {
     e.currentTarget.elements.misja.parentElement.hidden = h.status !== "misja";
     zapisz(stan); wybierz(f.id, true);
   };
-  okno.showModal();
+  otworzOkno(okno);
 }
 okno.onclick = e => { if (e.target === okno) okno.close(); }; // klik w tło zamyka
 okno.addEventListener("close", () => zatrzymajPortrety(okno));   // animowany portret (7.3) nie chodzi w zamkniętym oknie
@@ -2313,6 +2317,7 @@ function podepnijUzytkownikow() {
   });
 }
 function przelacz(doAplikacji) {
+  if (!doAplikacji) zakonczSamouczek();
   document.getElementById("menu").hidden = doAplikacji; document.getElementById("aplikacja").hidden = !doAplikacji;
   sala.reczny = doAplikacji; // pauza animacji sali, gdy jej nie widać
   doAplikacji ? clearInterval(timer) : restart();
@@ -2335,9 +2340,172 @@ function odswiezWidok() {
   if (widok.startsWith("a:")) return pokazAkwen(+widok.slice(2));
   widok === "gm" ? (gm ? pokazPanelGM(true) : zamknijSzuflade()) : wybierz(widok, true);
 }
+const PRZEKRECONE = { "Krag-Mhor": "Krak-Mrówka", "Aurelia": "Aureola", "Goblandia": "Gobolandia", "Rogus Ardens": "Rogal Ardeński",
+  "Królestwo Czarnego Smoka": "Królestwo Czarnego Smoczka", "Królestwo Szarych Kłów": "Królestwo Szarych Kółek", "Grobowe Imperium": "Grochowe Imperium" };
+// pokazy samouczka (8.1) — tylko w piaskownicy (rozdział z `piaskownica: true`): wszystko na kopii stanu, po rozdziale znika.
+// Baza pokazu: prowincja własnej krainy nad morzem (gdy jej nie ma — przypisana na niby), sąsiad, do którego da się dojść, i wróg obok.
+const ID_POKAZU = { armia: "zgrzyt-a1", wrog: "zgrzyt-a2", flota: "zgrzyt-f1", traktat: "zgrzyt-t1", sojusz: "zgrzyt-t2", blok: "zgrzyt-b1" };
+const odSrodka = p => Math.hypot(p.x - 2500, p.y - 2500);
+const nadMorzem = nr => AKWENY.some(a => a.typ === "morze" && a.brzeg.includes(nr));
+function bazaPokazu() {
+  const f = AKCJE_SAMOUCZKA.mojaFrakcja(), moja = q => stan.prowincje?.[q.id]?.wlasciciel === f.id;
+  const wrog = stan.frakcje.find(x => x.id !== f.id && !x._brak?.armie) || stan.frakcje.find(x => x.id !== f.id);
+  const miejsce = (kto, q) => ({ f: kto.id, p: q.id, o: -1 });
+  // sąsiad o JEDEN krok w obie strony (krasnoludy przejdą góry, wróg nie — przy objeździe armie by się nie spotkały)
+  const sasiadDla = q => q.sasiedzi.map(([j]) => PROWINCJE[j - 1]).find(n => wyznaczTrase(f, miejsce(f, q), { p: n.id, o: -1 })?.length === 1
+    && (!wrog || wyznaczTrase(wrog, miejsce(wrog, n), { p: q.id, o: -1 })?.length === 1));
+  const kandydaci = [...PROWINCJE.filter(q => moja(q) && nadMorzem(NR_PROWINCJI.get(q.id))),   // najpierw własne nad morzem, potem wolne (na niby) od środka świata
+    ...PROWINCJE.filter(q => !stan.prowincje?.[q.id]?.wlasciciel && nadMorzem(NR_PROWINCJI.get(q.id)) && q.sasiedzi.length >= 2).sort((a, b) => odSrodka(a) - odSrodka(b))];
+  const baza = kandydaci.find(sasiadDla) || kandydaci[0];
+  if (!moja(baza)) (stan.prowincje ??= {})[baza.id] = { ...stan.prowincje?.[baza.id], wlasciciel: f.id };
+  return { f, baza, start: miejsce(f, baza), sasiad: sasiadDla(baza), wrog };
+}
+const POKAZY = {
+  pokazJednostki: () => {
+    const f = AKCJE_SAMOUCZKA.mojaFrakcja(), j = f.jednostki ??= [];
+    if (!j.some(x => !x.morska)) j.push({ nazwa: "Psy Wojny", poziom: 1, opis: "Lekka piechota na niby — przykład Zgrzyta." }, { nazwa: "Gryzące Topory", poziom: 2, opis: "Weterani na niby." });
+    if (!j.some(x => x.morska)) j.push({ nazwa: "Łajba", poziom: 1, morska: true, opis: "Okręt na niby." });
+    wybierz(f.id, true);
+  },
+  pokazArmie: () => {
+    POKAZY.pokazJednostki();
+    const { f, start, baza } = bazaPokazu(), j = f.jednostki.filter(x => !x.morska);
+    if (!f.armie?.some(a => a.id === ID_POKAZU.armia)) {
+      (f.armie ??= []).push({ id: ID_POKAZU.armia, nazwa: "Zgrzytowe Psy", dowodca: "", pospolity: "Zgrzyt", bohaterowie: [],
+        oddzialy: [{ jednostka: j[0].nazwa, liczba: 320 }, { jednostka: (j[1] || j[0]).nazwa, liczba: 180 }] });
+      (stan.pozycjeArmii ??= {})[ID_POKAZU.armia] = start;
+    }
+    wybierz(f.id, true); pokazOsadyNaMapie(); mapa.pokaz(baza.x, baza.y, 0.9);
+  },
+  pokazCel: () => {
+    const { f, sasiad } = bazaPokazu(), a = f.armie.find(x => x.id === ID_POKAZU.armia);
+    if (a && sasiad) a.cel = { p: sasiad.id, o: -1 };
+    zamknijSzuflade(); pokazOsadyNaMapie(); if (sasiad) mapa.pokaz(sasiad.x, sasiad.y, 0.8);
+  },
+  // koniec tury na niby: tylko armie z pokazu robią krok swojej trasy (jak ruchArmii), potem wykrywanie bitew jak w grze
+  pokazTure: () => {
+    const stare = structuredClone(stan.pozycjeArmii || {});
+    for (const f of stan.frakcje) for (const a of f.armie || []) {
+      if (![ID_POKAZU.armia, ID_POKAZU.wrog].includes(a.id) || !a.cel) continue;
+      const tr = trasaArmii(f, a), poz = stan.pozycjeArmii[a.id]; if (!tr?.length) continue;
+      a.przebyte = [...(a.przebyte || []), { p: poz.p, o: poz.o }]; stan.pozycjeArmii[a.id] = { f: poz.f, p: tr[0].p, o: tr[0].o };
+    }
+    wykryjBitwy(stare, stan.tury.length + 1); pokazOsadyNaMapie();
+  },
+  pokazFlote: () => {
+    const { f } = bazaPokazu(), a = akwenStartu(f); if (!a) return;
+    if (!f.floty?.some(x => x.id === ID_POKAZU.flota)) {
+      const m = f.jednostki.find(x => x.morska);
+      (f.floty ??= []).push({ id: ID_POKAZU.flota, nazwa: "Zgrzytowa Łajba", dowodca: "", pospolity: "Zgrzyt", bohaterowie: [], oddzialy: [{ jednostka: m.nazwa, liczba: 3 }] });
+      (stan.pozycjeFlot ??= {})[ID_POKAZU.flota] = { f: f.id, a };
+      const cel = AKWENY[a - 1].sasiedzi.find(([, t]) => t === "morze")?.[0];
+      if (cel) f.floty.find(x => x.id === ID_POKAZU.flota).cel = cel;
+    }
+    pokazOsadyNaMapie(); mapa.pokaz(AKWENY[a - 1].x, AKWENY[a - 1].y, 0.6);
+  },
+  // wróg na niby w sąsiedniej prowincji, wojna między krajami; przy turze obie armie mijają się na granicy = bitwa (wykrywanie jak w grze)
+  pokazWroga: () => {
+    POKAZY.pokazArmie();
+    const { f, baza, sasiad, wrog } = bazaPokazu(), a = f.armie.find(x => x.id === ID_POKAZU.armia);
+    if (!sasiad || !wrog) return;
+    stan.pozycjeArmii[ID_POKAZU.armia] = { f: f.id, p: baza.id, o: -1 }; a.cel = null; a.przebyte = [];
+    if (!wrog.armie?.some(x => x.id === ID_POKAZU.wrog))
+      (wrog.armie ??= []).push({ id: ID_POKAZU.wrog, nazwa: "Banda Złodziei Kości", dowodca: "", pospolity: "Kościożer", bohaterowie: [], oddzialy: [{ jednostka: "Rabusie", liczba: 260 }] });
+    stan.pozycjeArmii[ID_POKAZU.wrog] = { f: wrog.id, p: sasiad.id, o: -1 };
+    if (!wWojnie(f.id, wrog.id)) (stan.wojny ??= []).push([f.id, wrog.id]);
+    wybierz(f.id, true); pokazOsadyNaMapie(); mapa.pokaz((baza.x + sasiad.x) / 2, (baza.y + sasiad.y) / 2, 0.9);
+  },
+  pokazStarcie: () => {
+    const { f, baza, sasiad, wrog } = bazaPokazu(); if (!sasiad || !wrog) return;
+    f.armie.find(x => x.id === ID_POKAZU.armia).cel = { p: sasiad.id, o: -1 };
+    wrog.armie.find(x => x.id === ID_POKAZU.wrog).cel = { p: baza.id, o: -1 };
+    zamknijSzuflade(); POKAZY.pokazTure(); mapa.pokaz(sasiad.x, sasiad.y, 0.9);
+  },
+  wrog: () => bazaPokazu().wrog?.nazwa || "wrogów",
+  traktat: id => { const t = stan.traktaty?.[id], f = AKCJE_SAMOUCZKA.mojaFrakcja(); return nazwaKraju(t?.strony.find(w => w !== f.id)) || "?"; },
+  bitwaPokazu: () => aktywneBitwy().find(([, b]) => b.armie?.includes(ID_POKAZU.armia))?.[0],
+  pokazEkranBitwy: () => { const id = POKAZY.bitwaPokazu(); if (id) return pokazBitwe(id); },
+  // przykładowe traktaty (umowa handlowa i sojusz) między stolicami — prowincje i stolice krain na niby, gdy ich nie mają
+  pokazTraktaty: () => {
+    const { f, baza, wrog } = bazaPokazu(), inni = stan.frakcje.filter(x => x.id !== f.id && x.id !== wrog?.id);
+    const zaloz = (kraj, p) => {
+      if (!p || stolicaWl(kraj.id)) return;
+      const d = (stan.prowincje ??= {})[p.id] = { ...stan.prowincje[p.id], wlasciciel: kraj.id };
+      d.osady = [{ ...(d.osady?.[0] || p.osady?.[0] || { x: p.x, y: p.y }), typ: "stolica" }];
+    };
+    zaloz(f, baza);
+    const wolne = PROWINCJE.filter(q => !stan.prowincje?.[q.id]?.wlasciciel && odSrodka(q) < 1800).sort((a, b) => Math.hypot(b.x - baza.x, b.y - baza.y) - Math.hypot(a.x - baza.x, a.y - baza.y));
+    const handlarz = inni[0] || wrog, sojusznik = inni[1] || wrog;
+    zaloz(handlarz, wolne[0]);
+    zaloz(sojusznik, wolne.find(q => Math.hypot(q.x - wolne[0].x, q.y - wolne[0].y) > 900) || wolne[1]);
+    const tura = stan.tury.length + 1;
+    (stan.traktaty ??= {})[ID_POKAZU.traktat] = { nazwa: "Pakt Kości i Miski", typ: "handel", strony: [f.id, handlarz.id], tajny: false, opis: "Zgrzyt daje kości, dostaje miskę. Na niby.", tura };
+    stan.traktaty[ID_POKAZU.sojusz] = { nazwa: "Sojusz Wiecznego Ogryzka", typ: "sojusz", strony: [f.id, sojusznik.id], tajny: false, opis: "Razem przeciw głodowi. Na niby.", tura };
+    AKCJE_SAMOUCZKA.warstwa("szlaki", true); AKCJE_SAMOUCZKA.warstwa("sojusze", true);
+    zamknijSzuflade(); kolorujMape(); pokazOsadyNaMapie(); mapa.wypelnij(baza.x, baza.y);
+  },
+  pokazBlok: () => {
+    const { f } = bazaPokazu(), inni = stan.frakcje.filter(x => x.id !== f.id).slice(0, 3).map(x => x.id);
+    (stan.bloki ??= {})[ID_POKAZU.blok] = { nazwa: "Liga Pełnej Miski", skrot: "LPM", rodzaj: "liga", kolor: "#c9a24a", opis: "Statut: każdy członek dzieli się kośćmi. Na niby.",
+      czlonkowie: [f.id, inni[0]], zaproszeni: [inni[1]], widza: [f.id, inni[0], inni[1]], tajny: false, tryb: "glosowanie", lider: f.id, traktaty: ["handel"], tura: stan.tury.length + 1,
+      wnioski: { w1: { typ: "zapros", dane: { kraj: inni[2] || inni[1] }, autor: f.id, za: [f.id], przeciw: [], tura: stan.tury.length + 1 } } };
+    pokazBloki();
+  },
+};
+// samouczek (8.1): akcje, którymi Zgrzyt „klika” za gracza; sprzatnij cofa to, co pozmieniał w widoku (warstwy nie trafiają do localStorage)
+let warstwyPrzedSamouczkiem = null;
+const AKCJE_SAMOUCZKA = {
+  gm: () => gm,
+  zamknij: () => { zamknijSzuflade(); if (okno.open) okno.close(); if (oknoBitwy.open) oknoBitwy.close(); },
+  mojaFrakcja: () => frakcjaPo(profil?.frakcja) || stan.frakcje[0],
+  frakcja: id => wybierz(id || AKCJE_SAMOUCZKA.mojaFrakcja().id),
+  pokazMojaProwincje: () => {
+    const f = AKCJE_SAMOUCZKA.mojaFrakcja(), k = Math.max(0, PROWINCJE.findIndex(p => stan.prowincje?.[p.id]?.wlasciciel === f?.id)), p = PROWINCJE[k];
+    pokazProwincje(k + 1); mapa.pokaz(p.x, p.y, 0.6);
+  },
+  warstwa: (k, wl) => { warstwyPrzedSamouczkiem ??= { ...warstwy }; warstwy[k] = wl; pokazPrzyciskiWarstw(); pokazOsadyNaMapie(); },
+  kronika: () => pokazKronike(), bloki: () => pokazBloki(), panelGM: () => pokazPanelGM(),
+  // mapa na cały ekran wokół własnej krainy (albo środka świata); przesuwanie i kółko spod warstwy samouczka
+  pelnaMapa: () => {
+    const f = AKCJE_SAMOUCZKA.mojaFrakcja(), p = PROWINCJE.find(q => stan.prowincje?.[q.id]?.wlasciciel === f?.id);
+    p ? mapa.wypelnij(p.x, p.y) : mapa.wypelnij();
+  },
+  przesunMape: (dx, dy) => mapa.przesun(dx, dy), przyblizMape: (k, x, y) => mapa.przybliz(k, x, y),
+  // sekcja z nagłówkiem zaczynającym się od tytułu: w otwartym oknie, a jeśli go nie ma — na karcie w szufladzie
+  sekcja: tytul => {
+    const w = [okno, oknoBitwy].find(d => d.open) || glowny;
+    return [...w.querySelectorAll("h3, h4, legend, dt")].find(h => h.textContent.trim().startsWith(tytul))?.closest("section, fieldset, div, li") || null;
+  },
+  element: sel => ([okno, oknoBitwy].find(d => d.open) || glowny).querySelector(sel),
+  bohater: () => {
+    const f = AKCJE_SAMOUCZKA.mojaFrakcja(), h = stan.bohaterowie.filter(x => x.frakcja === f.id).sort((a, b) => b.wladca - a.wladca)[0];
+    if (h) pokazBohatera(h, f);
+  },
+  akwen: () => {   // morze najbliżej środka świata (Akwen 1 leży w rogu mapy)
+    const a = AKWENY.filter(x => x.typ !== "jezioro").sort((p, q) => Math.hypot(p.x - 2500, p.y - 2500) - Math.hypot(q.x - 2500, q.y - 2500))[0] || AKWENY[0];
+    pokazAkwen(AKWENY.indexOf(a) + 1); mapa.pokaz(a.x, a.y, 0.5);
+  },
+  // Zgrzyt przekręca nazwy (charakter z wywiadu 2026-10-20); nieznane zostają bez zmian
+  przekrec: n => PRZEKRECONE[n] || n,
+  znacznik: nazwa => [...document.querySelectorAll("#mapa .osada")].find(el => el.title.includes(nazwa)) || null,
+  ...POKAZY,
+  sprzatnij: () => {
+    AKCJE_SAMOUCZKA.zamknij();
+    if (warstwyPrzedSamouczkiem) { warstwy = warstwyPrzedSamouczkiem; warstwyPrzedSamouczkiem = null; pokazPrzyciskiWarstw(); pokazOsadyNaMapie(); }
+  },
+};
+const apiSamouczka = { akcje: AKCJE_SAMOUCZKA, gm: () => gm, odswiez: () => odswiezWidok() };
+document.getElementById("samouczek-przycisk").onclick = () => otworzSamouczek(apiSamouczka);
+if (PODGLAD) document.getElementById("samouczek-przycisk").hidden = true;   // telefon: bez samouczka (decyzja użytkownika)
+// pierwsze wejście: Zgrzyt proponuje oprowadzenie, gdy nic nie zasłania (okno „Co nowego” najpierw)
+function proponujSamouczek() {
+  if (PODGLAD) return;
+  if (oknoZmian.open) return oknoZmian.addEventListener("close", () => setTimeout(proponujSamouczek, 400), { once: true });
+  zaproponujSamouczek(apiSamouczka);
+}
 function wejdz() {
   if (aktualizacjaBlokuje()) return;
-  zamknijSzuflade(); zbudujListe(); przeniesStareProwincje(); kolorujMape(); pokazPrzyciskiWarstw(); pokazOsadyNaMapie(); przelacz(true); oznaczKronike(false); setTimeout(pokazNoweBitwy, 1500);   // start: sama mapa, karty otwiera klik w herb
+  zamknijSzuflade(); zbudujListe(); przeniesStareProwincje(); kolorujMape(); pokazPrzyciskiWarstw(); pokazOsadyNaMapie(); przelacz(true); oznaczKronike(false); setTimeout(pokazNoweBitwy, 1500); setTimeout(proponujSamouczek, 1000);   // start: sama mapa, karty otwiera klik w herb
 }
 const blad = document.getElementById("blad-logowania");
 const pokazBlad = (t, info) => { blad.textContent = t; blad.hidden = !t; blad.classList.toggle("info", Boolean(info)); };

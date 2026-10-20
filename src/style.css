@@ -312,3 +312,19 @@ select{padding:6px 10px;background:#05050a;border:1px solid var(--zloto2);color:
 .nowy-traktat input[type=color]{width:64px;height:32px;padding:2px}
 .mapa-nakladka.mapa-bloki{inset:auto}
 .blok-glowa .fokus-bloku{margin-left:auto;flex:none;font-size:12px;padding:3px 8px}.blok-glowa .fokus-bloku[aria-pressed=true]{color:var(--zloto);border-color:var(--zloto)}
+/* samouczek (8.1): Zgrzyt w oknie dialogu, omawiany element w migającej obwódce; cała warstwa łapie kliknięcia (= dalej) */
+.samouczek{position:fixed;inset:0;z-index:50;cursor:pointer;touch-action:none}.samouczek.ciagnie{cursor:grabbing}
+.samouczek-obwodka{position:fixed;pointer-events:none;border:3px solid #f2c94c;border-radius:8px;box-shadow:0 0 0 3px rgba(0,0,0,.55),0 0 18px 4px rgba(242,201,76,.65);animation:obwodka 1s ease-in-out infinite}
+.samouczek-strzalka{position:fixed;pointer-events:none;filter:drop-shadow(0 0 6px rgba(242,201,76,.8))}.samouczek-strzalka svg{display:block;animation:strzalka .8s ease-in-out infinite}
+@keyframes strzalka{50%{transform:translateX(-10px)}}
+@keyframes obwodka{50%{border-color:#fff3c4;box-shadow:0 0 0 3px rgba(0,0,0,.55),0 0 30px 10px rgba(242,201,76,.9)}}
+.samouczek-okno{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);width:min(780px,94vw);display:flex;gap:18px;align-items:flex-start;padding:16px 18px;background:#0b0d15;border:2px solid var(--zloto2);border-radius:6px;box-shadow:0 8px 40px rgba(0,0,0,.85);cursor:default}
+.samouczek-okno.gora{bottom:auto;top:90px}.samouczek-okno.lewo{left:24px;transform:none;width:min(560px,45vw)}.samouczek-okno.prawo{left:auto;right:24px;transform:none;width:min(560px,45vw)}
+.samouczek-portret{flex:0 0 auto}.samouczek-portret img{display:block;width:128px;height:128px;image-rendering:pixelated;border:2px solid var(--zloto2);background:#000}
+.samouczek-tresc{flex:1;min-width:0}.samouczek-tresc h3{margin:0 0 6px;color:var(--zloto)}
+.samouczek-tekst{min-height:4.5em;font-size:17px;line-height:1.5;color:var(--tekst)}
+.samouczek-przyciski{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:12px}
+.samouczek-dalej{margin-right:auto;font-size:13px;color:#bfae86;animation:dalej 1.4s ease-in-out infinite}@keyframes dalej{50%{opacity:.45}}
+.samouczek-rozdzialy{display:flex;flex-wrap:wrap;gap:8px;width:100%;margin-bottom:6px}
+@media (prefers-reduced-motion:reduce){.samouczek-obwodka,.samouczek-dalej,.samouczek-strzalka svg{animation:none}}
+.okno[open]:not(:modal){position:fixed;inset:0;margin:auto;z-index:40;height:fit-content;box-shadow:0 0 0 100vmax rgba(0,0,0,.45)}   /* okno w samouczku (8.1) */

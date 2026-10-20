@@ -9,6 +9,7 @@ const start = async (ruch = "no-preference") => {
   konteksty[ruch] ??= await b.newContext({ viewport: { width: 1600, height: 900 }, reducedMotion: ruch });
   const s = await konteksty[ruch].newPage();
   s.bledy = []; s.on("pageerror", e => s.bledy.push(e.message));
+  await s.addInitScript(() => localStorage.setItem("frp-samouczek", JSON.stringify({ propozycja: true })));   // bez propozycji Zgrzyta (8.1), zasłaniałaby mapę
   await s.route(/firebase-config\.js/, r => r.fulfill({ contentType: "text/javascript", body: "export const firebaseConfig = {};" }));
   await s.goto("http://localhost:5174/"); await s.waitForTimeout(1500);
   await s.evaluate(() => document.querySelectorAll("dialog[open]").forEach(d => d.close()));

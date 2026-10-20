@@ -404,5 +404,9 @@ export function utworzMape(kontener, { rysunek, rozmiar, teren, indeksy, ramki, 
   const doWidoku = (x, y) => { const sx = w.x + x * w.s, sy = w.y + y * w.s, m = 40;
     if (sx < m || sy < m || sx > kontener.clientWidth - m || sy > kontener.clientHeight - m) pokaz(x, y); };
   const kursor = k => kontener.classList.toggle("stawianie", Boolean(k));   // tryb stawiania osady: kursor celownika
-  return { dopasuj, wybierz, pokaz, doWidoku, ustawKolory, ustawBloki, ustawOsady, ustawTrasy, ustawTereny, ustawHerby, kursor, wokol, drogaWodna };
+  // samouczek (8.1): mapa na cały widok wokół punktu (bez pustych pasów) i ruch przekazywany spod warstwy samouczka
+  const wypelnij = (x = SZ / 2, y = WY / 2) => pokaz(x, y, Math.max(kontener.clientWidth / SZ, kontener.clientHeight / WY));
+  const przesun = (dx, dy) => { w.x += dx; w.y += dy; ogranicz(); ustaw(); };
+  const przybliz = (k, kx, ky) => { const r = kontener.getBoundingClientRect(); zoom(k, kx - r.left, ky - r.top); };
+  return { dopasuj, wybierz, pokaz, doWidoku, wypelnij, przesun, przybliz, ustawKolory, ustawBloki, ustawOsady, ustawTrasy, ustawTereny, ustawHerby, kursor, wokol, drogaWodna };
 }

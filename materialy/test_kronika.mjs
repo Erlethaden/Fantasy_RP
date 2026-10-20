@@ -6,6 +6,7 @@ const b = await chromium.launch({ executablePath: exe });
 const ctx = await b.newContext({ viewport: { width: 1600, height: 900 }, permissions: ["clipboard-read", "clipboard-write"] });
 const s = await ctx.newPage();
 const bledy = []; s.on("pageerror", e => bledy.push(e.message)); s.on("dialog", d => d.accept());
+await s.addInitScript(() => localStorage.setItem("frp-samouczek", JSON.stringify({ propozycja: true })));   // bez propozycji Zgrzyta (8.1), zasłaniałaby mapę
 await s.route(/firebase-config\.js/, r => r.fulfill({ contentType: "text/javascript", body: "export const firebaseConfig = {};" }));
 await s.goto("http://localhost:5174/");
 await s.waitForTimeout(1500);
