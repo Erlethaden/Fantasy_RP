@@ -48,6 +48,13 @@ const schowek = await s.evaluate(() => navigator.clipboard.readText());
 console.log("discord:", schowek.replace(/\n/g, " | "));
 assert.ok(schowek.startsWith("**📜 Kronika — tura 1**") && schowek.includes("Pokój Siarki") && !schowek.includes("Tajny Pakt") && !schowek.includes("Zaraza"));
 await s.locator("article.kronika").screenshot({ path: process.argv[2] + "/k_kronika.png" });
+// Kronikarz Zgrzyt (13.2): opowieść z danych wpisów — tajny pakt i tajny wpis GM tylko w szeptach
+const o = await s.evaluate(() => window.opowiescTury(1)), jawny = o.akapity.join(" ");
+console.log("zgrzyt:", jawny.slice(0, 600)); console.log("szepty:", JSON.stringify(o.szepty).slice(0, 400));
+for (const fraza of ["Rogus Ardens", "Goblandia", "Pokój Siarki"]) assert.ok(jawny.includes(fraza), "Zgrzyt nie mówi o: " + fraza);
+assert.ok(!/Tajny Pakt|Zaraza|Zgrzyt znalazł w kronice/.test(jawny), "tajemnica albo wpis bez danych w części jawnej");
+assert.ok(o.szepty.goblandia.join(" ").includes("Zaraza") && o.szepty.goblandia.join(" ").includes("Tajny Pakt"), "szept Goblandii");
+assert.ok(o.szepty["rogus-ardens"].join(" ").includes("Tajny Pakt") && !o.szepty["rogus-ardens"].join(" ").includes("Zaraza"), "szept Rogus Ardens");
 // karta frakcji
 await s.click("#lista-frakcji [data-id=goblandia]");
 assert.ok((await tekst("section.kronika-frakcji")).includes("Tura 1"));

@@ -1,7 +1,7 @@
 {
   "name": "fantasy-rp",
   "productName": "Fantasy RP dla autystów",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "author": "Zeren Erlethaden",
   "private": true,
   "main": "electron/main.cjs",
@@ -18,7 +18,8 @@
     "vite": "^8.3.4"
   },
   "dependencies": {
-    "electron-updater": "^6.8.9"
+    "electron-updater": "^6.8.9",
+    "gifenc": "^1.0.3"
   },
   "build": {
     "appId": "pl.erlethaden.fantasyrp",

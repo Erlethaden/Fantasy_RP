@@ -8,9 +8,9 @@ try { ust = { ...DOMYSLNE, ...JSON.parse(localStorage.getItem(KLUCZ) || "{}") };
 export const ustawieniaDzwiekow = () => ({ ...ust });
 export function ustawDzwieki(z) { ust = { ...ust, ...z }; try { localStorage.setItem(KLUCZ, JSON.stringify(ust)); } catch {} }
 
-let ctx = null, wyjscie = null;
+let ctx = null, mix = null, wyjscie = null;   // dźwięki → mix → wyjscie (głośność z ustawień) → głośniki; mix → nagranie filmu (13.5b)
 function audio() {   // kontekst tworzony przy pierwszym dźwięku (przeglądarka pozwala dopiero po kliknięciu użytkownika)
-  if (!ctx) { const A = window.AudioContext || window.webkitAudioContext; if (!A) return null; ctx = new A(); wyjscie = ctx.createGain(); wyjscie.connect(ctx.destination); }
+  if (!ctx) { const A = window.AudioContext || window.webkitAudioContext; if (!A) return null; ctx = new A(); mix = ctx.createGain(); wyjscie = ctx.createGain(); mix.connect(wyjscie); wyjscie.connect(ctx.destination); }
   if (ctx.state === "suspended") ctx.resume();
   wyjscie.gain.value = ust.glosnosc;
   return ctx;
@@ -26,7 +26,7 @@ function ton({ typ = "square", f = 440, f2, czas = 0.06, gl = 0.2, filtr, za = 0
   g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gl, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0008, t + czas);
   let wezel = o;
   if (filtr) { const fl = a.createBiquadFilter(); fl.type = "lowpass"; fl.frequency.value = filtr; o.connect(fl); wezel = fl; }
-  wezel.connect(g); g.connect(wyjscie); o.start(t); o.stop(t + czas + 0.02);
+  wezel.connect(g); g.connect(mix); o.start(t); o.stop(t + czas + 0.02);
 }
 // szum przepuszczony przez filtr pasmowy, który przesuwa się od f do f2 — szelest szuflady i okna
 let bufor = null;
@@ -36,7 +36,7 @@ function szum({ czas = 0.18, f = 800, f2 = 2400, q = 1.2, gl = 0.16, za = 0 }) {
   const t = a.currentTime + za, s = a.createBufferSource(), fl = a.createBiquadFilter(), g = a.createGain();
   s.buffer = bufor; fl.type = "bandpass"; fl.Q.value = q; fl.frequency.setValueAtTime(f, t); fl.frequency.exponentialRampToValueAtTime(f2, t + czas);
   g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(gl, t + czas * 0.3); g.gain.exponentialRampToValueAtTime(0.0008, t + czas);
-  s.connect(fl); fl.connect(g); g.connect(wyjscie); s.start(t, Math.random() * 0.5); s.stop(t + czas + 0.02);
+  s.connect(fl); fl.connect(g); g.connect(mix); s.start(t, Math.random() * 0.5); s.stop(t + czas + 0.02);
 }
 const los = (a, b) => a + Math.random() * (b - a);
 
@@ -48,18 +48,37 @@ export const otworz = () => ust.ui && wolno("otw", 120) && szum({ czas: 0.2, f: 
 export const zamknij = () => ust.ui && wolno("zam", 120) && szum({ czas: 0.14, f: 2400, f2: 700, gl: 0.1 });
 
 // głos Zgrzyta: krótki „bip” na sylabę w trakcie pisania tekstu; trzy warianty do wyboru (strona próbek: materialy/dzwieki.html)
+// za = za ile sekund zagrać (film 13.5b planuje bipy na dokładny czas litery)
 export const GLOSY = {
-  chrapliwy: () => { ton({ typ: "sawtooth", f: los(115, 175), czas: 0.055, gl: 0.11, filtr: 1300 }); szum({ czas: 0.03, f: 1800, f2: 1200, q: 4, gl: 0.03 }); },
-  piskliwy: () => ton({ typ: "square", f: los(320, 500), czas: 0.035, gl: 0.07, filtr: 4000 }),
-  pomruk: () => { ton({ typ: "triangle", f: los(80, 125), f2: los(70, 100), czas: 0.07, gl: 0.2 }); szum({ czas: 0.04, f: 500, f2: 300, q: 2, gl: 0.04 }); },
+  chrapliwy: (za = 0) => { ton({ typ: "sawtooth", f: los(115, 175), czas: 0.055, gl: 0.11, filtr: 1300, za }); szum({ czas: 0.03, f: 1800, f2: 1200, q: 4, gl: 0.03, za }); },
+  piskliwy: (za = 0) => ton({ typ: "square", f: los(320, 500), czas: 0.035, gl: 0.07, filtr: 4000, za }),
+  pomruk: (za = 0) => { ton({ typ: "triangle", f: los(80, 125), f2: los(70, 100), czas: 0.07, gl: 0.2, za }); szum({ czas: 0.04, f: 500, f2: 300, q: 2, gl: 0.04, za }); },
 };
 export function glos(znak, wariant = ust.glos) {
-  if (!ust.zgrzyt || !/[\p{L}\d]/u.test(znak) || !wolno("glos", 55)) return;
+  if (!(ust.zgrzyt || nagrywanie) || !/[\p{L}\d]/u.test(znak) || !wolno("glos", 55)) return;
   (GLOSY[wariant] || GLOSY.chrapliwy)();
 }
 // hieni rechot przy „tak tak”: kilka szybkich, rosnących, trzęsących się bipów
 export function rechot(wariant = ust.glos) {
-  if (!ust.zgrzyt || !wolno("rechot", 600)) return;
+  if (!(ust.zgrzyt || nagrywanie) || !wolno("rechot", 600)) return;
+  rechotNa(wariant, 0);
+}
+function rechotNa(wariant, za) {
   const baza = wariant === "piskliwy" ? 520 : wariant === "pomruk" ? 160 : 260, typ = wariant === "pomruk" ? "triangle" : "square";
-  for (let i = 0; i < 5; i++) ton({ typ, f: baza * (1 + i * 0.12), f2: baza * (1 + i * 0.12) * 1.25, czas: 0.06, gl: 0.08, filtr: 2600, za: i * 0.085 });
+  for (let i = 0; i < 5; i++) ton({ typ, f: baza * (1 + i * 0.12), f2: baza * (1 + i * 0.12) * 1.25, czas: 0.06, gl: 0.08, filtr: 2600, za: za + i * 0.085 });
+}
+// nagrywanie filmu (13.5b): dźwięk w pełnej głośności do strumienia nagrania, niezależnie od głośności w 🔊; głos Zgrzyta gra wtedy zawsze.
+// Synchronizacja z obrazem: kontekst działa ZANIM ruszy nagranie, cichy ciągły sygnał daje próbki od pierwszej chwili (bez niego dźwięk
+// w pliku zaczynał się od pierwszego bipu i był ~2 s krótszy niż obraz), a film liczy czas z zegara audio (czas()) i planuje bipy na dokładny moment.
+let nagrywanie = false;
+export async function strumienDzwieku() {
+  const a = audio(); if (!a || !a.createMediaStreamDestination) return null;
+  await a.resume();
+  const cel = a.createMediaStreamDestination(), wzmocnienie = a.createGain(); wzmocnienie.gain.value = 3;   // bipy są ciche (gra je cicho) — w filmie głośniej
+  const cisza = a.createConstantSource(), zero = a.createGain(); zero.gain.value = 0; cisza.connect(zero); zero.connect(cel); cisza.start();
+  mix.connect(wzmocnienie); wzmocnienie.connect(cel); nagrywanie = true;
+  const w = () => GLOSY[ust.glos] ? ust.glos : "chrapliwy";
+  return { stream: cel.stream, czas: () => a.currentTime,
+    bip: za => GLOSY[w()](Math.max(0, za)), rechot: za => rechotNa(w(), Math.max(0, za)),
+    koniec: () => { try { mix.disconnect(wzmocnienie); cisza.stop(); } catch {} nagrywanie = false; } };
 }

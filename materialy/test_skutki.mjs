@@ -96,5 +96,10 @@ assert.ok(ekr.includes("odwrót →") && ekr.includes("⛓ w niewoli"));
 await s.locator("#bitwa").screenshot({ path: process.argv[2] + "/skutki.png" }); await s.click("#bitwa .zamknij");
 // kronika
 await s.click("#kronika"); await s.waitForTimeout(300); const kr = await tekst("#szuflada"); assert.ok(kr.includes("Po bitwie") && kr.includes("zdobywa prowincję"), "kronika");
+// Kronikarz Zgrzyt (13.2): wynik bitwy z danymi — zwycięzca, zdobycz (bez drugiego akapitu o zmianie właściciela), jeniec
+const opow = await s.evaluate(() => [1, 2, 3].map(nr => window.opowiescTury(nr).akapity.join(" ")).join(" "));
+console.log("zgrzyt:", opow.slice(0, 900));
+assert.ok(/wygrywa|Zwycięzca/.test(opow) && opow.includes("Elmon Devil") && !opow.includes("Zgrzyt znalazł w kronice"), "opowieść o bitwie");
+assert.ok(!/zmienia pana|wbija flagę/.test(opow), "zdobycz opowiedziana dwa razy");
 console.log(bledy.length ? "BŁĘDY: " + bledy.join(" | ") : "bez błędów strony");
 await b.close();

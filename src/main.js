@@ -3,11 +3,19 @@ import "../assets/sala_tronow/animacje.js"; // ustawia window.Sala
 import pakiet from "../package.json";
 import { usunWpis, usunTraktat, czytajBitwe, stan, wczytaj, zapisz, CHMURA, polacz, odlacz, naZmianeKonta, zaloguj, zalozKonto, zalogujGoogle, wyloguj, ustawBladZapisu,
   ROLE, mojProfil, sluchajProfilu, sluchajUzytkownikow, ustawUzytkownika, ustawDostep, sprzatnijLogi, ostatnieLogi, licznik, KOLEKCJE, policzDokumenty, rozmiaryWczytanych, szukajSmieci, zapiszWszystko,
-  zaproponuj, zapiszBlokGracza, sluchajPropozycji, zgodaStrony, zglosObecnosc, sluchajObecnosci, rozpatrz, wycofaj, sprzatnijPropozycje, zapiszProwincje, zapiszNazwyOsad, PODGLAD, wPiaskownicy } from "./dane/magazyn.js";
+  zaproponuj, zapiszBlokGracza, sluchajPropozycji, zgodaStrony, zglosObecnosc, sluchajObecnosci, rozpatrz, wycofaj, sprzatnijPropozycje, zapiszProwincje, zapiszNazwyOsad, PODGLAD, wPiaskownicy, zapiszHistorie, usunHistorie, czytajHistorie,
+  czytajHistorieTury, zapiszOpowiesc, czytajOpowiesc, czytajSzept, czytajSzeptyTury, opublikujOpowiesc, usunOpowiesc } from "./dane/magazyn.js";
 import { ZMIANY } from "./dane/zmiany.js";
 import { utworzMape, krzywa, wygladz } from "./mapa.js";
 import { ozywPortrety, zatrzymajPortrety, animacjePortretow, ustawAnimacjePortretow } from "./portrety_anim.js";
 import { otworzSamouczek, zaproponujSamouczek, zakoncz as zakonczSamouczek } from "./samouczek.js";
+import { wykres, podepnijWykresy, liczba as liczbaWykresu } from "./wykresy.js";
+import { rysujKarte } from "./grafika_karty.js";
+import { PRZEKRECONE } from "./dane/przekrecenia.js";
+import { opowiedz } from "./kronikarz.js";
+import { pokazOpowiesc } from "./opowiesc.js";
+import { nagrajOpowiesc } from "./film_opowiesci.js";
+import { przygotujTimelapse, SZER as SZER_TL, WYS as WYS_TL, formatFilmu, nagrajFilm, nagrajGif } from "./timelapse.js";
 import { klik, zatwierdz, anuluj, otworz, zamknij as zamknijDzwiek, ustawieniaDzwiekow, ustawDzwieki } from "./dzwieki.js";
 import terenUrl from "../assets/mapa/teren.png";
 import terenMaskaUrl from "../assets/mapa/teren_maska.png";
@@ -106,7 +114,7 @@ document.addEventListener("click", e => {
   const b = e.target.closest?.("button"); if (!b || b.disabled) return;
   if (b.matches(".dodaj, .wejdz")) zatwierdz(); else if (b.matches(".usun, .zamknij")) anuluj(); else klik();
 }, true);
-for (const id of ["bohater", "bitwa", "zmiany"]) document.getElementById(id).addEventListener("close", () => zamknijDzwiek());
+for (const id of ["bohater", "bitwa", "zmiany", "timelapse"]) document.getElementById(id).addEventListener("close", () => zamknijDzwiek());
 // ustawienia dźwięków: 🔊 w pasku → mały panel (interfejs, głos Zgrzyta i jego wariant, głośność), zapamiętane w przeglądarce
 const przyciskDzwiekow = document.getElementById("dzwieki-przycisk"), panelDzwiekow = document.getElementById("dzwieki-panel");
 function pokazUstawieniaDzwiekow() {
@@ -497,7 +505,7 @@ function ustawProwincje(p, n) {
     stan.prowincje ??= {};
     if (Object.values(n).some(Boolean)) stan.prowincje[p.id] = Object.fromEntries(Object.entries(n).filter(([, w]) => w)); else delete stan.prowincje[p.id];
     if (bud) ustawBudynki(p, { sloty: (bud.sloty || []).map(bezU), zloze: bezU(bud.zloze) });
-    if ((n.wlasciciel || "") !== (d.wlasciciel || "")) { wpiszKronike("wlasciciel", `${nazwaProwincji(p)}: ${nazwaKraju(d.wlasciciel)} → ${nazwaKraju(n.wlasciciel)}`, [d.wlasciciel, n.wlasciciel]); zapisz(stan); }
+    if ((n.wlasciciel || "") !== (d.wlasciciel || "")) { wpiszKronike("wlasciciel", `${nazwaProwincji(p)}: ${nazwaKraju(d.wlasciciel)} → ${nazwaKraju(n.wlasciciel)}`, [d.wlasciciel, n.wlasciciel], { d: { prowincja: nazwaProwincji(p), A: d.wlasciciel || "", B: n.wlasciciel || "", p: p.id } }); zapisz(stan); }
     zapiszProwincje([["p", p.id]]); kolorujMape(); pokazOsadyNaMapie();
   }
 }
@@ -815,7 +823,7 @@ function wykryjBitwyMorskie(stare, nr) {   // jak lądowe: wrogie floty w tym sa
   for (const [a, floty] of nowe) {
     const wl = Object.fromEntries([...floty].map(x => [x, stan.pozycjeFlot[x].f])), kraje = [...new Set(Object.values(wl))];
     (stan.bitwy ??= {})["b" + Date.now().toString(36) + "a" + a] = { a, armie: [], floty: [...floty], tura: nr, wl };
-    wpiszKronike("bitwa", `Bitwa morska — ${nazwaAkwenuNr(a)}: ${kraje.map(nazwaKraju).join(" ⚔ ")}`, kraje, { tura: nr, zam: nr });
+    wpiszKronike("bitwa", `Bitwa morska — ${nazwaAkwenuNr(a)}: ${kraje.map(nazwaKraju).join(" ⚔ ")}`, kraje, { tura: nr, zam: nr, d: { morska: true, miejsce: `na morzu „${nazwaAkwenuNr(a)}”`, lista: kraje, a } });
   }
   return nowe.size;
 }
@@ -829,7 +837,7 @@ function wykryjBitwy(stare, nr) {
   for (const [p, armie] of nowe) {
     const wl = Object.fromEntries([...armie].map(a => [a, stan.pozycjeArmii[a].f])), kraje = [...new Set(Object.values(wl))];
     (stan.bitwy ??= {})["b" + Date.now().toString(36) + p] = { p, armie: [...armie], tura: nr, wl };
-    wpiszKronike("bitwa", `Bitwa — ${nazwaProwincji(PROWINCJE[NR_PROWINCJI.get(p) - 1])}: ${kraje.map(nazwaKraju).join(" ⚔ ")}`, kraje, { tura: nr, zam: nr });
+    wpiszKronike("bitwa", `Bitwa — ${nazwaProwincji(PROWINCJE[NR_PROWINCJI.get(p) - 1])}: ${kraje.map(nazwaKraju).join(" ⚔ ")}`, kraje, { tura: nr, zam: nr, d: { miejsce: wProwincji(PROWINCJE[NR_PROWINCJI.get(p) - 1]), lista: kraje, p } });
   }
   return nowe.size;
 }
@@ -856,7 +864,7 @@ function wymusBitwe(id) {
   if (!obok) return napisz(".komunikat-armii", "Bitwę można wymusić tylko z armią w tej samej albo sąsiedniej prowincji.");
   if (bitwaArmii(a.id) || bitwaArmii(id)) return napisz(".komunikat-armii", "Któraś z tych armii już jest w bitwie.");
   (stan.bitwy ??= {})["b" + Date.now().toString(36)] = { p: ja.p, armie: [a.id, id], tura: stan.tury.length + 1, wl: { [a.id]: ja.f, [id]: on.f } };
-  wpiszKronike("bitwa", `Bitwa — ${nazwaProwincji(p)}: ${nazwaKraju(ja.f)} ⚔ ${nazwaKraju(on.f)}`, [ja.f, on.f]);
+  wpiszKronike("bitwa", `Bitwa — ${nazwaProwincji(p)}: ${nazwaKraju(ja.f)} ⚔ ${nazwaKraju(on.f)}`, [ja.f, on.f], { d: { miejsce: wProwincji(p), lista: [ja.f, on.f], p: p.id } });
   odswiezRaporty(); zapisz(stan); pokazOsadyNaMapie(); wybierz(f.id, true);
 }
 // rozwiązanie (7.1e): przy zamknięciu tury armie poniżej 100 żołnierzy (bez bohaterów i dowódcy) znikają; bohaterowie wracają do stolicy.
@@ -957,13 +965,17 @@ async function pokazBitwe(id) {
     if (!confirm(`Zakończyć bitwę? ${zw === -1 ? "Remis" : `Zwycięża ${strony[zw].nazwa}`}.`)) return;
     const raport = raportBitwy(id);
     b.koniec = { zwyciezca: zw, opis: form.opis.value.trim(), tura: stan.tury.length + 1, strony: strony.map(s => s.nazwa) };   // jawne: wynik i nazwy stron
-    wpiszKronike("wynik", `${tytulBitwy(b)}: ${zw === -1 ? `remis (${strony.map(s => s.nazwa).join(", ")})` : `zwycięstwo: ${strony[zw].nazwa} nad ${strony.filter((_, i) => i !== zw).map(s => s.nazwa).join(", ")}`}${b.koniec.opis ? ` — ${b.koniec.opis.slice(0, 300)}` : ""}`,
-      [...new Set(Object.values(b.wl || {}))]);
+    const wlBitwy = [...new Set(Object.values(b.wl || {}))], wlStrony = s => wlBitwy.find(w => nazwaKraju(w) === s.nazwa) || "";
+    const miejsceD = b.a ? `na morzu „${nazwaAkwenuNr(b.a)}”` : wProwincji(p), gdzieD = b.a ? { a: b.a } : { p: p.id };
+    const idWyniku = wpiszKronike("wynik", `${tytulBitwy(b)}: ${zw === -1 ? `remis (${strony.map(s => s.nazwa).join(", ")})` : `zwycięstwo: ${strony[zw].nazwa} nad ${strony.filter((_, i) => i !== zw).map(s => s.nazwa).join(", ")}`}${b.koniec.opis ? ` — ${b.koniec.opis.slice(0, 300)}` : ""}`,
+      wlBitwy, { d: zw === -1 ? { remis: true, miejsce: miejsceD, lista: strony.map(wlStrony), ...gdzieD } : { A: wlStrony(strony[zw]), przegrani: strony.filter((_, i) => i !== zw).map(wlStrony), miejsce: miejsceD, morska: Boolean(b.a), ...gdzieD, ...(p ? { prowincja: nazwaProwincji(p) } : {}) } });
     for (const f of stan.frakcje) for (const a of [...(f.armie || []), ...(f.floty || [])]) {   // straty (też okręty flot)
       const s = st[a.id]; if (s) { a.oddzialy = a.oddzialy.map((o, i) => ({ ...o, liczba: Math.max(0, (+o.liczba || 0) - (s[i] || 0)) })).filter(o => o.liczba > 0); }
     }
     const skutki = b.a ? skutkiBitwyMorskiej(id, strony, zw, los, losB) : skutkiBitwy(id, strony, zw, los, losB, form.zdobywa.checked);
-    if (skutki.opis.length) wpiszKronike("wynik", `Po bitwie — ${miejsceBitwy(b)}: ${skutki.opis.join("; ")}`, [...new Set(Object.values(b.wl || {}))]);
+    if (skutki.zdobycz) stan.kronika[idWyniku].d.zdobycz = true;
+    if (skutki.opis.length) wpiszKronike("wynik", `Po bitwie — ${miejsceBitwy(b)}: ${skutki.opis.join("; ")}`, wlBitwy,
+      { d: { skutki: true, miejsce: miejsceD, ...gdzieD, opis: skutki.opis, polegli: skutki.polegli || [], ranni: skutki.ranni || [], niewola: skutki.niewola || [] } });
     raport.koniec = { ...b.koniec, straty: st, polegli: Object.keys(losB).filter(h => losB[h] === "polegl"), bohaterowie: losB, los: skutki.los };
     stan.frakcje.forEach(statusyArmii);
     odswiezRaporty(); (stan.raportyBitew ??= {})[id] = raport;
@@ -993,7 +1005,7 @@ function skutkiBitwy(id, strony, zw, los, losB, zdobywa) {
     } else if (przegrana) wynik.los[a.id] = "zostaje na miejscu";
   }
   const nowy = zw >= 0 && strony[zw].wl;   // zdobycie prowincji (frakcja zwycięzcy)
-  if (zdobywa && p && nowy && stan.prowincje?.[p.id]?.wlasciciel !== nowy) { ustawProwincje(p, { ...stan.prowincje?.[p.id], wlasciciel: nowy }); wynik.opis.push(`${strony[zw].nazwa} zdobywa prowincję`); }
+  if (zdobywa && p && nowy && stan.prowincje?.[p.id]?.wlasciciel !== nowy) { ustawProwincje(p, { ...stan.prowincje?.[p.id], wlasciciel: nowy }); wynik.opis.push(`${strony[zw].nazwa} zdobywa prowincję`); wynik.zdobycz = true; }
   return wynik;
 }
 // bohaterowie po bitwie (lądowej i morskiej): ranny zostaje w armii / flocie; poległ, w niewoli, uratowany (7.8f — wraca do stolicy) ją opuszcza.
@@ -1002,11 +1014,11 @@ function losyBohaterow(losB, wynik, zwyciezcaDla) {
   const jednostkaBohatera = h => stan.frakcje.flatMap(f => [...(f.armie || []), ...(f.floty || [])]).find(a => wArmii(a).includes(h));
   for (const [h, l] of Object.entries(losB)) {
     const boh = stan.bohaterowie.find(x => x.id === h), a = jednostkaBohatera(h); if (!boh) continue;
-    if (l === "ranny") { Object.assign(boh, { status: "ranny", misja: "" }); wynik.opis.push(`${boh.imie} ranny`); continue; }
+    if (l === "ranny") { Object.assign(boh, { status: "ranny", misja: "" }); wynik.opis.push(`${boh.imie} ranny`); (wynik.ranni ??= []).push(boh.imie); continue; }
     if (a) { if (a.dowodca === h) a.dowodca = ""; a.bohaterowie = (a.bohaterowie || []).filter(x => x !== h); }
-    if (l === "polegl") { Object.assign(boh, { status: "martwy", misja: "" }); wynik.opis.push(`${boh.imie} poległ`); }
+    if (l === "polegl") { Object.assign(boh, { status: "martwy", misja: "" }); wynik.opis.push(`${boh.imie} poległ`); (wynik.polegli ??= []).push(boh.imie); }
     if (l === "uratowany") { Object.assign(boh, { status: "stolica", misja: "" }); wynik.opis.push(`${boh.imie} uratowany — wraca do stolicy`); }
-    if (l === "niewola") { const u = zwyciezcaDla(a?.id)?.nazwa || "?"; Object.assign(boh, { status: "niewola", misja: u }); wynik.opis.push(`${boh.imie} w niewoli u: ${u}`); }
+    if (l === "niewola") { const u = zwyciezcaDla(a?.id)?.nazwa || "?"; Object.assign(boh, { status: "niewola", misja: u }); wynik.opis.push(`${boh.imie} w niewoli u: ${u}`); (wynik.niewola ??= []).push(boh.imie); }
   }
 }
 // los po bitwie do wyboru przy pozycji raportu: armia na lądzie (LOSY), flota (LOSY_FLOT), armia na pokładzie — z flotą albo na brzeg akwenu
@@ -1690,7 +1702,8 @@ function wybierz(id, zostanPrzewiniecie) {
   glowny.innerHTML = `<article class="karta">
     <header class="naglowek">${herbFrakcji(f) ? `<img class="herb-obraz" src="${herbFrakcji(f)}" alt="">` : `<div class="herb" aria-hidden="true">${esc(f.nazwa[0])}</div>`}
       <div><h2>${esc(f.nazwa)}</h2><p class="rasa">${esc([f.przydomek, f.rasa].filter(Boolean).join(" · "))}</p>
-      ${mozeEdytowac(f) ? `<button type="button" class="cofnij edytuj-opis">${gm ? "✎ Edytuj opis" : "✎ Zaproponuj zmiany"}</button>` : ""}</div></header>
+      ${mozeEdytowac(f) ? `<button type="button" class="cofnij edytuj-opis">${gm ? "✎ Edytuj opis" : "✎ Zaproponuj zmiany"}</button>` : ""}
+      <button type="button" class="cofnij zrob-grafike" title="Obrazek krainy do wklejenia na Discorda">🖼 Zrób grafikę</button></div></header>
     ${f.motto ? `<blockquote class="motto">„${esc(f.motto)}”</blockquote>` : ""}
     <dl class="fakty">${pola.map(([k, w]) => `<div><dt>${k}</dt><dd>${esc(w)}${k === "Stolica" && stolicaWl(f.id) ? ` <button type="button" class="cofnij pokaz-stolice">na mapie</button>` : ""}</dd></div>`).join("")}</dl>
     ${!f.stolica && stolicaWl(f.id) ? `<p><button type="button" class="cofnij pokaz-stolice">★ Stolica na mapie</button></p>` : ""}
@@ -1698,6 +1711,7 @@ function wybierz(id, zostanPrzewiniecie) {
     ${bohaterowie(f)}
     ${stany(f)}
     ${zasoby(f)}
+    ${wykresyZasobow(f)}
     ${jednostki(f)}
     ${armie(f)}
     ${floty(f)}
@@ -1711,8 +1725,10 @@ function wybierz(id, zostanPrzewiniecie) {
   </article>`;
   glowny.querySelector("[data-pokaz-bloki]")?.addEventListener("click", pokazBloki);
   ozywPortrety(glowny, f.kolor);   // miniatury bohaterów ożywają po najechaniu (7.3)
+  podepnijWykresy(glowny);
   podepnijStany(f); podepnijZasoby(f); podepnijJednostki(f); podepnijArmie(f); podepnijFloty(f); podepnijTajne(f); podepnijPropozycje();
   const edytuj = glowny.querySelector(".edytuj-opis"); if (edytuj) edytuj.onclick = () => edytujFrakcje(f);
+  glowny.querySelector(".zrob-grafike").onclick = () => pokazGrafike(f);
   glowny.querySelectorAll(".pokaz-stolice").forEach(b => b.onclick = () => {
     const s = stolicaWl(f.id); pokazProwincje(PROWINCJE.indexOf(s.p) + 1); mapa.pokaz(s.o.x, s.o.y, 1.2);
   });
@@ -1720,9 +1736,198 @@ function wybierz(id, zostanPrzewiniecie) {
   if (!zostanPrzewiniecie) glowny.scrollTop = 0;
   otworzSzuflade();
 }
+// karta frakcji jako obrazek (12): tylko dane jawne dla wszystkich — obrazek idzie na Discorda. Bez statusów i składu armii,
+// bez tajnych traktatów; zasoby tylko gdy oglądający je widzi, a gdy są tajne — dopiero po zaznaczeniu (domyślnie wyłączone)
+const oknoGrafiki = document.getElementById("grafika");
+async function pokazGrafike(f, zZasobami) {
+  const moze = !tajne(f, "zasoby"), jawne = jawneR(f, "zasoby");
+  zZasobami ??= moze && jawne;
+  const lista = stan.bohaterowie.filter(h => h.frakcja === f.id), w = lista.find(h => h.wladca);
+  const osady = PROWINCJE.filter(p => stan.prowincje?.[p.id]?.wlasciciel === f.id).flatMap(osadyProwincji);
+  const ile = poz => Object.values(poz || {}).filter(x => x.f === f.id).length;
+  const sojusze = new Set(aktywneTraktaty().filter(([, t]) => t.typ === "sojusz" && !t.tajny && t.strony.includes(f.id)).flatMap(([, t]) => t.strony.filter(s => s !== f.id)));
+  const dane = {
+    nazwa: f.nazwa, podtytul: [f.przydomek, f.rasa].filter(Boolean).join(" · "), motto: f.motto, kolor: f.kolor, herb: herbFrakcji(f),
+    wladca: w && { imie: w.imie, tytul: w.tytul || "", portret: plikPortretu(w) },
+    bohaterowie: lista.filter(h => h !== w).map(h => ({ imie: h.imie, portret: plikPortretu(h) })),
+    liczby: [["prowincje", PROWINCJE.filter(p => stan.prowincje?.[p.id]?.wlasciciel === f.id).length], ["miasta", osady.filter(o => o.typ !== "wioska").length],
+      ["wioski", osady.filter(o => o.typ === "wioska").length], ["armie", ile(stan.pozycjeArmii)], ["floty", ile(stan.pozycjeFlot)]],
+    wojny: wrogowie(f.id).map(x => wlascicielPo(x)?.nazwa || x), sojusze: [...sojusze].map(x => wlascicielPo(x)?.nazwa || x),
+    zasoby: zZasobami && moze ? [...stan.zasoby.map(z => ({ nazwa: z.nazwa, ikona: ikony[`../assets/ikony/${z.ikona}.png`], wartosc: f.stany?.[z.id], jednostka: z.jednostka || "" })),
+      ...f.zasoby.map(z => ({ nazwa: z.nazwa, wartosc: z.ilosc, jednostka: z.jednostka || "" }))].filter(z => z.wartosc !== undefined && z.wartosc !== "") : null,
+    tura: stan.tury.length + 1,
+  };
+  oknoGrafiki.style.setProperty("--kolor", f.kolor);
+  oknoGrafiki.innerHTML = `<div class="okno-glowa"><div><h2>Grafika krainy</h2><p class="rasa">${esc(f.nazwa)} — obrazek do wklejenia na Discorda</p></div>
+    <button type="button" class="zamknij" aria-label="Zamknij">×</button></div><p class="puste">Rysuję…</p>`;
+  oknoGrafiki.querySelector(".zamknij").onclick = () => oknoGrafiki.close();
+  if (!oknoGrafiki.open) otworzOkno(oknoGrafiki);
+  const c = await rysujKarte(dane);
+  c.setAttribute("role", "img"); c.setAttribute("aria-label", `Grafika krainy ${f.nazwa}`);
+  oknoGrafiki.querySelector(".puste").replaceWith(c);
+  c.insertAdjacentHTML("afterend", `<div class="akcje-grafiki"><button type="button" class="cofnij kopiuj-grafike">📋 Kopiuj</button>
+    <button type="button" class="cofnij zapisz-grafike">💾 Zapisz PNG</button>
+    ${moze ? `<label><input type="checkbox" name="zasoby"${zZasobami ? " checked" : ""}> Pokaż zasoby${jawne ? "" : " (🔒 tajne — zobaczy każdy, komu wyślesz)"}</label>` : ""}</div>`);
+  const blob = () => new Promise(ok => c.toBlob(ok, "image/png"));
+  const plik = `${f.nazwa.replace(/[^\p{L}\p{N}]+/gu, "_")}_tura${dane.tura}.png`;
+  oknoGrafiki.querySelector(".kopiuj-grafike").onclick = async e => {
+    try { await navigator.clipboard.write([new ClipboardItem({ "image/png": blob() })]); zatwierdz(); e.target.textContent = "✔ Skopiowano — wklej Ctrl+V"; }
+    catch { e.target.textContent = "Nie udało się skopiować — użyj „Zapisz PNG”"; }
+  };
+  oknoGrafiki.querySelector(".zapisz-grafike").onclick = async () => {
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(await blob()), download: plik }); a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  };
+  const zaz = oknoGrafiki.querySelector("[name=zasoby]"); if (zaz) zaz.onchange = () => pokazGrafike(f, zaz.checked);
+}
+oknoGrafiki.onclick = e => { if (e.target === oknoGrafiki) oknoGrafiki.close(); };
 // Panel GM: globalne typy zasobów; w DEMO edytuje każdy, w etapie 4 tylko GM/admin
 const ikonaZasobu = z => ikony[`../assets/ikony/${z.ikona}.png`]
   ? `<img class="ikona" src="${ikony[`../assets/ikony/${z.ikona}.png`]}" alt="">` : `<span class="ikona litera" aria-hidden="true">${esc(z.nazwa[0] || "?")}</span>`;
+// historia (9.1): zrzut gry na koniec tury do timelapsu GM — mapa (właściciele, armie, floty, bitwy) i statystyki krain graczy.
+// Statystyki liczone teraz, bo stan potem się zmienia; zasoby: stany z tej tury. Bez zagnieżdżonych tablic (Firestore ich nie przyjmuje).
+function statystykiKrainy(f) {
+  const prow = PROWINCJE.filter(p => stan.prowincje?.[p.id]?.wlasciciel === f.id), osady = prow.flatMap(osadyProwincji);
+  const bitwy = Object.values(stan.bitwy || {}).filter(b => Object.values(b.wl || {}).includes(f.id));
+  const wynik = b => b.koniec && b.koniec.zwyciezca >= 0 ? (b.koniec.strony?.[b.koniec.zwyciezca] === f.nazwa ? "w" : "p") : "";
+  const traktaty = aktywneTraktaty().filter(([, t]) => t.strony.includes(f.id));
+  return {
+    prowincje: prow.length, miasta: osady.filter(o => o.typ !== "wioska").length, wioski: osady.filter(o => o.typ === "wioska").length,
+    budynki: Object.values(f.budynki || {}).reduce((n, b) => n + (b.sloty || []).filter(Boolean).length, 0),
+    armie: (f.armie || []).length, floty: (f.floty || []).length,
+    zolnierze: (f.armie || []).reduce((n, a) => n + liczebnosc(a), 0), okrety: (f.floty || []).reduce((n, fl) => n + liczebnosc(fl), 0),
+    wojny: (stan.wojny || []).filter(w => w.includes(f.id)).length,
+    bitwy: bitwy.length, wygrane: bitwy.filter(b => wynik(b) === "w").length, przegrane: bitwy.filter(b => wynik(b) === "p").length,
+    traktaty: traktaty.length, sojusznicy: new Set(traktaty.filter(([, t]) => t.typ === "sojusz").flatMap(([, t]) => t.strony.filter(w => w !== f.id))).size,
+    bloki: Object.values(stan.bloki || {}).filter(b => aktywnyBlok(b) && b.czlonkowie.includes(f.id)).length,
+  };
+}
+function zrzutHistorii(nr) {
+  const wlasciciele = Object.fromEntries(Object.entries(stan.prowincje || {}).filter(([, d]) => d.wlasciciel).map(([id, d]) => [id, d.wlasciciel]));
+  const armie = Object.entries(stan.pozycjeArmii || {}).map(([id, poz]) => ({ f: poz.f, p: poz.p || "", o: poz.o ?? -1, a: poz.a || 0,
+    n: liczebnosc(frakcjaPo(poz.f)?.armie?.find(x => x.id === id) || {}) }));
+  const floty = Object.entries(stan.pozycjeFlot || {}).map(([id, poz]) => ({ f: poz.f, a: poz.a, n: liczebnosc(frakcjaPo(poz.f)?.floty?.find(x => x.id === id) || {}) }));
+  const bitwy = aktywneBitwy().map(([, b]) => ({ p: b.p || "", a: b.a || 0 }));
+  return { nr, data: new Date().toISOString(), wlasciciele, armie, floty, bitwy, wojny: (stan.wojny || []).map(([x, y]) => ({ x, y })),
+    kraje: Object.fromEntries(stan.frakcje.map(f => [f.id, { ...statystykiKrainy(f), zasoby: { ...f.stany } }])) };
+}
+// wykresy zasobów w czasie (9.2): gracz — tylko swojej krainy, GM — każdej; po jednym małym wykresie na zasób (różne skale, jedna oś),
+// stan na koniec każdej zamkniętej tury (migawki tur); pod spodem tabela dla tych, którzy wolą liczby
+const naLiczbe = v => v === "" || v === null || v === undefined ? null : (n => Number.isFinite(n) ? n : null)(Number(String(v).replace(/\s/g, "").replace(",", ".")));
+function wykresyZasobow(f) {
+  if (!(gm || moja(f)) || tajne(f, "zasoby")) return "";
+  const migawki = stan.tury.filter(t => t.frakcje?.[f.id]), tury = migawki.map(t => t.nr);
+  if (!migawki.length) return `<section class="wykresy-zasobow"><h3>Zasoby w czasie</h3><p class="puste">Wykresy pojawią się po zamknięciu pierwszej tury.</p></section>`;
+  const zasobyZDanymi = stan.zasoby.filter(z => migawki.some(t => naLiczbe(t.frakcje[f.id].stany?.[z.id]) !== null));
+  if (!zasobyZDanymi.length) return "";
+  const punkty = z => migawki.map(t => ({ x: t.nr, y: naLiczbe(t.frakcje[f.id].stany?.[z.id]) }));
+  return `<section class="wykresy-zasobow"><h3>Zasoby w czasie</h3><p class="opis-sekcji">Stan na koniec każdej zamkniętej tury. Najedź na wykres, żeby zobaczyć liczby.</p>
+    <div class="siatka-wykresow">${zasobyZDanymi.map(z => `<div class="maly-wykres"><h4>${ikonaZasobu(z)} ${esc(z.nazwa)}</h4>
+      ${wykres({ serie: [{ nazwa: z.nazwa, kolor: f.kolor, punkty: punkty(z) }], tury, szer: 300, wys: 130, jednostka: z.jednostka || "", etykietyKoncow: false, opis: `${z.nazwa} w kolejnych turach` })}</div>`).join("")}</div>
+    <details class="tabela-wykresow"><summary>Tabela</summary><table><thead><tr><th>Zasób</th>${tury.map(nr => `<th>T${nr}</th>`).join("")}</tr></thead>
+      <tbody>${zasobyZDanymi.map(z => `<tr><td>${esc(z.nazwa)}</td>${punkty(z).map(p => `<td>${p.y === null ? "—" : liczbaWykresu(p.y)}</td>`).join("")}</tr>`).join("")}</tbody></table></details></section>`;
+}
+// pokaz historii (samouczek, tylko w piaskownicy): kilka tur na niby — krainy rosną od swoich ziem (albo od rozrzuconych prowincji),
+// zasoby zależą od liczby prowincji; migawki tur i zrzuty historii z prawdziwych funkcji. Po rozdziale stan wraca, a historiaPokazu jest czyszczona.
+let historiaPokazu = null;
+function zmyslHistorie(tur = 6) {
+  const nrP = new Map(PROWINCJE.map((p, i) => [p.id, i])), wl = i => stan.prowincje?.[PROWINCJE[i].id]?.wlasciciel;
+  stan.prowincje ??= {}; const zajete = [];
+  for (const f of stan.frakcje) {   // kraina bez ziemi dostaje na niby prowincję jak najdalej od pozostałych
+    if (PROWINCJE.some((p, i) => wl(i) === f.id)) continue;
+    const zaj = PROWINCJE.map((p, i) => i).filter(i => wl(i)), kand = PROWINCJE.map((p, i) => i).filter(i => !wl(i) && PROWINCJE[i].sasiedzi.length >= 4);
+    const odl = i => zaj.length ? Math.min(...zaj.map(j => Math.hypot(PROWINCJE[i].x - PROWINCJE[j].x, PROWINCJE[i].y - PROWINCJE[j].y))) : -Math.hypot(PROWINCJE[i].x - 2500, PROWINCJE[i].y - 2500);
+    const k = kand.sort((a, b) => odl(b) - odl(a))[0]; if (k !== undefined) { stan.prowincje[PROWINCJE[k].id] = { ...stan.prowincje[PROWINCJE[k].id], wlasciciel: f.id }; zajete.push(k); }
+  }
+  const historia = [], start = stan.tury.length;
+  for (let t = 0; t < tur; t++) {
+    stan.frakcje.forEach((f, i) => {
+      const moje = PROWINCJE.map((p, k) => k).filter(k => wl(k) === f.id);
+      [...new Set(moje.flatMap(k => PROWINCJE[k].sasiedzi.map(([j]) => j - 1)))].filter(k => !wl(k)).slice(0, 2 + (i + t) % 3)
+        .forEach(k => { stan.prowincje[PROWINCJE[k].id] = { ...stan.prowincje[PROWINCJE[k].id], wlasciciel: f.id }; });
+      const ile = PROWINCJE.filter((p, k) => wl(k) === f.id).length;
+      f.stany = Object.fromEntries(stan.zasoby.map((z, k) => [z.id, Math.max(0, Math.round(ile * (8 + k * 3) + 30 * Math.sin(t * 0.9 + i + k) + 20 * i))]));
+    });
+    const nr = start + t + 1;
+    stan.tury.push({ nr, data: new Date().toISOString(), frakcje: Object.fromEntries(stan.frakcje.map(f => [f.id, { stany: { ...f.stany }, unikalne: {} }])) });
+    historia.push(zrzutHistorii(nr));
+  }
+  historiaPokazu = historia; kolorujMape(); pokazOsadyNaMapie();
+}
+// timelapse (9.3): odtwarzacz w oknie — klatki rysuje src/timelapse.js na jednym płótnie (to samo trafia do filmu, 9.4)
+const oknoTimelapse = document.getElementById("timelapse");
+const MIARY_STATYSTYK = [["prowincje", "Prowincje", "Ziemia"], ["miasta", "Miasta", "Ziemia"], ["wioski", "Wioski", "Ziemia"], ["budynki", "Budynki", "Ziemia"],
+  ["zolnierze", "Żołnierze", "Wojsko"], ["okrety", "Okręty", "Wojsko"], ["armie", "Armie", "Wojsko"], ["floty", "Floty", "Wojsko"],
+  ["wojny", "Wojny", "Wojny i bitwy"], ["bitwy", "Bitwy stoczone", "Wojny i bitwy"], ["wygrane", "Bitwy wygrane", "Wojny i bitwy"], ["przegrane", "Bitwy przegrane", "Wojny i bitwy"],
+  ["traktaty", "Traktaty", "Dyplomacja"], ["sojusznicy", "Sojusznicy", "Dyplomacja"], ["bloki", "Bloki", "Dyplomacja"]];
+const miaryTimelapsu = () => [...stan.zasoby.map(z => ({ id: "z:" + z.id, nazwa: z.nazwa, grupa: "Zasoby", wartosc: k => naLiczbe(k.zasoby?.[z.id]) })),
+  ...MIARY_STATYSTYK.map(([id, nazwa, grupa]) => ({ id, nazwa, grupa, wartosc: k => typeof k[id] === "number" ? k[id] : null }))];
+const punktHistorii = ({ p, o, a }) => {   // miejsce z historii → [x, y] px mapy
+  if (a) { const w = AKWENY[a - 1]; return w && [w.x, w.y]; }
+  const pr = PROWINCJE[NR_PROWINCJI.get(p) - 1]; if (!pr) return null;
+  const os = o >= 0 && osadyProwincji(pr)[o]; return os ? [os.x, os.y] : [pr.x, pr.y];
+};
+async function pokazTimelapse() {
+  oknoTimelapse.innerHTML = `<div class="okno-glowa"><h2>Historia gry</h2><button type="button" class="zamknij" aria-label="Zamknij">×</button></div><p class="opis-sekcji">Wczytuję historię…</p>`;
+  oknoTimelapse.querySelector(".zamknij").onclick = () => oknoTimelapse.close();
+  otworzOkno(oknoTimelapse);
+  const historia = historiaPokazu || await czytajHistorie();   // samouczek: zmyślona historia z piaskownicy
+  if (!historia.length) { oknoTimelapse.querySelector("p").textContent = "Historia jest pusta — pierwsza klatka powstanie przy zamknięciu tury."; return; }
+  const miary = miaryTimelapsu();
+  const tl = await przygotujTimelapse({ terenUrl, indeksyUrl, liczbaProwincji: PROWINCJE.length, historia, ikonaBitwy: IKONY_OSAD.bitwa, miary,
+    kraje: stan.frakcje.map(f => ({ id: f.id, nazwa: f.nazwa, kolor: f.kolor, herb: herbFrakcji(f) })), kolorWl: id => wlascicielPo(id)?.kolor || null,
+    punkt: punktHistorii, prowincjaNr: id => NR_PROWINCJI.get(id) });
+  const grupy = [...new Set(miary.map(m => m.grupa))];
+  oknoTimelapse.innerHTML = `<div class="okno-glowa"><h2>Historia gry</h2><button type="button" class="zamknij" aria-label="Zamknij">×</button></div>
+    <canvas class="plotno-timelapse" width="${SZER_TL}" height="${WYS_TL}" aria-label="Timelapse: mapa, wykres i ranking tury"></canvas>
+    <div class="sterowanie-timelapse">
+      <button type="button" class="cofnij" data-tl="poczatek" aria-label="Pierwsza tura" title="Pierwsza tura">⏮</button>
+      <button type="button" class="dodaj" data-tl="graj" aria-label="Odtwórz">▶</button>
+      <button type="button" class="cofnij" data-tl="koniec" aria-label="Ostatnia tura" title="Ostatnia tura">⏭</button>
+      <input type="range" name="tura" min="0" max="${historia.length - 1}" step="1" value="0" aria-label="Tura">
+      <label>Miara <select name="miara">${grupy.map(g => `<optgroup label="${esc(g)}">${miary.filter(m => m.grupa === g).map(m => `<option value="${esc(m.id)}">${esc(m.nazwa)}</option>`).join("")}</optgroup>`).join("")}</select></label>
+      <label>Tempo <select name="tempo"><option value="0.5">wolno</option><option value="1" selected>zwykle</option><option value="2">szybko</option></select></label>
+    </div>
+    <p class="przyciski-eksportu">${formatFilmu() ? `<button type="button" class="cofnij" data-tl="film">🎬 Zapisz film (${formatFilmu().includes("mp4") ? "MP4" : "WebM"})</button>` : ""}
+      <button type="button" class="cofnij" data-tl="gif">🖼 Zapisz GIF</button> <span class="opis-sekcji komunikat-timelapse" role="status"></span></p>`;
+  const g = oknoTimelapse.querySelector("canvas").getContext("2d"), suwak = oknoTimelapse.querySelector("[name=tura]"), wyborMiary = oknoTimelapse.querySelector("[name=miara]");
+  const tempo = oknoTimelapse.querySelector("[name=tempo]"), graj = oknoTimelapse.querySelector("[data-tl=graj]");
+  let t = 0, gra = null;
+  const miara = () => miary.find(m => m.id === wyborMiary.value);
+  const rysuj = () => { tl.rysuj(g, t, miara()); suwak.value = Math.floor(t); };
+  const stop = () => { if (gra) cancelAnimationFrame(gra); gra = null; graj.textContent = "▶"; graj.setAttribute("aria-label", "Odtwórz"); };
+  const start = () => {
+    if (t >= historia.length - 1) t = 0;
+    graj.textContent = "⏸"; graj.setAttribute("aria-label", "Pauza"); let ost = performance.now();
+    const krok = teraz => { t = Math.min(historia.length - 1, t + Math.max(0, teraz - ost) / (1200 / +tempo.value)); ost = teraz; rysuj(); gra = t < historia.length - 1 ? requestAnimationFrame(krok) : (stop(), null); };
+    gra = requestAnimationFrame(krok);
+  };
+  graj.onclick = () => gra ? stop() : start();
+  oknoTimelapse.querySelector("[data-tl=poczatek]").onclick = () => { stop(); t = 0; rysuj(); };
+  oknoTimelapse.querySelector("[data-tl=koniec]").onclick = () => { stop(); t = historia.length - 1; rysuj(); };
+  suwak.oninput = () => { stop(); t = +suwak.value; rysuj(); };
+  wyborMiary.onchange = rysuj;
+  // eksport (9.4): film nagrywa to płótno w trakcie odtwarzania, GIF liczy klatki osobno; plik pobiera się od razu
+  const komunikat = oknoTimelapse.querySelector(".komunikat-timelapse"), plotno = oknoTimelapse.querySelector("canvas");
+  const sterowanie = oknoTimelapse.querySelectorAll(".sterowanie-timelapse button, .sterowanie-timelapse input, .sterowanie-timelapse select, .przyciski-eksportu button");
+  const nazwa = rozsz => `historia-gry-tury-${historia[0].nr}-${historia[historia.length - 1].nr}-${miara().nazwa.toLowerCase().replace(/[^a-ząćęłńóśźż0-9]+/g, "-")}.${rozsz}`;
+  const pobierz = (blob, plik) => { const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: plik }); a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000); };
+  async function eksport(rodzaj) {
+    stop(); sterowanie.forEach(x => { x.disabled = true; });
+    const naTure = 1.2 / +tempo.value, postep = p => { komunikat.textContent = `${rodzaj === "gif" ? "Liczę GIF" : "Nagrywam film"}… ${Math.round(p * 100)}%`; };
+    try {
+      const blob = rodzaj === "gif" ? await nagrajGif((gg, tt) => tl.rysuj(gg, tt, miara()), historia.length, { naTure, postep })
+        : await nagrajFilm(plotno, tt => { t = tt; rysuj(); }, historia.length, { naTure, postep });
+      const rozsz = rodzaj === "gif" ? "gif" : blob.type.includes("mp4") ? "mp4" : "webm";
+      pobierz(blob, nazwa(rozsz)); komunikat.textContent = `Gotowe: ${nazwa(rozsz)} (${(blob.size / 1048576).toFixed(1)} MB).`;
+    } catch (e) { komunikat.textContent = "Nie udało się zapisać: " + (e.message || e); }
+    sterowanie.forEach(x => { x.disabled = false; });
+  }
+  oknoTimelapse.querySelector("[data-tl=film]")?.addEventListener("click", () => eksport("film"));
+  oknoTimelapse.querySelector("[data-tl=gif]").onclick = () => eksport("gif");
+  oknoTimelapse.querySelector(".zamknij").onclick = () => { stop(); oknoTimelapse.close(); };
+  oknoTimelapse.addEventListener("close", stop, { once: true });
+  rysuj();
+}
 function pokazPanelGM(zostanPrzewiniecie) {
   widok = "gm"; mapa.wybierz(0);
   [...lista.children].forEach(b => b.setAttribute("aria-current", false));
@@ -1744,6 +1949,9 @@ function pokazPanelGM(zostanPrzewiniecie) {
       <p class="przyciski-tur"><button type="button" class="dodaj" id="zamknij-ture">Zamknij turę ${stan.tury.length + 1}</button>
       ${ostatniaTura() ? `<button type="button" class="cofnij" id="cofnij-ture">Cofnij zamknięcie tury ${ostatniaTura().nr}</button>` : ""}</p>
       ${stan.tury.length ? `<ul class="lista-tur">${stan.tury.map(t => `<li>Tura ${t.nr} — zamknięta ${esc(new Date(t.data).toLocaleString("pl-PL"))}</li>`).reverse().join("")}</ul>` : ""}</section>
+    <section class="historia-gry"><h3>Historia gry</h3><p class="opis-sekcji">Timelapse tura po turze: mapa z granicami krajów, armiami i bitwami, wykres wybranej miary i ranking krajów. Zapis do filmu albo GIF-a — do wrzucenia na Discorda. Każde zamknięcie tury dopisuje kolejną klatkę.</p>
+      <p><button type="button" class="dodaj" id="otworz-timelapse">▶ Timelapse</button></p></section>
+    ${kronikarzSekcja()}
     ${wojnySekcja()}
     ${traktatySekcja()}
     ${npcSekcja()}
@@ -1752,6 +1960,8 @@ function pokazPanelGM(zostanPrzewiniecie) {
     ${diagnostykaSekcja()}
     ${porzadkiSekcja()}
     ${kopiaSekcja()}</article>`;
+  glowny.querySelector("#otworz-timelapse").onclick = pokazTimelapse;
+  podepnijKronikarza();
   const odswiez = () => { zapisz(stan); pokazPanelGM(true); };
   glowny.querySelector("#zamknij-ture").onclick = () => {
     const nr = stan.tury.length + 1;
@@ -1759,14 +1969,15 @@ function pokazPanelGM(zostanPrzewiniecie) {
     if (!confirm(`Zamknąć turę ${nr}? Stany zasobów wszystkich frakcji zostaną zapisane, a armie i floty z celem zrobią po 1 kroku.${slabe.length ? `\n\nZostaną rozwiązane (poniżej 100 żołnierzy): ${slabe.join(", ")}.` : ""}\n\nMożna to cofnąć.`)) return;
     stan.tury.push({ nr, data: new Date().toISOString(), frakcje: Object.fromEntries(stan.frakcje.map(f => [f.id, {
       stany: { ...f.stany }, unikalne: Object.fromEntries(f.zasoby.filter(z => z.ilosc !== undefined).map(z => [z.nazwa, z.ilosc])) }])) });
-    ruchArmii(nr); rozwiazSlabe(nr); odswiezRaporty(); odswiez(); pokazOsadyNaMapie();
+    ruchArmii(nr); rozwiazSlabe(nr); odswiezRaporty(); const zrzut = zrzutHistorii(nr); zapiszHistorie(nr, zrzut); odswiez(); pokazOsadyNaMapie();
+    szkicOpowiesci(nr, zrzut).then(o => zapiszOpowiesc(nr, o));   // Kronikarz Zgrzyt (13): szkic do poprawek GM
   };
   const cofnij = glowny.querySelector("#cofnij-ture");
   if (cofnij) cofnij.onclick = () => {
     // usuwa tylko migawkę; obecne stany zostają, więc pomyłkowe zamknięcie nic nie psuje
     const nr = ostatniaTura().nr, ruchy = stan.cofnijRuchy?.nr === nr;
     if (!confirm(`Cofnąć zamknięcie tury ${nr}? Wróci tura ${nr}, a zmiany +/- będą liczone od poprzedniej migawki.${ruchy ? " Armie i floty wrócą na pozycje sprzed ruchu." : ""}`)) return;
-    cofnijRozwiazanie(nr); cofnijRuchArmii(nr); stan.tury.pop(); odswiezRaporty();
+    cofnijRozwiazanie(nr); cofnijRuchArmii(nr); stan.tury.pop(); odswiezRaporty(); usunHistorie(nr); usunOpowiesc(nr);
     for (const [id, k] of Object.entries(stan.kronika || {})) if (k.zam === nr) usunWpis("kronika", id);   // wpisy z cofniętego zamknięcia
     odswiez(); pokazOsadyNaMapie();
   };
@@ -1807,13 +2018,120 @@ const ileProwincji = wl => Object.values(stan.prowincje || {}).filter(d => d.wla
 // kronika (7.2): stan.kronika = { id: { tura, czas, typ, tekst, kraje: [wł], tajny, widza: [wł], zam? (nr tury, której zamknięcie dodało wpis) } }
 // wpisy robi program przy akcjach GM (bitwy, wojny, pokój, traktaty, właściciele prowincji) albo GM ręcznie; tajne widzą kraje z „widza” i GM
 const IKONY_KRONIKI = { blok: "🏛", bitwa: "⚔", wynik: "🏆", wojna: "🔥", pokoj: "🕊", traktat: "📜", zerwanie: "✂", wlasciciel: "🏴", gm: "✒" };
-function wpiszKronike(typ, tekst, kraje, { tajny = false, widza = kraje, tura = stan.tury.length + 1, zam } = {}) {
+// d (13.2): dane dla Kronikarza Zgrzyta — kto, gdzie, co (A/B = wł., lista = [wł.], miejsce = „w prowincji „X”” / „na morzu „X””, nazwa, rodzaj…)
+function wpiszKronike(typ, tekst, kraje, { tajny = false, widza = kraje, tura = stan.tury.length + 1, zam, d } = {}) {
   const id = "k" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  (stan.kronika ??= {})[id] = { tura, czas: new Date().toISOString(), typ, tekst, kraje: kraje.filter(Boolean), tajny, widza: tajny ? widza.filter(Boolean) : [], ...(zam ? { zam } : {}) };
+  (stan.kronika ??= {})[id] = { tura, czas: new Date().toISOString(), typ, tekst, kraje: kraje.filter(Boolean), tajny, widza: tajny ? widza.filter(Boolean) : [], ...(zam ? { zam } : {}), ...(d ? { d } : {}) };
   return id;
 }
 const nazwaKraju = w => wlascicielPo(w)?.nazwa || "ziemia niczyja";
+const wProwincji = p => stan.prowincje?.[p.id]?.nazwa ? `w prowincji „${stan.prowincje[p.id].nazwa}”` : `w prowincji ${p.id}`;
+const daneTraktatu = t => ({ rodzaj: t.typ, nazwa: t.nazwa, lista: t.strony });
 const wpisyKroniki = () => Object.entries(stan.kronika || {}).sort((a, b) => b[1].tura - a[1].tura || (b[1].czas < a[1].czas ? -1 : 1));
+// Kronikarz Zgrzyt (13): opowieść tury nr z wpisów kroniki (+ pamięć wcześniejszych tur, liczba prowincji z historii — tylko to, reszta historii jest tajna)
+// wpis sprzed 13.2 bez `d`: wojna/pokój z listy krajów, blok i wpis GM z tekstu, reszta jako „stary” (Zgrzyt czyta tekst wpisu)
+function zdarzenieKroniki(k) {
+  const d = k.d || (["wojna", "pokoj"].includes(k.typ) && k.kraje.length === 2 ? { A: k.kraje[0], B: k.kraje[1] } : { tekst: k.tekst });
+  return { typ: k.d || ["wojna", "pokoj", "blok", "gm"].includes(k.typ) ? k.typ : "stary", d, kraje: k.kraje, tajny: k.tajny, widza: k.widza, tura: k.tura };
+}
+// staty: { teraz, przed } — {wł: {prowincje}} z historii (tylko liczba prowincji; reszta historii jest tajna)
+function opowiescTury(nr, ziarno = nr, staty = {}) {
+  const wpisy = Object.values(stan.kronika || {}).sort((a, b) => a.tura - b.tura || (a.czas < b.czas ? -1 : 1)).map(zdarzenieKroniki);
+  const wl = new Set(wpisy.flatMap(z => [...z.kraje, ...(z.widza || []), z.d.A, z.d.B, ...(z.d.lista || []), ...(z.d.przegrani || [])]).values());
+  const kraje = Object.fromEntries([...wl].filter(Boolean).map(w => { const f = frakcjaPo(w); return [w, f ? { nazwa: f.nazwa, wladca: f.wladca, id: f.id } : { nazwa: nazwaKraju(w) }]; }));
+  return opowiedz({ tura: nr, ziarno, kraje, zdarzenia: wpisy.filter(z => z.tura === nr), pamiec: wpisy.filter(z => z.tura < nr), staty });
+}
+if (import.meta.env.DEV) window.opowiescTury = opowiescTury;   // testy i podglądy (materialy/test_kronika.mjs); w wydanym programie go nie ma
+const prowincjeZHistorii = h => h && Object.fromEntries(Object.entries(h.kraje || {}).map(([w, s]) => [w, { prowincje: s.prowincje }]));
+// film opowieści (13.5b): miejsce zdarzenia akapitu → [x, y] px mapy (kamera tam jedzie); wojna, pokój, traktat — stolica pierwszej strony
+function miejsceZdarzenia(z) {
+  const d = z?.d; if (!d) return null;
+  if (d.a) return punktHistorii({ a: d.a });
+  const p = d.p || (d.prowincja && PROWINCJE.find(q => nazwaProwincji(q) === d.prowincja)?.id);
+  if (p) return punktHistorii({ p, o: -1 });
+  const kraj = d.A || d.lista?.[0], s = kraj && stolicaWl(kraj);
+  if (s) return [s.o.x, s.o.y];
+  const pr = kraj && PROWINCJE.find(q => stan.prowincje?.[q.id]?.wlasciciel === kraj);
+  return pr ? [pr.x, pr.y] : null;
+}
+// szkic opowieści przy zamknięciu tury (13.4): GM go poprawia i publikuje w Panelu GM; szkic widzi tylko GM
+async function szkicOpowiesci(nr, zrzut, ziarno = nr) {
+  const staty = { teraz: prowincjeZHistorii(zrzut), przed: prowincjeZHistorii(await czytajHistorieTury(nr - 1)) };
+  const o = opowiescTury(nr, ziarno, staty);
+  return { tura: nr, akapity: o.akapity, miejsca: o.zrodla.map(z => (m => m ? { x: Math.round(m[0]), y: Math.round(m[1]) } : null)(miejsceZdarzenia(z))),
+    szepty: o.szepty, staty, ziarno, czas: new Date().toISOString(), opublikowana: false };   // miejsca jako {x, y} — Firestore nie przyjmuje tablicy w tablicy
+}
+// zapis nowej wersji: szkic zostaje szkicem, a opublikowana publikuje się od razu ponownie (inaczej gracze straciliby do niej dostęp)
+const zapiszWersje = (nr, o) => (stan.opowiesci || []).includes(nr) ? opublikujOpowiesc(nr, o) : zapiszOpowiesc(nr, { ...o, opublikowana: false });
+// otwarcie opowieści: gracz — jawna część + swój szept; GM — także szepty wszystkich krajów (podpisane)
+const oknoOpowiesci = document.getElementById("opowiesc");
+async function otworzOpowiesc(nr) {
+  const o = await czytajOpowiesc(nr);
+  if (!o) return alert("Tej opowieści nie da się wczytać — może GM cofnął turę.");
+  const szepty = gm ? (o.opublikowana ? await czytajSzeptyTury(nr) : o.szepty || {}) : {};
+  const moj = !gm && profil?.frakcja ? (await czytajSzept(nr, profil.frakcja))?.akapity : null;
+  pokazOpowiesc(oknoOpowiesci, { tura: nr, akapity: o.akapity, szept: moj,
+    szeptyGM: Object.entries(szepty).map(([w, a]) => [nazwaKraju(w), a]), nagraj: postep => filmOpowiesci(nr, o, postep) }, otworzOkno);
+}
+// film opowieści (13.5b): mapa z obecnymi (jawnymi) właścicielami prowincji, kamera w miejscach z opowieści
+async function filmOpowiesci(nr, o, postep) {
+  const wlasciciele = Object.fromEntries(Object.entries(stan.prowincje || {}).filter(([, d]) => d.wlasciciel).map(([id, d]) => [id, d.wlasciciel]));
+  const tl = await przygotujTimelapse({ terenUrl, indeksyUrl, liczbaProwincji: PROWINCJE.length, historia: [{ nr, wlasciciele }], ikonaBitwy: IKONY_OSAD.bitwa, miary: [],
+    kraje: [], kolorWl: id => wlascicielPo(id)?.kolor || null, punkt: punktHistorii, prowincjaNr: id => NR_PROWINCJI.get(id) });
+  const miejsca = o.miejsca?.length === o.akapity.length ? o.miejsca.map(m => m && [m.x, m.y]) : o.akapity.map(() => null);
+  return nagrajOpowiesc({ tura: nr, akapity: o.akapity, miejsca, mapa: tl.mapa({ nr, wlasciciele }) }, postep);
+}
+// nowa opublikowana opowieść otwiera się graczowi sama, raz (zapamiętane w tej przeglądarce); nie w trakcie samouczka ani innego okna
+function pokazNowaOpowiesc() {
+  const nr = Math.max(0, ...(stan.opowiesci || []));
+  if (gm || !nr || document.body.classList.contains("w-samouczku") || document.querySelector("dialog[open]")) return;
+  let ost = 0; try { ost = +localStorage.getItem("frp-opowiesc") || 0; } catch {}
+  if (nr <= ost) return;
+  try { localStorage.setItem("frp-opowiesc", String(nr)); } catch {}
+  otworzOpowiesc(nr);
+}
+// Panel GM (13.6): szkic ostatniej zamkniętej tury — podgląd, poprawki, losowanie od nowa, publikacja; wcześniejsze tury z listy
+const kronikarzSekcja = () => !stan.tury.length ? "" : `<section class="kronikarz"><h3>Kronika Zgrzyta</h3>
+  <p class="opis-sekcji">Po zamknięciu tury Zgrzyt pisze szkic opowieści. Widzisz go tylko ty — popraw, jeśli trzeba, i opublikuj. Gracze dostają opowieść sami przy wejściu, szepty tylko kraje, których dotyczą.</p>
+  <p class="akcje-kronikarza"><label>Tura <select name="tura-opowiesci">${stan.tury.map(t => `<option value="${t.nr}">${t.nr}${(stan.opowiesci || []).includes(t.nr) ? " — opublikowana" : ""}</option>`).reverse().join("")}</select></label>
+    <button type="button" class="cofnij" data-kr="podglad">👁 Podgląd</button><button type="button" class="cofnij" data-kr="popraw">✎ Popraw</button>
+    <button type="button" class="cofnij" data-kr="losuj">🎲 Losuj inaczej</button><button type="button" class="dodaj" data-kr="publikuj">📢 Opublikuj</button></p>
+  <div class="edycja-opowiesci"></div><p class="opis-sekcji komunikat-kronikarza"></p></section>`;
+function podepnijKronikarza() {
+  const s = glowny.querySelector(".kronikarz"); if (!s) return;
+  const nr = () => +s.querySelector("[name=tura-opowiesci]").value, msg = t => { s.querySelector(".komunikat-kronikarza").textContent = t; };
+  // szkic: z bazy, a gdy go nie ma (tura sprzed 13.4 albo cofnięta) — świeży z kroniki
+  const szkic = async n => (await czytajOpowiesc(n)) || await (async () => { const o = await szkicOpowiesci(n, await czytajHistorieTury(n)); await zapiszOpowiesc(n, o); return o; })();
+  const szeptyDo = async (n, o) => o.opublikowana ? await czytajSzeptyTury(n) : o.szepty || {};
+  s.querySelectorAll("[data-kr]").forEach(b => b.onclick = async () => {
+    const n = nr(), akcja = b.dataset.kr; msg("…");
+    if (akcja === "podglad") { await szkic(n); msg(""); return otworzOpowiesc(n); }
+    if (akcja === "losuj") {
+      const opubl = (stan.opowiesci || []).includes(n);
+      if (!confirm(`Napisać opowieść tury ${n} od nowa? Twoje poprawki w tej turze przepadną.${opubl ? " Jest już opublikowana — gracze od razu zobaczą nową wersję." : ""}`)) return msg("");
+      await zapiszWersje(n, await szkicOpowiesci(n, await czytajHistorieTury(n), Math.floor(Math.random() * 1e6))); msg(`Nowa wersja tury ${n}${opubl ? " — opublikowana" : " — szkic"}.`); return;
+    }
+    const o = await szkic(n), szepty = await szeptyDo(n, o);
+    if (akcja === "publikuj") {
+      if (!confirm(`Opublikować opowieść tury ${n}? Zobaczą ją wszyscy gracze, a szepty — tylko kraje, których dotyczą.`)) return msg("");
+      await opublikujOpowiesc(n, { ...o, szepty }); msg(`Opublikowano opowieść tury ${n}.`); return pokazPanelGM(true);
+    }
+    // popraw: akapity oddzielone pustą linią; szept każdego kraju osobno
+    const ed = s.querySelector(".edycja-opowiesci");
+    ed.innerHTML = `<form class="popraw-opowiesc"><label>Opowieść (akapity oddziel pustą linią)<textarea name="akapity" rows="14">${esc(o.akapity.join("\n\n"))}</textarea></label>
+      ${Object.entries(szepty).map(([w, a]) => `<label>🤫 Szept dla: ${esc(nazwaKraju(w))}<textarea name="szept" data-kraj="${esc(w)}" rows="3">${esc(a.join(" "))}</textarea></label>`).join("")}
+      <button class="dodaj">${(stan.opowiesci || []).includes(n) ? "Zapisz i opublikuj poprawki" : "Zapisz szkic"}</button> <button type="button" class="cofnij anuluj-opowiesc">Anuluj</button></form>`;
+    msg("");
+    ed.querySelector(".anuluj-opowiesc").onclick = () => { ed.innerHTML = ""; };
+    ed.querySelector("form").onsubmit = async e => {
+      e.preventDefault();
+      const akapity = e.target.akapity.value.split(/\n\s*\n/).map(t => t.trim()).filter(Boolean);
+      const nowe = Object.fromEntries([...e.target.querySelectorAll("[name=szept]")].map(t => [t.dataset.kraj, [t.value.trim()]]).filter(([, [t]]) => t));
+      await zapiszWersje(n, { ...o, akapity, szepty: nowe });
+      ed.innerHTML = ""; msg(`Zapisano poprawki tury ${n}${(stan.opowiesci || []).includes(n) ? " — gracze już je widzą" : " (szkic)"}.`);
+    };
+  });
+}
 const wierszKroniki = ([id, k], przyciski) => `<li class="k-${k.typ}"><span>${IKONY_KRONIKI[k.typ] || "•"} ${k.tajny ? "🔒 " : ""}${esc(k.tekst)}</span>${przyciski ? `<button type="button" class="usun" data-usun-wpis="${esc(id)}" title="Usuń wpis" aria-label="Usuń wpis">×</button>` : ""}</li>`;
 function pokazKronike() {
   widok = "kronika"; mapa.wybierz(0); glowny.style.removeProperty("--kolor");
@@ -1824,6 +2142,7 @@ function pokazKronike() {
       <label class="tajny"><input type="checkbox" name="tajny"> Tajny — widzą tylko zaznaczone kraje i GM</label>
       <fieldset class="strony-traktatu" hidden><legend>Kto widzi</legend>${opcjeKrajow().map(([id, n]) => `<label><input type="checkbox" name="widza" value="${esc(id)}"> ${esc(n)}</label>`).join("")}</fieldset>
       <button class="dodaj">Dodaj wpis</button> <span class="opis-sekcji komunikat-kroniki"></span></form>` : ""}
+    ${(stan.opowiesci || []).length ? `<section class="opowiesci-zgrzyta"><h3>📖 Opowieści Zgrzyta</h3><p>${[...stan.opowiesci].reverse().map(nr => `<button type="button" class="cofnij" data-opowiesc="${nr}">Tura ${nr}</button>`).join(" ")}</p></section>` : ""}
     ${tury.size ? [...tury].map(([nr, l]) => `<section><h3>Tura ${nr}${nr === stan.tury.length + 1 ? " (trwa)" : ""} <button type="button" class="cofnij kopiuj-ture" data-tura="${nr}">📋 Kopiuj na Discorda</button></h3>
       <ul class="lista-kroniki">${l.map(e => wierszKroniki(e, gm)).join("")}</ul></section>`).join("") : `<p class="puste">Kronika jest pusta — wpisy pojawią się przy bitwach, wojnach, traktatach i zmianach granic.</p>`}
   </article>`;
@@ -1832,6 +2151,7 @@ function pokazKronike() {
     const tekst = `**📜 Kronika — tura ${nr}**\n` + l.map(([, k]) => `${IKONY_KRONIKI[k.typ] || "•"} ${k.tekst}`).join("\n");
     try { await navigator.clipboard.writeText(tekst); b.textContent = "✔ Skopiowano"; } catch { prompt("Skopiuj tekst:", tekst); }
   });
+  glowny.querySelectorAll("[data-opowiesc]").forEach(b => b.onclick = () => otworzOpowiesc(+b.dataset.opowiesc));
   glowny.querySelectorAll("[data-usun-wpis]").forEach(b => b.onclick = () => { if (confirm("Usunąć wpis z kroniki?")) { usunWpis("kronika", b.dataset.usunWpis); pokazKronike(); } });
   const form = glowny.querySelector(".nowy-wpis");
   if (form) {
@@ -1839,7 +2159,7 @@ function pokazKronike() {
     form.onsubmit = e => {
       e.preventDefault(); const d = new FormData(form), widza = d.getAll("widza");
       if (form.tajny.checked && !widza.length) return napisz(".komunikat-kroniki", "Zaznacz, które kraje mają widzieć tajny wpis.");
-      wpiszKronike("gm", d.get("tekst").trim(), widza, { tajny: form.tajny.checked, widza }); zapisz(stan); pokazKronike();
+      wpiszKronike("gm", d.get("tekst").trim(), widza, { tajny: form.tajny.checked, widza, d: { tekst: d.get("tekst").trim() } }); zapisz(stan); pokazKronike();
     };
   }
   otworzSzuflade(); oznaczKronike(true);
@@ -2063,7 +2383,7 @@ const wojnySekcja = () => `<section class="wojny"><h3>Wojny</h3><p class="opis-s
   <form class="nowa-wojna">${[1, 2].map(k => `<select name="k${k}" aria-label="Kraj ${k}">${opcjeKrajow().map(([id, n]) => `<option value="${esc(id)}">${esc(n)}</option>`).join("")}</select>`).join(" ⚔ ")}
     <button class="dodaj">Wypowiedz wojnę</button></form></section>`;
 function podepnijWojny(odswiez) {
-  glowny.querySelectorAll("[data-pokoj]").forEach(b => b.onclick = () => { const [x, y] = stan.wojny.splice(+b.dataset.pokoj, 1)[0]; wpiszKronike("pokoj", `Pokój: ${nazwaKraju(x)} i ${nazwaKraju(y)}`, [x, y]); odswiez(); });
+  glowny.querySelectorAll("[data-pokoj]").forEach(b => b.onclick = () => { const [x, y] = stan.wojny.splice(+b.dataset.pokoj, 1)[0]; wpiszKronike("pokoj", `Pokój: ${nazwaKraju(x)} i ${nazwaKraju(y)}`, [x, y], { d: { A: x, B: y } }); odswiez(); });
   const form = glowny.querySelector(".nowa-wojna");
   form.onsubmit = e => {
     e.preventDefault(); const a = form.k1.value, b = form.k2.value;
@@ -2075,13 +2395,13 @@ function podepnijWojny(odswiez) {
     const reszta = obronne.filter(([, x]) => x.czlonkowie.includes(b) && !x.czlonkowie.includes(a)).map(([, x]) => [x, x.czlonkowie.filter(w => w !== b && w !== a && !wWojnie(a, w))]).filter(([, l]) => l.length);
     const przyjazne = aktywneTraktaty().filter(([, t]) => !t.blok && ["sojusz", "pakt"].includes(t.typ) && t.strony.includes(a) && t.strony.includes(b));   // bloki — 7.9e
     if (przyjazne.length && confirm(`Te kraje łączy: ${przyjazne.map(([, t]) => t.nazwa).join(", ")}. Zerwać przy wypowiedzeniu wojny?`)) przyjazne.forEach(([, t]) => {
-      t.zerwany = stan.tury.length + 1; wpiszKronike("zerwanie", `Zerwany traktat: ${t.nazwa} (${nazwyStron(t)})`, t.strony, { tajny: t.tajny, widza: t.strony });
+      t.zerwany = stan.tury.length + 1; wpiszKronike("zerwanie", `Zerwany traktat: ${t.nazwa} (${nazwyStron(t)})`, t.strony, { tajny: t.tajny, widza: t.strony, d: daneTraktatu(t) });
     });
-    (stan.wojny ??= []).push([a, b]); wpiszKronike("wojna", `${nazwaKraju(a)} wypowiada wojnę: ${nazwaKraju(b)}`, [a, b]);
+    (stan.wojny ??= []).push([a, b]); wpiszKronike("wojna", `${nazwaKraju(a)} wypowiada wojnę: ${nazwaKraju(b)}`, [a, b], { d: { A: a, B: b } });
     for (const [x, l] of reszta) {
       const nowe = l.filter(w => !wWojnie(a, w)); if (!nowe.length) continue;
       if (!confirm(`${nazwaKraju(b)} należy do bloku ${x.nazwa} (${x.traktaty.filter(t => t === "sojusz" || t === "pakt").map(t => TYPY_TRAKTATOW[t]).join(", ")}). Wypowiedzieć wojnę całemu blokowi — także: ${nazwyKrajow(nowe)}?`)) continue;
-      for (const w of nowe) { stan.wojny.push([a, w]); wpiszKronike("wojna", `${nazwaKraju(a)} wypowiada wojnę: ${nazwaKraju(w)} (blok ${x.nazwa})`, [a, w]); }
+      for (const w of nowe) { stan.wojny.push([a, w]); wpiszKronike("wojna", `${nazwaKraju(a)} wypowiada wojnę: ${nazwaKraju(w)} (blok ${x.nazwa})`, [a, w], { d: { A: a, B: w, blok: x.nazwa } }); }
     }
     odswiez();
   };
@@ -2109,13 +2429,13 @@ const traktatySekcja = () => `<section class="traktaty"><h3>Traktaty</h3><p clas
 // zawarcie i zerwanie (GM albo akceptacja propozycji gracza 7.15) — z kroniką; pokój kończy wojnę między stronami
 function zawrzyjTraktat(t) {
   t.tura = stan.tury.length + 1; (stan.traktaty ??= {})["t" + Date.now().toString(36)] = t;
-  wpiszKronike("traktat", `${nazwyStron(t)} zawierają: ${t.nazwa} (${TYPY_TRAKTATOW[t.typ]})`, t.strony, { tajny: t.tajny, widza: t.strony });
+  wpiszKronike("traktat", `${nazwyStron(t)} zawierają: ${t.nazwa} (${TYPY_TRAKTATOW[t.typ]})`, t.strony, { tajny: t.tajny, widza: t.strony, d: daneTraktatu(t) });
   if (t.typ === "pokoj") stan.wojny = (stan.wojny || []).filter(([a, b]) => !(t.strony.includes(a) && t.strony.includes(b)));
   zapisz(stan); pokazOsadyNaMapie();
 }
 function zerwijTraktat(id) {
   const t = stan.traktaty[id]; t.zerwany = stan.tury.length + 1;
-  wpiszKronike("zerwanie", `Zerwany traktat: ${t.nazwa} (${nazwyStron(t)})`, t.strony, { tajny: t.tajny, widza: t.strony });
+  wpiszKronike("zerwanie", `Zerwany traktat: ${t.nazwa} (${nazwyStron(t)})`, t.strony, { tajny: t.tajny, widza: t.strony, d: daneTraktatu(t) });
   zapisz(stan); pokazOsadyNaMapie();
 }
 function podepnijTraktaty(odswiez) {
@@ -2356,6 +2676,7 @@ function odswiezWidok() {
     return;
   }
   zbudujListe(); kolorujMape(); pokazOsadyNaMapie();
+  if (wczytane && !document.getElementById("aplikacja").hidden) pokazNowaOpowiesc();   // też gdy otwarta jest sama mapa (widok null)
   if (widok === null) return; // jeszcze w Sali Tronów
   if (okno.open && !okno.querySelector("form.edycja")) okno.close(); // okno bohatera mogło dostać nieaktualne dane; formularza w trakcie pisania nie zamykamy
   oznaczKronike(false);
@@ -2365,8 +2686,6 @@ function odswiezWidok() {
   if (widok.startsWith("a:")) return pokazAkwen(+widok.slice(2));
   widok === "gm" ? (gm ? pokazPanelGM(true) : zamknijSzuflade()) : wybierz(widok, true);
 }
-const PRZEKRECONE = { "Krag-Mhor": "Krak-Mrówka", "Aurelia": "Aureola", "Goblandia": "Gobolandia", "Rogus Ardens": "Rogal Ardeński",
-  "Królestwo Czarnego Smoka": "Królestwo Czarnego Smoczka", "Królestwo Szarych Kłów": "Królestwo Szarych Kółek", "Grobowe Imperium": "Grochowe Imperium" };
 // pokazy samouczka (8.1) — tylko w piaskownicy (rozdział z `piaskownica: true`): wszystko na kopii stanu, po rozdziale znika.
 // Baza pokazu: prowincja własnej krainy nad morzem (gdy jej nie ma — przypisana na niby), sąsiad, do którego da się dojść, i wróg obok.
 const ID_POKAZU = { armia: "zgrzyt-a1", wrog: "zgrzyt-a2", flota: "zgrzyt-f1", traktat: "zgrzyt-t1", sojusz: "zgrzyt-t2", blok: "zgrzyt-b1" };
@@ -2448,6 +2767,18 @@ const POKAZY = {
   },
   wrog: () => bazaPokazu().wrog?.nazwa || "wrogów",
   traktat: id => { const t = stan.traktaty?.[id], f = AKCJE_SAMOUCZKA.mojaFrakcja(); return nazwaKraju(t?.strony.find(w => w !== f.id)) || "?"; },
+  // opowieść Zgrzyta na niby (13.7): wymyślona wojna i wygrana własnej krainy + szept — nic nie trafia do bazy ani do stanu
+  pokazOpowiesc: () => {
+    const f = AKCJE_SAMOUCZKA.mojaFrakcja(), w = stan.frakcje.find(x => x.id !== f.id), nr = stan.tury.length + 1;
+    const kraje = Object.fromEntries([f, w].map(k => [k.id, { nazwa: k.nazwa, wladca: k.wladca, id: k.id }]));
+    const o = opowiedz({ tura: nr, ziarno: 7, kraje, zdarzenia: [
+      { typ: "wojna", d: { A: w.id, B: f.id }, kraje: [] },
+      { typ: "wynik", d: { A: f.id, przegrani: [w.id], miejsce: "w prowincji „Psia Polana”" }, kraje: [] },
+      { typ: "gm", tajny: true, widza: [f.id], d: { tekst: "Zgrzyt zakopał w twojej stolicy kość. Nikomu ani słowa" }, kraje: [] }] });
+    zamknijSzuflade(); pokazOpowiesc(oknoOpowiesci, { tura: nr, akapity: o.akapity, szept: o.szepty[f.id] }, otworzOkno);
+  },
+  pokazWykresy: () => { if (!historiaPokazu) zmyslHistorie(); wybierz(AKCJE_SAMOUCZKA.mojaFrakcja().id, true); },
+  pokazTimelapse: async () => { if (!historiaPokazu) zmyslHistorie(); zamknijSzuflade(); await pokazTimelapse(); oknoTimelapse.querySelector("[data-tl=graj]")?.click(); },
   bitwaPokazu: () => aktywneBitwy().find(([, b]) => b.armie?.includes(ID_POKAZU.armia))?.[0],
   pokazEkranBitwy: () => { const id = POKAZY.bitwaPokazu(); if (id) return pokazBitwe(id); },
   // przykładowe traktaty (umowa handlowa i sojusz) między stolicami — prowincje i stolice krain na niby, gdy ich nie mają
@@ -2481,7 +2812,7 @@ const POKAZY = {
 let warstwyPrzedSamouczkiem = null;
 const AKCJE_SAMOUCZKA = {
   gm: () => gm,
-  zamknij: () => { zamknijSzuflade(); if (okno.open) okno.close(); if (oknoBitwy.open) oknoBitwy.close(); },
+  zamknij: () => { zamknijSzuflade(); for (const d of [okno, oknoBitwy, oknoTimelapse, oknoOpowiesci, oknoGrafiki]) if (d.open) d.close(); },
   mojaFrakcja: () => frakcjaPo(profil?.frakcja) || stan.frakcje[0],
   frakcja: id => wybierz(id || AKCJE_SAMOUCZKA.mojaFrakcja().id),
   pokazMojaProwincje: () => {
@@ -2511,10 +2842,11 @@ const AKCJE_SAMOUCZKA = {
     pokazAkwen(AKWENY.indexOf(a) + 1); mapa.pokaz(a.x, a.y, 0.5);
   },
   // Zgrzyt przekręca nazwy (charakter z wywiadu 2026-10-20); nieznane zostają bez zmian
-  przekrec: n => PRZEKRECONE[n] || n,
+  przekrec: n => PRZEKRECONE[n]?.[0] || n,
   znacznik: nazwa => [...document.querySelectorAll("#mapa .osada")].find(el => el.title.includes(nazwa)) || null,
   ...POKAZY,
   sprzatnij: () => {
+    historiaPokazu = null;
     AKCJE_SAMOUCZKA.zamknij();
     if (warstwyPrzedSamouczkiem) { warstwy = warstwyPrzedSamouczkiem; warstwyPrzedSamouczkiem = null; pokazPrzyciskiWarstw(); pokazOsadyNaMapie(); }
   },
@@ -2530,7 +2862,7 @@ function proponujSamouczek() {
 }
 function wejdz() {
   if (aktualizacjaBlokuje()) return;
-  zamknijSzuflade(); zbudujListe(); przeniesStareProwincje(); kolorujMape(); pokazPrzyciskiWarstw(); pokazOsadyNaMapie(); przelacz(true); oznaczKronike(false); setTimeout(pokazNoweBitwy, 1500); setTimeout(proponujSamouczek, 1000);   // start: sama mapa, karty otwiera klik w herb
+  zamknijSzuflade(); zbudujListe(); przeniesStareProwincje(); kolorujMape(); pokazPrzyciskiWarstw(); pokazOsadyNaMapie(); przelacz(true); oznaczKronike(false); setTimeout(pokazNoweBitwy, 1500); setTimeout(pokazNowaOpowiesc, 2200); setTimeout(proponujSamouczek, 1000);   // start: sama mapa, karty otwiera klik w herb
 }
 const blad = document.getElementById("blad-logowania");
 const pokazBlad = (t, info) => { blad.textContent = t; blad.hidden = !t; blad.classList.toggle("info", Boolean(info)); };

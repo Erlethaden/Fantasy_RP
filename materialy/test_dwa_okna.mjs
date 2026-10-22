@@ -42,6 +42,13 @@ async function okno(email) {
 const A = await okno("gm@test.pl");   // pierwszy GM wgrywa dane startowe do pustej bazy
 const B = await okno("gracz@test.pl");
 await A.waitForTimeout(2000);
+// jak w prawdziwej grze: dokumenty armii istnieją
+await env.withSecurityRulesDisabled(async c => {
+  const db = c.firestore();
+  for (const d of (await getDocs(collection(db, "frakcje"))).docs) await setDoc(doc(db, "tajne_armie", d.id), { armie: [], floty: [] });
+  await setDoc(doc(db, "gra", "armie"), { a: {}, fl: {}, bitwy: {} }, { merge: true });
+});
+await A.waitForTimeout(2000);
 const znaki = s => s.evaluate(() => [...document.querySelectorAll("#mapa .osada")].filter(e => /Zgrzyt|Złodziei|Bitwa/.test(e.title)).length);
 const przed = await zrzut();
 console.log("dokumentów w bazie przed:", Object.keys(przed).length);
@@ -74,6 +81,7 @@ console.log(`✔ w ${sprawdzen} krokach pokaz był w A i nie było go w B`);
 await A.waitForTimeout(1500);
 assert.equal(await A.getAttribute("#lista-frakcji [data-id=aurelia]", "title"), "Aurelia Zmieniona", "A nie dociągnął zmiany po samouczku");
 console.log("✔ po rozdziale A dociągnął zaległą zmianę z bazy");
+assert.equal(await znaki(A), 0, "po dociągnięciu z bazy w A wróciły armie/floty pokazu");
 const po = await zrzut();
 delete po["frakcje/aurelia"]; delete przed["frakcje/aurelia"];
 const rozne = [...new Set([...Object.keys(przed), ...Object.keys(po)])].filter(k => przed[k] !== po[k]);

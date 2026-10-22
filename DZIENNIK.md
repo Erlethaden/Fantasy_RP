@@ -1,5 +1,35 @@
 # DZIENNIK
 
+## 2026-10-22 21:47 – 2026-10-23 — nowe pomysły, etap 12 (grafika krainy), etap 13 (Kronika Zgrzyta)
+Zrobione: lista pomysłów spoza planu; użytkownik wybrał „kartę frakcji jako obrazek” → etap 12 i „Kronikarza Zgrzyta” (bardzo rozbudowany) → etap 13 w PLAN; krok 13.5b: eksport całej opowieści na Discorda (MP4 z dźwiękiem + mapa, GIF, obrazek-komiks). Dalej dopisane etapy 14 (dziennik władcy), 15 (porównanie frakcji), 16 (Zgrzyt-pomocnik, wyłączalny), 17 (muzyka chiptune, domyślnie włączona, przełącznik w 🔊), 18 (księga kampanii).
+Do każdego etapu 11–18 dopisany osobny krok „samouczek Zgrzyta”. Kolejność: najpierw etapy bez generowania grafik (12→18), 10 i 11 na końcu.
+12.0 wywiad (wizytówka, 16:9, okno z Kopiuj/Zapisz, ciemne tło w barwie frakcji) + 12.1 zrobione: „🖼 Zrób grafikę” na karcie krainy, test `materialy/test_grafika.mjs` OK (bez błędów strony), wpis 0.6.0 w zmiany.js.
+Próbka zaakceptowana („jest git”). 12.2 telefon OK (test_grafika_telefon.mjs), 12.3 krok samouczka OK (test_samouczek.mjs: 97 podświetleń). Etap 12 skończony.
+13.0 wywiad zrobiony (ustalenia w PLAN). 13.1 w toku: silnik `src/kronikarz.js` (opowiedz(): zdarzenia tury + pamięć poprzednich tur + statystyki → akapity + szepty; losowanie z ziarnem, bez powtórek wariantu) i pierwsza paczka tekstów `src/dane/kronikarz_teksty.js` (zasada: nazwy w mianowniku, czas teraźniejszy — pasuje do każdej krainy). Próbka: `node materialy/probka_kronikarza.mjs`.
+Użytkownik: Zgrzyt ma przekręcać nazwy → `src/dane/przekrecenia.js` (wspólne z samouczkiem), pierwsza wzmianka prawdziwa. Styl zaakceptowany („git”) → 13.1 zrobione. Na prośbę o podgląd „jak w grze” zrobione okno opowieści (część 13.4): `src/opowiesc.js` + `#opowiesc`, zrzuty z `materialy/podglad_opowiesci.mjs`.
+Ton (użytkownik): zbereźne przekręcenia + czasem przekleństwa (wykrzykniki, kilka wariantów). Podglądy teraz w `podglady/` projektu (prośba użytkownika), scratchpad wyczyszczony. Tajemnice (prośba użytkownika): silnik bierze tylko jawną pamięć i liczbę prowincji, tajne → szepty; test `materialy/test_kronikarz.mjs` OK (200 losowań); zasady zapisu w bazie dopisane do PLAN.
+13.2 zrobione: pole `d` we wpisach kroniki, `opowiescTury(nr)` w main.js (pamięć, liczba prowincji z historii, stare wpisy bez `d`), skutki bitwy (polegli/ranni/jeńcy), zdobycz bez podwójnego akapitu, prowincje bez nazwy „w prowincji 117a”. Testy: test_kronikarz, test_kronika, test_skutki, test_bitwy, test_bitwy_morskie, test_traktaty, test_bloki_wojna — wszystkie OK.
+13.3 zrobione: 481 wariantów tekstów + nowe sytuacje w silniku (rewanż, serie, pierwsza wojna, długa wojna, zdrada, byli wrogowie, docinki NPC); test_kronikarz: tajemnice + 600 opowieści bez dziur. Limity Firebase (prośba użytkownika) opisane w PLAN: teksty w kodzie, w bazie 1 dokument na turę. Bez faworytów (prośba użytkownika): usunięte „szefowie”/przeprosiny/rzadsze przekręcanie Grobowego Imperium, nowe docinki dla nieumarłych jak dla innych, okno opowieści w złocie zamiast turkusu Nieumarłych.
+13.4 + 13.5 + 13.6 (bez telefonu) zrobione: szkic przy zamknięciu tury, Panel GM „Kronika Zgrzyta” (podgląd/popraw/losuj/opublikuj), publikacja z osobnymi szeptami, samo otwarcie raz u gracza, archiwum w Kronice, cofnięcie usuwa. Nowe reguły `opowiesci`/`szepty` (test 18 sprawdzeń). Testy: test_opowiesci (DEMO), test_opowiesci_gracze (emulator, 2 graczy), test_kronika, test_kronikarz, test_samouczek (97) — OK. Zrzuty w `podglady/kronikarz_*.png`.
+ZNALEZIONY STARY BŁĄD (wydany od 7.1f): wojny w `gra/stan` jako [[a,b]] — Firestore odrzuca tablice w tablicy, więc przy trwającej wojnie GM nie zapisywał NIC w chmurze. Poprawione (w bazie [{a,b}], wczytywanie obu postaci), wpis w changelogu.
+Uwaga (nie poprawiane): GM, który wgrywa dane do PUSTEJ bazy, nie zapisuje zmian do ponownego wejścia — dotyczy tylko pierwszego uruchomienia gry.
+Użytkownik opublikował nowe firestore.rules. Telefon nie jest wymagany (decyzja użytkownika, w PLAN) — test_opowiesci_telefon i tak OK → 13.6 zrobione. 13.7 zrobione: rozdział samouczka „Kronika Zgrzyta”, test_samouczek OK (102).
+13.5b zrobione (wywiad: MP4 z dźwiękiem, każdy, cała opowieść do 10 MB): `src/film_opowiesci.js`, przycisk „🎬 Nagraj film”, miejsca zdarzeń przy opowieści ({x,y} — sprawdzone na emulatorze), kamera nie wyjeżdża poza mapę, głos w nagraniu ×3. Film próbny: `podglady/kronika-zgrzyta-tura-1.mp4` (35 s, 6,6 MB). ETAP 13 SKOŃCZONY.
+Poprawka (zgłoszenie użytkownika: „dźwięk nie jest zsynchronizowany z nagraniem”): dźwięk w pliku był ~2 s krótszy od obrazu (kontekst audio startował później, nagranie dźwięku od pierwszego bipu). Teraz: audio wznowione przed nagraniem + cichy ciągły sygnał, obraz liczony z zegara audio, bipy planowane na czas litery. Pomiar: ścieżki 34,79 / 34,86 s, pierwszy bip 2,000 s = pierwsza litera na obrazie. Nowy film: `podglady/kronika-zgrzyta-tura-1.mp4`.
+Na prośbę użytkownika film z bogatą turą (14 zdarzeń): `materialy/podglad_film.mjs` → `podglady/kronika-zgrzyta-tura-7-bogata.mp4` (3:08, 8,1 MB, ścieżki równe). Poprawka odmiany „3 tur wojny” → {ileTur} („3 tury”).
+W toku: nic.
+Do zrobienia: etapy 14–18, potem 10, 11.
+Film z bogatą turą zaakceptowany przez użytkownika („jest git”). Koniec sesji na prośbę użytkownika.
+Następny krok: etap 14 (dziennik władcy) — wywiad 14.0 (kto widzi: czy GM, odsłanianie całości czy pojedynczych wpisów, gdzie przycisk).
+Problemy / pytania do użytkownika: (wojny: gra jeszcze się nie zaczęła — błąd zapisu nikogo nie dotknął, potwierdzone przez użytkownika) Wiersze „W wojnie z” / „Sojusznicy” na obrazku krainy nie były widziane w teście (DEMO bez wojen).
+
+## 2026-10-21 — plan dalszych prac
+Zrobione: użytkownik potwierdził, że 0.5.x jest wydane. Do PLAN dopisane etap 10 (ramki i przyciski interfejsu) i etap 11 (tekstury mapy), oba przeniesione z „Pomysłów na później”.
+W toku: nic.
+Do zrobienia: etapy 10 i 11.
+Następny krok: wywiad 10.0 (nastrój ramek, co je dostaje), potem próbka jednej ramki i przycisku na zrzucie programu.
+Problemy / pytania do użytkownika: którym etapem zacząć, 10 czy 11.
+
 ## 2026-10-20 (cd. 2) — 7.3b–7.3c animacje portretów; porządki i logi
 Zrobione: 7.3b — `src/dane/portrety_anim.js` ma 29 portretów z oczami (16 świecących: gogle, demony, smoki, nieumarli, krasnoludy z ognistymi oczami). Bez oczu (tylko oddech + błysk): aretnuag, czarownik, gorzak, murog (oczy w cieniu/niewyraźne), karevra (hełm), naelira (oczy zamknięte), morthalass, widma. Podglądy: `materialy/podglad_paneli/21_oczy_portretow.png` (zwykła / zamknięte / błysk) i `21b_oczy_zblizenia.png` (zbliżenia z ramkami oczu). Test portretów OK. Changelog 0.4.0. Etap 7.3 zamknięty.
 Zrobione (2): oczy urgasha poprawione (z `urgash_1024.png`: zwykłe oczy pod brwiami, nie świecące). 7.3c-1: w `src/portrety_anim.js` migotanie płomieni (`ogien`: obszar dorysowany „lighter” + poświata, szum z 3 sinusów, idzie za oddechem) i drobinki (`drobinki`: iskry / magia / popiół, liczone wprost z czasu). Próbka: bragga, bob, gobloni, vaelgor, tarael, widma → `materialy/podglad_paneli/22_ogien_drobinki.gif`. Test OK.
@@ -20,9 +50,15 @@ Zrobione (16): rozdziały z pokazem w piaskownicy — „Jednostki, armie i ruch
 Zrobione (17): rozdziały GM („Panel GM”, „Prowadzenie krainy (GM)” w piaskownicy, „Mapa i prowincje (GM)”). 8.3 — `materialy/test_dwa_okna.mjs` na emulatorze (Firestore + Auth, tryb `VITE_EMULATOR=1` w magazynie): okno GM przechodzi rozdziały z pokazem, okno gracza ich nie widzi (25 kroków), zmiana z zewnątrz dochodzi do gracza od razu, a do okna z samouczkiem po rozdziale; baza identyczna, 0 zapisów i logów. Test wykrył MÓJ błąd z 8.1a: przy dodawaniu piaskownicy warunek gotowości w `sklej()` trafił w komentarz → gracz wgrywał dane startowe i tracił synchronizację (naprawione przed wydaniem). Dodatkowo `pokazOsadyNaMapie` nic nie robi przed wczytaniem stanu (propozycje przychodziły wcześniej → wyjątek). Testy: samouczek (11 rozdziałów, 88 podświetleń), budynki, armie, bitwy, traktaty, podgląd OK.
 Zrobione (18): 8.4 — `src/dzwieki.js` (Web Audio, bez plików: klik / zatwierdź / anuluj, szelest szuflad i okien, głos Zgrzyta w 3 wariantach + rechot przy „tak tak”, ograniczenie 40 ms), podpięte: globalny klik przycisków, szuflada, okna, pisanie Zgrzyta; przycisk 🔊 z panelem (interfejs, Zgrzyt, wariant głosu, głośność; localStorage). Strona próbek `materialy/dzwieki.html` (otwiera się z dysku). Testy: samouczek, podgląd, budynki OK; liczba tonów sprawdzona podmienionym AudioContext. Etap 8 zamknięty; 0.5.0 z datą 20-10-2026 — gotowe do wydania.
 Zrobione (19): prośba użytkownika — znaczniki armii, flot i bitew ×2 (ikony 24 → 48 px, ostre), z-index nad osadami, odstępy: armie co 30 px, floty co 44 px, bitwa −44 px. Sprawdzone zrzutem (armia w mieście); testy armie, bitwy, floty, ruch flot, samouczek OK.
+Zrobione (20): podniesiony próg ostrzeżenia o rozmiarze (vite.config). Wywiad etapu 9 (PLAN). 9.1 — `historia/{nr}` przy zamknięciu tury (właściciele, armie, floty, bitwy, wojny, 16 statystyk krain + zasoby), cofnięcie usuwa; magazyn: zapiszHistorie / usunHistorie / czytajHistorie (DEMO: stan.historia); reguły `historia` tylko GM (test emulatora 6/6, `materialy/test_reguly_historia.mjs`); `materialy/test_historia.mjs` OK. UWAGA: nowe reguły do opublikowania.
+Zrobione (21): 9.2 — `src/wykresy.js` (SVG: jedna oś, siatka, podpowiedź po najechaniu), sekcja „Zasoby w czasie” na karcie (gracz: swoja, GM: każda; mały wykres na zasób + tabela). 9.3 — `src/timelapse.js` (płótno 1600×900: teren + kolory właścicieli i granice krajów z historii, armie/floty/bitwy, wykres wybranej miary rosnący płynnie z herbami na końcach linii, ranking z herbami), odtwarzacz w Panelu GM (⏮ ▶ ⏭, suwak, miara w grupach, tempo). 9.4 — eksport: film MediaRecorder (MP4, inaczej WebM; 2,5 Mb/s → 8 tur 3,4 MB), GIF przez `gifenc` (nowa zależność, MIT; 800 px, 6 kl./s → 6,2 MB). 9.5 — kroki Zgrzyta (Zasoby w czasie, Historia gry). Sprawdzone symulacją 8 tur w DEMO (zrzuty klatek, pobrane pliki: GIF 51 klatek, MP4 z nagłówkiem ftyp).
+Zrobione (22): przykładowe filmy timelapsu z symulacji 12 tur: `materialy/podglad_paneli/26_timelapse_prowincje.mp4` i `27_timelapse_zolnierze.mp4` (MP4 h264 1600×900, 16,7 s, 4,7 MB). Użytkownik opublikował reguły (historia).
+Zrobione (23): samouczek — rozdział „Wykresy i historia (pokaz)” w piaskownicy (`zmyslHistorie`: 6 tur na niby, migawki tur i zrzuty z prawdziwego `zrzutHistorii`; wykresy dla wszystkich, timelapse z odtwarzaniem dla GM); sprzątanie zamyka okno timelapsu; poprawka: ujemna tura w odtwarzaczu (znacznik klatki < start). Testy samouczka i historii OK. Użytkownik odsłuchał dźwięki — głos A zostaje.
+Zrobione (24): poprawka użytkownika — krok samouczka o tabeli rozwija ją (details.open).
+Zrobione (25): błąd „po samouczku graczowi zostaje armia i flota (nie w bazie, znika po restarcie)” — odtworzony jako gracz na emulatorze: pokaz dopisywał do tablic wspólnych z danymi z bazy w pamięci (tajne_armie, gra/armie), więc przy pierwszej zmianie z bazy (sklej) pokaz wracał. Poprawka: `wejdzDoPiaskownicy` podmienia stan na kopię, oryginały wracają po wyjściu. Nowy test `materialy/test_samouczek_gracz.mjs` (emulator, przed poprawką wykrywał błąd), test_dwa_okna (z dokumentami armii) i test_samouczek OK. Changelog 0.5.1.
 W toku: nic.
 Do zrobienia: strona https://erlethaden.github.io/Fantasy_RP/ działa (pierwsza budowa Actions OK, 2026-10-20) — użytkownik sprawdza logowanie na telefonie; etap 8 (samouczki).
-Następny krok: użytkownik odsłuchuje `materialy/dzwieki.html` (wariant głosu A/B/C) i wydaje 0.5.0 wg INSTRUKCJA-WYDANIE.md; potem przegląd „Pomysłów na później” w PLAN.md.
+Następny krok: użytkownik ogląda przykładowe filmy i wydaje 0.5.0 wg INSTRUKCJA-WYDANIE.md.
 Problemy / pytania do użytkownika: ocenić styl Zgrzyta (teksty w `src/dane/samouczek.js`, uruchom program → przycisk „Samouczek”); reguły opublikowane; sprawdzić „Szukaj śmieci” (co dokładnie było w prowincjach) i działanie strony na telefonie po pierwszym pushu.
 
 ## 2026-10-20 (cd.) — 7.3 animacje portretów: wywiad + 7.3a
@@ -30,7 +66,7 @@ Zrobione: wywiad (1 partia): duży portret stale, miniatury po najechaniu; w kod
 W toku: nic.
 Do zrobienia: 7.3b oczy wszystkich 37 portretów; 7.7, etap 8.
 Następny krok: 7.3b — dla każdego portretu wyznaczyć oczy (`materialy/twarz_siatka.py`: przybliżenie ×16 z siatką, potem podglad_oczu.mjs do sprawdzenia), świecące oczy (gogle, demony), wiele twarzy (widma, what); arkusz podglądu do akceptacji użytkownika.
-Problemy / pytania do użytkownika: brak.
+Problemy / pytania do użytkownika: czy w grze w chmurze była już wypowiedziana wojna (wtedy zapisy GM nie działały)?
 
 ## 2026-10-20 (cd.) — 7.9e wojna a bloki (etap 7.9 zamknięty)
 Zrobione: podepnijWojny: blok z sojuszem / paktem — wojna między członkami wymaga potwierdzenia (odmowa = brak wojny); napadnięty członek — pytanie „wypowiedzieć wojnę całemu blokowi” (pozostali członkowie, bez już walczących), każda wojna w kronice z dopiskiem „(blok …)”. Test `materialy/test_bloki_wojna.mjs` OK; test_bitwy OK; test_traktaty — poprawiona asercja liczby przycisków warstw (3 od 7.9d; zapomniałem go puścić w 7.9d). Changelog 0.3.3. Etap 7.9 (bloki) zamknięty. Użytkownik wydał 0.3.3 → package.json i package-lock 0.4.0, pusty wpis 0.4.0 w zmiany.js, data 0.3.3 = 20-10-2026.
@@ -51,7 +87,7 @@ Zrobione: (użytkownik: firestore z 7.9b wdrożone) `traktatyBlokow()` — każd
 W toku: nic.
 Do zrobienia: 7.9d mapa bloków, 7.9e wojna z członkiem bloku; 7.3, 7.7, etap 8; wydanie 0.3.3.
 Następny krok: 7.9d — warstwa „Bloki” na mapie: poświata w kolorze bloku wokół ziem członków (przycisk obok Szlaki/Sojusze), klik w blok w szufladzie podświetla tylko jego członków.
-Problemy / pytania do użytkownika: brak.
+Problemy / pytania do użytkownika: czy w grze w chmurze była już wypowiedziana wojna (wtedy zapisy GM nie działały)?
 
 ## 2026-10-20 (cd.) — 7.9b bloki: gracze i głosowanie
 Zrobione: (użytkownik: firestore z 7.9a wdrożone) gracz zakłada blok (jedyny członek, lider, tryb głosowania), zaproszenia (Dołącz / Odrzuć), wyjście; wnioski `b.wnioski` (zapros, wyrzuc, zmiana, tryb, rozwiaz) z głosami za/przeciw — przechodzi większość członków (wykonanie drugim zapisem z `wykonano`), odpada przy połowie przeciw; GM głosuje za NPC; tryb lidera (lider zmienia sam, inni tylko wniosek o powrót do głosowania); rozwiązanie przez graczy = `rozwiazany`. Zapis gracza: `zapiszBlokGracza` (magazyn.js). DEMO: „działaj jako” w szufladzie Bloki. Reguły Firestore: bloki (create / dołącz / odrzuć / wyjdź / wnioski / lider / przegłosowany) + gracz może dopisać wpis kroniki typu „blok” ze swoim krajem. Testy: `test_bloki_gracze.mjs` (DEMO, pełna ścieżka) OK; `test_reguly_bloki.mjs` w emulatorze Firestore (25 sprawdzeń) OK; test_bloki, test_kronika, test_traktaty OK. Podgląd `podglad_paneli/16_bloki_glosowanie.png`. Changelog 0.3.3.
@@ -79,7 +115,7 @@ Zrobione: `trasaPrzeprawy()` (Dijkstra po akwenach od brzegów osiągalnych ląd
 W toku: nic.
 Do zrobienia: 7.8f bitwy morskie; 7.9, 7.3, 7.7, etap 8.
 Następny krok: 7.8f — bitwy morskie: wykrywanie (wrogie floty w akwenie / mijanie przy zamknięciu tury), ekran bitwy z flotami i armiami na pokładzie, skutki wg wywiadu w PLAN.md.
-Problemy / pytania do użytkownika: brak.
+Problemy / pytania do użytkownika: czy w grze w chmurze była już wypowiedziana wojna (wtedy zapisy GM nie działały)?
 
 ## 2026-10-20 — naturalne trasy na mapie
 Zrobione: (użytkownik: firestore wdrożone) trasa floty po wodzie: `drogaWodna` w mapa.js — A* po siatce 4 px obrazu indeksów, akweny trasy tanie, inna woda 4× droższa (poszarpane akweny łączą się czasem przez sąsiada), blisko brzegu drożej, potem prostowanie i wygładzenie (Chaikin); pamięć tras w `drogiFlot` (main.js). Błąd po drodze: koszty w Float32Array → A* odrzucał węzły (zaokrąglenie > 1e-6) — teraz Float64Array. Trasy armii (też proponowane) i szlaki handlowe: `krzywa()` — lekkie stałe wygięcie odcinka + wygładzenie; szlaki łączone w łańcuchy (`lancuchy()`), więc gładkie aż do rozgałęzień. Testy OK: test_ruch_flot, test_trasy, test_traktaty, podglad_szlakow; bez błędów strony. Nowy `materialy/podglad_tras.mjs` → `podglad_paneli/9_trasa_floty.png`, `10_trasa_armii.png`; odświeżony `8_szlaki_handlowe.png`. Changelog. Użytkownik wydał 0.3.2 → package.json (i package-lock) 0.3.3, pusty wpis 0.3.3 w zmiany.js (puste wpisy program pomija).
@@ -107,14 +143,14 @@ Zrobione: mini-wywiad (armie + floty) → PLAN 7.1i i dopisek do 7.8f. 7.1i: `us
 W toku: nic.
 Do zrobienia: 7.8d ruch flot, 7.8e przeprawa, 7.8f bitwy morskie (skutki jak w PLAN, PNG dla użytkownika); 7.9, 7.3, 7.7, etap 8.
 Następny krok: 7.8d — cel floty (klik w akwen), trasa po sąsiedztwie akwenów (jeziora i „rzeka” tylko z `przejscia.zegluga`), ruch 1 akwen przy zamknięciu tury, cofnięcie, propozycja gracza.
-Problemy / pytania do użytkownika: brak.
+Problemy / pytania do użytkownika: czy w grze w chmurze była już wypowiedziana wojna (wtedy zapisy GM nie działały)?
 
 ## 2026-10-19 (noc, cd.) — 7.8c floty + podgląd paneli
 Zrobione: dane floty — pozycje `gra/armie.fl` {id: {f, a: nr akwenu}}, skład w `tajne_armie/{f}.floty` (te same reguły i przełącznik co armie, etykieta „Armie i floty”); ikonka `assets/ikona_floty.py` → `assets/mapa/ikony/flota.png` (okręt, żagiel w kolorach-kluczach); `ikonaKraju(typ, kolor)` wspólne dla armii i flot; `flotyNaMapie()`; sekcja „Floty” (dowódca, bohaterowie — nie naraz w armii i flocie, okręty, „mieści żołnierzy” / `pojemnoscFloty`, Przestaw klikiem w akwen, Rozwiąż — bez automatycznego rozwiązywania: decyzja użytkownika), `akwenStartu`, status „z flotą”. Formularze flot `form.armia[data-fl]`, armii `[data-a]`. Testy: `materialy/test_floty.mjs` OK, test_bitwy OK, build OK. Na prośbę użytkownika (nie mógł wejść do programu) PNG paneli: `materialy/podglad_paneli/` (jednostki, armia, flota, mapa, ekran bitwy w trakcie i po) + skrypt `materialy/podglad_paneli.mjs`. Changelog.
 W toku: nic.
 Do zrobienia: 7.8d ruch flot (cel, trasa, żegluga na jeziora/rzeki, propozycja gracza), 7.8e przeprawa, 7.8f bitwy morskie + PNG ekranu bitwy morskiej dla użytkownika; 7.9, 7.3, 7.7, etap 8.
 Następny krok: 7.8d — cel floty (klik w akwen), trasa po sąsiedztwie akwenów (jeziora i „rzeka” tylko z `przejscia.zegluga`), ruch 1 akwen przy zamknięciu tury, cofnięcie, propozycja gracza.
-Problemy / pytania do użytkownika: brak.
+Problemy / pytania do użytkownika: czy w grze w chmurze była już wypowiedziana wojna (wtedy zapisy GM nie działały)?
 
 ## 2026-10-19 (noc, cd.) — 7.8b okręty
 Zrobione: jednostki `{…, morska?, pojemnosc?}` — w formularzu „okręt” + „mieści żołnierzy” (widoczne tylko przy okręcie, CSS :has), grupa „Okręty” na liście, okręty poza listą oddziałów armii. Poprawka: formularz nazwy akwenu miał klasę `edycja-prowincji` (testy i kod brały morze za prowincję) → `edycja-akwenu`. Test `materialy/test_okrety.mjs` + cały zestaw testów OK, build OK. Changelog.
@@ -122,7 +158,7 @@ W toku: nic.
 Do zrobienia: 7.8c floty, 7.8d ruch, 7.8e przeprawa, 7.8f bitwy morskie; 7.9, 7.3, 7.7, etap 8.
 Następny krok: 7.8c — dane flot (jawne pozycje w gra/armie? osobno gra/floty + tajne_floty jak armie), ikonka pixel art floty, znaczniki, karta floty.
 Akwen A66 (długi pas na środku) podzielony na dwa na prośbę użytkownika: `akweny_podziel` w poprawki.json (punkt 1406,1478) — 120 akwenów, numery od 67 przesunięte (nazw jeszcze nie było).
-Problemy / pytania do użytkownika: brak.
+Problemy / pytania do użytkownika: czy w grze w chmurze była już wypowiedziana wojna (wtedy zapisy GM nie działały)?
 
 ## 2026-10-19 (noc, cd.) — floty: wywiad i 7.8a akweny
 Zrobione: wywiad 7.8 (2 partie) → specyfikacja i kroki 7.8a–f w PLAN (akweny, skład jak armia, pojemność z okrętów albo GM, ruch 1 akwen/turę, przeprawa z wyborem flot i dopłynięciem do załadunku, bitwy jak lądowe z armią na pokładzie, widoczność jak armie). 7.8a: `assets/mapa_akweny.py` (k-średnie + wzrost po wodzie; też morza śródlądowe — „jeziora” z edytora; małe < 12000 px pominięte) → akweny jako indeksy NP+1… w `prowincje.png` + `akweny.json` + `akweny_granice.json`; `mapa_dane.py` kasuje akweny — potem znowu `mapa_akweny.py` (zapisane w nagłówkach). Program: `pokazAkwen` (karta: nazwa — GM, sąsiednie akweny, wybrzeże), nazwy w `gra/prowincje` pole `a` (`zapiszProwincje([["a", id]])`), granice akwenów od przybliżenia 0.5, złote podświetlenie akwenu (`morzeOd`), klik w morze przy celowaniu armii = jak woda. Test `materialy/test_akweny.mjs` OK, build OK. Changelog 0.3.2.
@@ -131,7 +167,7 @@ Do zrobienia: 7.8b jednostki morskie, 7.8c floty, 7.8d ruch, 7.8e przeprawa, 7.8
 Następny krok: 7.8b — znacznik „morska” i pojemność okrętu w jednostkach frakcji (sekcja Jednostki na karcie frakcji).
 Na prośbę użytkownika („zbyt duże”) akweny gęściej: ILE 80 → 120, wyszło 119 (średnio 23 tys. px zamiast 34 tys.); test_akweny OK.
 Jeziora i rzeki (prośba użytkownika): `akweny.json` typ morze / jezioro, sasiedzi [[nr, morze|rzeka]] (rzeki z `materialy/mapa/rzeki_2500.png`, zapisuje go teraz mapa_teren.py — kolejność: dane → osady → teren → akweny); `PRZEJSCIA.zegluga` (ruch flot w 7.8d musi go sprawdzać), legenda „Umiejętności ruchu”. Wyszukiwarka `#szukaj` (datalist) na mapie. Test `materialy/test_szukaj.mjs` OK, build OK. Changelog.
-Problemy / pytania do użytkownika: brak.
+Problemy / pytania do użytkownika: czy w grze w chmurze była już wypowiedziana wojna (wtedy zapisy GM nie działały)?
 
 ## 2026-10-19 (noc, cd.) — obecność graczy (online / ostatnio)
 Zrobione: wydanie 0.3.1 zrobił użytkownik. Mini-wywiad: widzą wszyscy członkowie, kropka przy herbach; użytkownik chciał tylko 2 zapisy (logowanie / wyjście, też Alt+F4) → Firebase Realtime Database z onDisconnect. `magazyn.js`: `zglosObecnosc(uid, frakcja)` (.info/connected → onDisconnect „offline” → set „online”), `sluchajObecnosci`, `wyloguj` zapisuje „offline” przed signOut; bez `databaseURL` w firebase-config — wyłączone (DEMO bez zmian). `main.js`: `oznaczObecnosc()` — klasa `.online` (zielona kropka) i podpowiedź „gracz online” / „ostatnio: …” przy herbach. Reguły `database.rules.json` (czyta zalogowany, pisze tylko swój wpis {f, on, t}) — emulator 8/8 + test rozłączenia OK (`materialy/test_obecnosc*.mjs`). Build OK, test DEMO OK. Changelog 0.3.2.
@@ -149,14 +185,14 @@ Wydanie 0.3.1 (19-10-2026) robi użytkownik. Na jego prośbę: `package.json` �
 Przycisk „Co nowego” przy logowaniu (`#pokaz-zmiany` w index.html, `pokazZmiany()` wydzielone z `coNowego()`; puste wpisy wersji pomijane — też w automatycznym okienku). Build OK, sprawdzone w przeglądarce. Changelog 0.3.2.
 Do zrobienia: 7.8 floty (wywiad), 7.3, 7.9, 7.7, etap 8.
 Następny krok: wywiad 7.8 floty (albo 7.9 bloki sojuszy).
-Problemy / pytania do użytkownika: brak.
+Problemy / pytania do użytkownika: czy w grze w chmurze była już wypowiedziana wojna (wtedy zapisy GM nie działały)?
 
 ## 2026-10-19 (noc, cd.) — 7.6d herby na mapie
 Zrobione: `mapa.js` — warstwa `.mapa-herby` w skalowanej warstwie mapy, `ustawHerby([{x, y, rozmiar, url}])`, przezroczystość w `ustaw()`: pełna do przybliżenia 0.3, zero od 0.5. `main.js` — `herbyNaMapie()` (największe spójne skupisko prowincji frakcji po sąsiedztwie, herb w prowincji najbliższej jego środka, rozmiar 60% krótszego boku skupiska, 260–700 px mapy), wołane z `kolorujMape()` (każda zmiana właściciela). Tylko frakcje graczy (bez krajów NPC). Test `materialy/test_herby.mjs` OK, build OK. Changelog.
 W toku: nic.
 Do zrobienia: 7.8 floty (wywiad), 7.3, 7.9, 7.10, 7.7, etap 8; wydanie 0.3.1 (dużo zmian czeka).
 Następny krok: zaproponować użytkownikowi wydanie 0.3.1, potem 7.10 kraje NPC albo wywiad 7.8 floty.
-Problemy / pytania do użytkownika: brak.
+Problemy / pytania do użytkownika: czy w grze w chmurze była już wypowiedziana wojna (wtedy zapisy GM nie działały)?
 
 ## 2026-10-19 (noc, cd.) — 7.6e poprawki mapy: połączone prowincje
 Zrobione: reguły 7.15 wklejone przez użytkownika. 7.6e-1: przyczyna „63 i 64 połączone” — komórka 312 (63b) obejmowała „WEGA 63” i kawałek pod górami z napisem 57; mapa_dane.py zostawił 63b kawałek z napisem (57), a „WEGA 63” oddał 64b. Przegląd wszystkich 16 rozciętych prowincji + komórek z kilkoma napisami → złe tylko 63b i 50b (płat z „53”). Nowe: `materialy/mapa/poprawki.json` (wielokąty z→na + przypięte litery a/b: 53), `assets/mapa_poprawki.py` (stosuje do komorki_final.png), `mapa_sasiedztwo.py` czyta „litery”, `assets/mapa_kontrola.py` (raport po przegenerowaniu). Przegenerowane: sasiedztwo → dane → osady → teren; id prowincji i kolejność bez zmian, zmienione kształty/osady: 50b, 53a, 54b, 57b, 63b, 64b (+ sąsiedzi kilku); startowy teren: 63b las, 57b równina. Changelog. Build OK, test_teren OK. Sprawdzone na prośbę użytkownika: 1b duża (35 tys. px, ~3× mediana), ale zgodna z rysunkiem — zostaje (decyzja użytkownika).
@@ -180,7 +216,7 @@ Zrobione: lista produkcji budynków/złóż (`zasobyWl` w main.js) bez „Popula
 W toku: nic.
 Do zrobienia: jak w poprzednim wpisie.
 Następny krok: 7.8 floty i bitwy morskie — wywiad.
-Problemy / pytania do użytkownika: brak.
+Problemy / pytania do użytkownika: czy w grze w chmurze była już wypowiedziana wojna (wtedy zapisy GM nie działały)?
 
 ## 2026-10-19 (wieczór) — wersja 0.3.0 (użytkownik zmienił numerację: wydana była 0.2.4): traktaty, szlaki, nowa mapa
 Zrobione: wydanie 0.2.4 (użytkownik; ostatecznie zostało przy 0.2.4), bieżąca wersja 0.3.0 (numer ustawił użytkownik). Wywiad (traktaty wpisuje tylko GM, typy fantasy, pokój kończy wojnę, tajne traktaty, szlak = umowa handlowa lądem albo morzem, opis tekstem, warstwy Szlaki/Sojusze) → PLAN. Użytkownik dopisał do planu 7.7: uproszczony podgląd na telefon przez GitHub Pages. 7.4: kolekcja `traktaty/{id}` (reguła: jawne albo strona; GM — wszystkie, gracz — 2 zapytania), `usunTraktat`, Panel GM „Traktaty” (dodaj, ✂ zerwij, × usuń), karta frakcji „Traktaty”, pokój usuwa wojnę, wojna pyta o zerwanie sojuszu/paktu. 7.5: `liniaTraktatowNaMapie` (szlaki: `wyznaczTrase` z warunkiem „bez gór”, inaczej linia morska; sojusze: kropki w kolorze typu), `mapa.ustawTrasy` z `styl`, przyciski warstw `#warstwy-mapy` (localStorage `frp-warstwy`). Test `materialy/test_traktaty.mjs` — OK.
@@ -227,7 +263,7 @@ Zrobione: użytkownik po „kończymy” poprosił jeszcze o 6.2c (ikonę stolic
 W toku: nic.
 Do zrobienia: 6.2b ikonki miasto/wioska/stolica (kod gotowy, brak grafik — GPU zajęte przez ComfyUI); 6.2d typy granic; mosty; wydanie 0.2.3.
 Następny krok: ikonki — `gen.ps1` miasto/wioska/stolica (stolica = miasto ze złotą koroną albo flagą), sprite 32 px do `assets/mapa/ikony/`, ocena AD, podglad.html.
-Problemy / pytania do użytkownika: brak.
+Problemy / pytania do użytkownika: czy w grze w chmurze była już wypowiedziana wojna (wtedy zapisy GM nie działały)?
 
 ## 2026-10-19 — 6.2b ikonki (przerwane)
 Zrobione: kod pod ikonki osad gotowy — `main.js` wczytuje `assets/mapa/ikony/{miasto,wioska,stolica}.png` (import.meta.glob, bez `_1024`), `mapa.js` wstawia <img> zamiast znacznika CSS, gdy plik jest (rozmiary w style.css: 24/18/28 px). Bez plików mapa działa jak dotąd. Build OK.
@@ -243,14 +279,14 @@ W toku: nic.
 Do zrobienia: 6.2b ikonki, 6.2c dodaj/usuń osady + stolica, 6.2d typy granic, mosty; wydanie 0.2.2 (najpierw reguły).
 Changelog (prośba użytkownika: przy kilku wersjach naraz pełna lista): łączenie wersji od ostatnio widzianej już działało; dopisane — bez zapamiętanej wersji (aktualizacja ze starej wersji, wyczyszczone dane) okno pokazuje całą historię zamiast samej bieżącej; nagłówek „zmiany od wersji X do Y”. Sprawdzone filtrem: 0.2.1→[0.2.2], 0.2.0→[0.2.2, 0.2.1], brak→wszystkie. Użytkownik wydał już 0.2.2 (instalator 01:04 — zawiera nazwy osad, nie zawiera tej zmiany) → wpis przeniesiony do nowej sekcji 0.2.3 (data tbd; package.json 0.2.2).
 Następny krok: 6.2b ikonki (miasto, wioska, stolica).
-Problemy / pytania do użytkownika: brak.
+Problemy / pytania do użytkownika: czy w grze w chmurze była już wypowiedziana wojna (wtedy zapisy GM nie działały)?
 
 ## 2026-10-19 — góry, granice, osady bez nazw
 Zrobione: użytkownik: 63a i 17a „wyglądają chujowo”, przerywane granice często w środku jednej prowincji, „wywal nazwy”. (1) Góry: prostokątne domknięcia (pionowe/poziome) zastąpione wypełnieniem wnętrz szczytów „Λ” (punkt z kreską gór nad sobą, z lewej i z prawej w ≤45 px w 1/8) + domknięcie okrągłym pędzlem R=10 → szczyty w całości białe, bez prostokątnych cięć. (2) Granice: `mapa_dane.py` liczy kontury prowincji (wygładzona maska 1/4, tylko styk dwóch prowincji) → `assets/mapa/granice.json` (~1300 linii, 190 KB); `mapa_obraz.py` usuwa z rysunku i kafli wszystkie kreski poza długimi liniami (z dala od gór i rzek; 1,35 mln px); `mapa.js` rysuje granice przerywaną kreską w płótnie ekranu (stała grubość, przy oddaleniu cieńsza). (3) Generator nazw usunięty (`src/dane/nazwy.js`), osady bez nazw („bez nazwy” na karcie; podpis na mapie tylko, gdy nazwa jest). Zrzuty 17a, 61b, cała mapa obejrzane; testy prowincje/osady/npc/układ OK. Changelog 0.2.2 uzupełniony.
 W toku: nic.
 Do zrobienia: 6.2b ikonki (miasto, wioska, stolica), 6.2c dodaj/usuń osady + nazwy (GM, gracz-właściciel) + stolica, 6.2d typy granic, mosty; wydanie 0.2.2.
 Następny krok: pokazać użytkownikowi mapę (63a/17a/granice); jeśli OK — 6.2b ikonki.
-Problemy / pytania do użytkownika: brak.
+Problemy / pytania do użytkownika: czy w grze w chmurze była już wypowiedziana wojna (wtedy zapisy GM nie działały)?
 
 ## 2026-10-18 noc — góry = ziemia niczyja
 Zrobione: użytkownik: prowincje z górami „wyciągają się w cholerę” (np. 63b) → góry mają być ziemią niczyją bez koloru. `assets/mapa_dane.py`: pasmo = `gory_final.png` + kreski zboczy połączone z maską (≤30 px od niej, żeby nie łapać wybrzeża) → domknięcie pionowe 61 i poziome 25 (1/4) + 9×9 + wypełnienie dziur < 15000 px (duża dziura = dolina otoczona górami, zostaje lądem); piksele pasma w obrazie prowincji = 0. Prowincja przecięta pasmem: zostaje część najbliższa jej napisowi z rysunku (nowy `materialy/mapa/napisy.json` — środki 603 skupisk napisów z odczytu numerów), odcięte kawałki → sąsiad z najdłuższą granicą, jeśli graniczą głównie z lądem (<50% z pasmem), inaczej ziemia niczyja. Środek prowincji (x, y) = miasto (`mapa_osady.py`), osady przeliczone (0 poza prowincją). Podglądy obejrzane (63b, środkowy kontynent, cała mapa). Testy prowincje/osady/npc OK. Sąsiedztwo (`sasiedztwo.json`) bez zmian. Changelog 0.2.2.
@@ -258,14 +294,14 @@ Uwaga: ślepe próby (domknięcie konturów, większy promień) nie łapały dol
 W toku: nic.
 Do zrobienia: 6.2b ikonki, 6.2c edycja osad + stolica, 6.2d granice, mosty; wydanie 0.2.2.
 Następny krok: 6.2b ikonki (miasto, wioska, stolica).
-Problemy / pytania do użytkownika: brak.
+Problemy / pytania do użytkownika: czy w grze w chmurze była już wypowiedziana wojna (wtedy zapisy GM nie działały)?
 
 ## 2026-10-18 noc — 6.2 wywiad + 6.2a osady
 Zrobione: wywiad 6.2 (ustalenia w PLAN: osady automatycznie, GM dodaje/usuwa bez przeciągania, właściciel = prowincji, ikonki pixel art, nazwy z członów w stylu kultury, stałe od pierwszego właściciela) + prośba: oznaczenie stolicy frakcji (dopisane do 6.2b/6.2c). `assets/mapa_osady.py`: miasto = punkt najdalej od granic (z dala od gór/rzek, gdy jest miejsce), 2 wioski daleko od miasta i siebie; wszystkie 2790 osad w swoich prowincjach (sprawdzone) i obejrzane na zbliżeniach. `src/dane/nazwy.js`: 8 kultur (dawi, draenei, gobliny, kreeganie, koszmar, orkowie, nieumarli, neutralne), człony + wzory, deterministyczne z ziarna, pilnowanie powtórek; frakcja → kultura w `KULTURY`, kraj NPC = kultura zwierzchnika. `main.js`: osady zapisywane w `stan.prowincje[id].osady` przy pierwszym przypisaniu właściciela; bez właściciela — domyślne z nazwami neutralnymi (niezapisane); lista osad na karcie. `mapa.js`: warstwa `.mapa-osady` (nieskalowana, tylko widoczne), znaczniki tymczasowe; poprawka: znacznik miał szerokość mapy, ikonka była przesunięta o pół ekranu — teraz width:0. Test `test_osady.mjs` (DEMO): 7 sprawdzeń OK, zrzut obejrzany. Changelog: wpis 0.2.2 (data tbd; package.json dalej 0.2.1).
 W toku: nic.
 Do zrobienia: 6.2b ikonki (miasto, wioska, stolica), 6.2c GM dodaj/usuń/zmień nazwę/wylosuj + stolica, 6.2d typy granic, 6.2b mosty.
 Następny krok: 6.2b — wygenerować 3 ikonki pixel art (ok. 24–32 px) i podpiąć zamiast znaczników.
-Problemy / pytania do użytkownika: brak.
+Problemy / pytania do użytkownika: czy w grze w chmurze była już wypowiedziana wojna (wtedy zapisy GM nie działały)?
 
 ## 2026-10-18 noc — 0.2.1: prowincja = jeden obszar
 Zrobione: użytkownik po wydaniu 0.2.0: Gobjack, prowincje i Czarownik sprawdzone w grze; ale każda prowincja to JEDEN obszar, nie dwa („do poprawy na już”). `mapa_sasiedztwo.py`: numer z dwoma obszarami → „<n>a”/„<n>b” (a = wyżej, przy remisie z lewej); bliźniacze wyspy i D… bez zmian. Przeliczone `sasiedztwo.json` + `assets/mapa/prowincje.png/json`: 930 prowincji, 2246 granic (161 góry, 124 rzeka, 1961 zwykłe). Migracja w `main.js` (`przeniesStareProwincje`): GM przy wejściu przenosi wpisy „<n>” z 0.2.0 na „<n>a” i „<n>b” (kopia danych), zapis po polach. PLAN: specyfikacja mapy i 6.5 złoża (jedno złoże na prowincję) poprawione. `package.json` → 0.2.1, changelog 0.2.1. Testy DEMO: `test_npc.mjs` (z migracją „12” → 12a/12b) i `test_prowincje.mjs` — OK.
@@ -273,7 +309,7 @@ Uwaga: 24 granice mają 40–49% długości przy górach i zostały „zwykłe�
 W toku: nic.
 Do zrobienia: wydanie 0.2.1 (użytkownik); 6.2 osady, typy granic (ręczna poprawka), mosty.
 Następny krok: po wydaniu 0.2.1 — GM wchodzi do gry (migracja przypisań), potem 6.2.
-Problemy / pytania do użytkownika: brak.
+Problemy / pytania do użytkownika: czy w grze w chmurze była już wypowiedziana wojna (wtedy zapisy GM nie działały)?
 
 ## 2026-10-18 noc — 6.3 właściciele prowincji i kraje NPC
 Zrobione: wywiad (właściciel ustawia GM w programie; kolor frakcji półprzezroczysty; wszystko jawne). Wasale najpierw jako status przy prowincji (paski) — użytkownik w trakcie zmienił: wasal/marionetka = osobny kraj NPC z nazwą, w innym odcieniu koloru zwierzchnika; paski usunięte. `magazyn.js`: dokument `gra/prowincje` {p, npc} (subskrypcja, DEMO, start, kopia zapasowa — starsze kopie bez prowincji ich nie kasują). `mapa.js`: warstwa `.mapa-kolory` (cały obraz indeksów przez tablicę kolorów). `main.js`: karta prowincji z wyborem właściciela (frakcje + kraje NPC), nazwą i opisem (GM), gracz widzi właściciela/opis; sąsiedzi z właścicielem; Panel GM → „Kraje NPC” (dodaj, nazwa, rodzaj, zwierzchnik, opis, próbka koloru, liczba prowincji, usuń → prowincje niczyje); logi: „Prowincje”. Test `test_npc.mjs` (DEMO): 9 sprawdzeń OK, zrzuty obejrzane. Changelog 0.2.0 uzupełniony.
@@ -284,7 +320,7 @@ Dopisane do PLAN (użytkownik): 6.5 złoża — osobno od produkcji, jedno zło�
 Wydanie 0.2.0: budowanie instalatora padało na EPERM przy zmianie nazwy `release/win-unpacked.tmp` → `win-unpacked` (powtarzalnie; żaden proces nie trzymał folderu — prawdopodobnie skanowanie świeżo rozpakowanego Electrona). Poprawka: `"electronDist": "node_modules/electron/dist"` w `package.json` (build) — electron-builder kopiuje lokalny Electron 44.8.0 zamiast rozpakowywać zip. Instalator `release/Fantasy-RP-Setup-0.2.0.exe` (+ blockmap, latest.yml) zbudowany; w app.asar 432 kafle mapy, prowincje.png, portret gobjack. Uwaga: przy aktualizacji Electrona electronDist bierze wersję z node_modules — po `npm i electron@…` nic więcej nie trzeba.
 Użytkownik: wydanie 0.2.0 poszło (opublikowane).
 Następny krok: po wydaniu sprawdzić na prawdziwej bazie: Gobjack po zalogowaniu GM, przypisanie prowincji i kraju NPC widoczne u drugiej osoby; potem 6.2 osady i mosty.
-Problemy / pytania do użytkownika: brak.
+Problemy / pytania do użytkownika: czy w grze w chmurze była już wypowiedziana wojna (wtedy zapisy GM nie działały)?
 
 ## 2026-10-18 noc — Kapitan Gobjack + dodawanie bohaterów
 Zrobione: nowy bohater Goblandii od użytkownika — Kapitan Gobjack (najlepszy kapitan, wygląda jak pirat, uciekł przed krakenem ze statkiem towaru): dane startowe (`bohaterowie.js`), karta w `postacie/goblandia.md` (mój projekt wyglądu: zielony goblin, opaska na oku, trójgraniasty kapelusz, czerwony płaszcz, luneta, złoty ząb, macka w tle), portret `portrety/gobjack.png` + `_1024` — 3 oceny AD (7, 7, 8/10 AKCEPTUJ), status „nowy” na `assets/podglad.html`. Notatki o promptach w STYLE.md (opaska, luneta, bordowy płaszcz).
@@ -293,14 +329,14 @@ Zmiana decyzji (użytkownik: „wywal dodawanie bohaterów w ten sposób, po pro
 W toku: nic.
 Do zrobienia: po wydaniu 0.2.0 sprawdzić, czy Gobjack pojawił się w grze po zalogowaniu GM; opis Czarownika w grze trzeba wkleić ręcznie (istniejącego bohatera migracja nie zmienia); 6.3 właściciele i kolory.
 Następny krok: 6.3 — pytania o właścicieli prowincji (kto przypisuje, co widzi gracz, wasale/ziemia niczyja).
-Problemy / pytania do użytkownika: brak.
+Problemy / pytania do użytkownika: czy w grze w chmurze była już wypowiedziana wojna (wtedy zapisy GM nie działały)?
 
 ## 2026-10-18 noc — opis czarownika IRS
 Zrobione: użytkownik dał opis „Czarownika z krainy IRS” → Magister Aurelius „Podatek” Vex. Wpisany do danych startowych (`src/dane/bohaterowie.js`: imię, tytuł, funkcja, broń, opis — poprawione tylko literówki, treść jak u gracza); id zostawione po dawnym imieniu (`czarny-smok-czarownik-z-krainy-irs`), bo pod nim bohater jest w bazie gry. Portret szukany teraz także po słowach z id (po zmianie imienia nadal `czarownik.png`). Karta postaci uzupełniona. Build OK.
 Ważne: dane startowe NIE zmieniają gry w chmurze — w działającej grze GM/admin wkleja opis przez „✎ Edytuj” w oknie bohatera (portret zostanie dzięki id).
 Do zrobienia: ewentualnie nowy portret z elementami z opisu (płaszcz z pieczęciami, kryształ-ostrze, widma w kajdanach) — tylko jeśli użytkownik chce; dalej 6.3.
 Następny krok: 6.3 właściciele i kolory (najpierw pytania).
-Problemy / pytania do użytkownika: brak.
+Problemy / pytania do użytkownika: czy w grze w chmurze była już wypowiedziana wojna (wtedy zapisy GM nie działały)?
 
 ## 2026-10-18 noc — 6.1a prowincje na mapie
 Zrobione: `assets/mapa_dane.py` → `assets/mapa/prowincje.png` (indeks prowincji w kolorze, 1/8 oryginału) + `prowincje.json` (90 KB: id, środek, ramka, sąsiedzi z typem). `src/mapa.js`: rysunek + canvas nakładki w jednej warstwie (multiply z pergaminem), indeks pod kursorem z obrazu indeksów, podświetlenie pod kursorem, wybrana z ciemnym obrysem, przerysowanie tylko w ramce zmienionych prowincji; `pokaz`/`doWidoku` — wybrana prowincja nie chowa się pod szufladą. `main.js`: `pokazProwincje` (widok „p:<indeks>”) — karta z id i sąsiadami (zwykła/góry/rzeka, klik w sąsiada), klik w wodę zamyka szufladę; karta frakcji i Panel GM czyszczą zaznaczenie. Changelog 0.2.0 uzupełniony. Testy (scratchpad: `test_prowincje.mjs` 8 sprawdzeń, `test_uklad.mjs` 21) — OK; zrzuty obejrzane (pierwsze podświetlenie było za blade przy multiply — przyciemnione).
@@ -308,7 +344,7 @@ W toku: nic.
 6.1b (ta sama sesja): kafle rysunku (bez numerów) w 2 poziomach w `public/mapa/kafle/` — tylko kafle z tuszem (336 + 96, 16 odcieni szarości, ok. 6 MB), spis w `assets/mapa/kafle.json`. `mapa.js`: poziom wg przybliżenia × devicePixelRatio (>1.1 → połowa, >2.2 → pełna), w DOM tylko widoczne, nowe pokazują się po wczytaniu. Test `test_kafle.mjs`: oddalona 0 kafli, ×4 → 4 kafle pełnej rozdz., po oddaleniu usunięte, brak 404, bez błędów JS; zrzut przy ×4 ostry. Uwaga: podświetlenie prowincji przy ×4 ma schodkowy brzeg (maska 1/8) — do poprawy, jeśli przeszkadza.
 Do zrobienia: 6.2 edytor prowincji w grze (nazwa, osady, typy granic, mosty 6.2b); 6.3 właściciele i kolory (najpierw 2–3 pytania); wydanie 0.2.0 po etapie 6.
 Następny krok: 6.3 właściciele i kolory — najpierw 2–3 pytania (kto przypisuje prowincje, co widzi gracz, wasale/ziemia niczyja), albo 6.2 edytor prowincji w grze, jeśli użytkownik woli.
-Problemy / pytania do użytkownika: brak.
+Problemy / pytania do użytkownika: czy w grze w chmurze była już wypowiedziana wojna (wtedy zapisy GM nie działały)?
 
 ## 2026-10-18 noc — 6.0 przebudowa układu
 Zrobione: krótki wywiad (ustalenia w PLAN 6.0: szuflada z prawej zwęża mapę jak w WorldWatch, chowa się; rząd herbów; pod paskiem od razu rysunek — moja decyzja). Pasek: tytuł, herby frakcji (podpowiedź z nazwą, własne państwo w ramce, klik drugi raz zamyka), konto. Mapa (`src/mapa.js`): rysunek na pergaminie (multiply), przeciąganie, kółko, klawiatura (strzałki, +/-, 0), nie ucieka poza ekran. Szuflada: karta frakcji i Panel GM jak dotąd (ten sam `#glowny`), ✕ / Esc (najpierw zamyka otwarte okno) / klik w mapę; na telefonie na cały ekran. Start: sama mapa (zapamiętana frakcja w localStorage już nieużywana). Numery z rysunku usunięte z obrazu w programie (`assets/mapa_obraz.py` → `assets/mapa/mapa.png`, 859 skupisk; zostało kilka drobnych, np. „156”, „116”). Changelog 0.2.0 uzupełniony. Test w Edge headless (DEMO przez podmianę firebase-config): 18 sprawdzeń OK, zrzuty desktop/telefon obejrzane. Build OK.
@@ -345,7 +381,7 @@ Changelog: użytkownik prosi opisywać każdą zmianę w `src/dane/zmiany.js` (z
 W toku: nic.
 Do zrobienia: użytkownik w `edytor-mapy.bat`: scala resztę skrawków i zlane komórki, wpisuje numery, poprawia góry pędzlem i jeziora, na koniec „Zapisz mapę”; potem 6.0b (wielokąty + sąsiedztwo z typem granicy góry/rzeka); wydanie 0.2.0 (package.json → 0.2.0, data w zmiany.js).
 Następny krok: gdy użytkownik zapisze mapę w edytorze — 6.0b: z `komorki_final.png`, `gory_final.png`, `prowincje.json` policzyć sąsiedztwo prowincji i oznaczyć granice „góry” (próg udziału granicy przy górach dobrać na zbliżeniach). NIE uruchamiać już `mapa_komorki.py` (unieważnia edycje).
-Problemy / pytania do użytkownika: brak.
+Problemy / pytania do użytkownika: czy w grze w chmurze była już wypowiedziana wojna (wtedy zapisy GM nie działały)?
 
 ## 2026-10-18 — mapa: nowa metoda wykrywania komórek
 Zrobione: użytkownik: komórki źle wykryte (dzieli jedną na kilka albo łączy kilka). Przyczyna: na rysunku każdy bok komórki to jedna kreska pośrodku, a narożniki są puste — sam wododział zgadywał narożniki. Nowy `assets/mapa_komorki.py` (skala 1/2): składowe kresek → kreska granicy (prosta, 2 końce, nie tuż przy cyfrach) / linia (>1000 px: wybrzeże, rzeki) / reszta (cyfry, napisy — pomijane); góry = fragmenty linii z dużą gęstością zakończeń i rozwidleń (pomijane, rzeki zostają); końce wskazujące na siebie łączone wprost, reszta przedłużana do trafienia (bez trafienia — usuwane); potem wododział na odległości od tej siatki (H=12), ocean od wszystkich kresek. Cała mapa 1142 obszary, ok. 4 min (pamięć kilka GB). Porównanie stara/nowa: `materialy/mapa/porownanie.png` — nowa wyraźnie mniej tnie, ale część komórek dalej zlana (np. 2/4/3/6 przy górach na zachodzie), część pocięta. Usunięty stary `komorki_4.png`. W skali 1/4 jakość gorsza (kreski za cienkie na kierunek końców).
@@ -357,7 +393,7 @@ Ostatnie przeliczenie całej mapy (ok. 5 min): 1045 komórek, 10 jezior, 120 kom
 W toku: nic (ostatni test edytora w przeglądarce na NOWYCH danych nie był już puszczony — poprzedni, na danych sprzed zmiany rzek, przeszedł w całości).
 Do zrobienia: użytkownik otwiera `edytor-mapy.bat` i poprawia komórki (scal/podziel), wpisuje numery prowincji, sprawdza jeziora (Woda), na koniec „Zapisz mapę”; potem 6.0b (wielokąty + sąsiedztwo z typem granicy: zwykła/góry/rzeka, z `warstwy_2.png`), 6.0 układ, 6.1 kafelki; mosty — tylko ręcznie w grze (6.2b); wydanie 0.1.5.
 Następny krok: krótki test edytora na nowych danych (skrypt CDP jak w tej sesji: numer, scal, podziel, woda, cofnij, zapis), a potem poprosić użytkownika o uruchomienie `edytor-mapy.bat` — UWAGA: każde ponowne uruchomienie `mapa_komorki.py` unieważnia edycje (inne id komórek).
-Problemy / pytania do użytkownika: brak.
+Problemy / pytania do użytkownika: czy w grze w chmurze była już wypowiedziana wojna (wtedy zapisy GM nie działały)?
 
 ## 2026-10-18 — mapa: wykrywanie komórek wododziałem (próba 2 — działa)
 Zrobione: `assets/mapa_komorki.py` — kreski (L<128) → skala 1/4 → odległość od kresek (rozmyta σ2) → ocean = obszary >60 px od kresek połączone z brzegiem (osobny znacznik, bo wybrzeże też jest przerywane) → znaczniki komórek = h-maksima (H=6) → watershed. Wynik `materialy/mapa/komorki_4.png` (uint16, 0 = ocean) + `podglad.png`: 1649 obszarów (po poprawce 1631), ok. 1 min. Na zbliżeniu prawie każdy numer = jeden obszar; jeziora i podwójne rzeki wychodzą jako własne obszary; za drobno w górach i czasem przy cyfrach. Porównane H=3 (336 na wycinku, za drobno), 6 (241, najlepiej), 10 (168, zlewa sąsiednie).
@@ -365,14 +401,14 @@ Poprawka po uwadze użytkownika: wąskie morze na środku mapy (cieśnina międz
 W toku: nic
 Do zrobienia: 6.0b — oznaczyć wodę (jeziora: duże obszary bez cyfr; rzeki: wąskie długie pasy), zamienić komórki na wielokąty (JSON, uproszczone) i wyliczyć sąsiedztwo z typem granicy; potem 6.0 przebudowa układu, 6.1 kafelki mapy, edytor (scalanie komórek, numery, mosty); numery — ręcznie w edytorze (odczyt pisma ręcznego niepewny); wydanie 0.1.5.
 Następny krok: 6.0b — w skrypcie policzyć dla każdego obszaru pole i „grubość” (maks. odległość od kresek); jeziora = pole > ~5× mediany, rzeki = grubość < ~8 px i wydłużone; zrobić podgląd z wodą na niebiesko i pokazać użytkownikowi.
-Problemy / pytania do użytkownika: brak.
+Problemy / pytania do użytkownika: czy w grze w chmurze była już wypowiedziana wojna (wtedy zapisy GM nie działały)?
 
 ## 2026-10-18 — 5.4 changelog „Co nowego”
 Zrobione: `src/dane/zmiany.js` z wpisem 0.1.2; okno „Co nowego” (`<dialog id="zmiany">`, styl `.zmiany`) pokazuje się raz po pierwszym uruchomieniu nowej wersji — wszystkie wpisy nowsze od zapamiętanej wersji (localStorage „wersja”), a bez zapamiętanej (nowa instalacja / 0.1.1) tylko bieżącą; nakładka aktualizacji zamyka je. `package.json` → 0.1.2. Instrukcja wydania: krok 1b. Build OK, zrzut ekranu w Edge headless — okno wyświetla się poprawnie.
 W toku: nic
 Do zrobienia: wydanie 0.1.2 przez użytkownika (z nakładką aktualizacji i „Co nowego”); mapa — próba 2 wododziałem; 6.0 przebudowa układu.
 Następny krok: mapa — wododział na wycinku w skali 1/4 (przepis w poprzednich wpisach), chyba że użytkownik najpierw wyda 0.1.2.
-Problemy / pytania do użytkownika: brak.
+Problemy / pytania do użytkownika: czy w grze w chmurze była już wypowiedziana wojna (wtedy zapisy GM nie działały)?
 
 ## 2026-10-18 — plan (samouczki, changelog) + przeróbka portretów na pixel art (2.8)
 Zrobione: do PLAN dopisany Etap 8 (samouczki ze Zgrzytem dla graczy i GM; 8.0: najpierw poprosić użytkownika o jego grafikę Zgrzyta) i krok 5.4 (changelog „Co nowego” po aktualizacji, po 2.8, przed mapą). Przegląd 36 portretów: 7 wyraźnie malarskich przerobionych (źródło 96 px → Klein „clean up”, poprawki Kleinem-edytorem jedną zmianą naraz); stare w `_kopie/2026-10-18_portrety-2.8/`. Art-director: vaelgor 8, gobloni 8, linnr 7, karevra 7, shire 7; morthalass 5, razhka 6 (limit ocen prawie wyczerpany). Do STYLE.md dopisane wzorce stylu (drogath, tarael) i cechy obowiązkowe pixel artu — art-director wcześniej porównywał z błędnymi „zaakceptowanymi”. Propozycja `propozycje/2026-10-18_art-director-wzorce.md` czeka na zgodę. Lekcje: AD (potw. 2), filtry po generowaniu nie robią pixel artu.
@@ -381,7 +417,7 @@ Użytkownik zaakceptował wszystkie 7 nowych portretów („nowe są ok, zostaw�
 Do zrobienia: 5.4 changelog „Co nowego”; dalej mapa (wododział); 6.0 przebudowa układu; wydanie 0.1.2.
 Następny krok: zrobić 5.4 — plik z listą zmian w programie + okienko po pierwszym uruchomieniu nowej wersji (ostatnio widziana wersja w localStorage) + akapit w INSTRUKCJA-WYDANIE.md.
 Propozycja `art-director-wzorce` zatwierdzona i wprowadzona (wpis w E:/ClaudeAI/ZMIANY.md).
-Problemy / pytania do użytkownika: brak.
+Problemy / pytania do użytkownika: czy w grze w chmurze była już wypowiedziana wojna (wtedy zapisy GM nie działały)?
 
 ## 2026-10-18 — mapa: analiza i pierwsza próba wykrycia prowincji
 Zrobione: użytkownik wgrał mapę `materialy/Mapa RPG.png` (20000×20000 RGBA, rysunek kreskowy, tylko PNG bez warstw; PIL wymaga `Image.MAX_IMAGE_PIXELS=None`). Ustalenia (w PLAN → Specyfikacja → Mapa): każda prowincja = DWA obszary z tym samym ręcznie pisanym numerem; dolne kontynenty (lewy i prawy) bez numerów — tam każda komórka = osobna prowincja; granice komórek przerywane; góry i rzeki (z mostami) narysowane; podpisy graczy = prowincje startowe. Na mapie są też rzeki (z mostami), jeziora, morza i oceany — woda to nie prowincje lądowe; jeziora/morza/oceany przydadzą się flotom (dopisane do PLAN). Mosty: GM/admin stawia je w edytorze mapy, a wyznaczanie trasy armii je uwzględnia (PLAN 6.2b, 7.1b).
@@ -390,7 +426,7 @@ Zainstalowano `scikit-image` 0.25.2 (pip --user) do metody wododziału.
 W toku: nic (sesja przerwana na prośbę użytkownika przed próbą 2).
 Do zrobienia: przegląd portretów — kilka chyba nie jest w pixel arcie (PLAN 2.8); próba 2 — wododział (watershed) na transformacie odległości od kresek: komórki mają szeroki środek, przerwy między kreskami to wąskie przesmyki, więc podział powinien wypaść w przerwach; potem dopasowanie numerów (pozycje napisów + odczyt) i edytor poprawek w aplikacji (6.2); 6.0 przebudowa układu; 6.1 kafelki mapy (20000² za duże na jeden obraz); wydanie 0.1.2 z nakładką aktualizacji; decyzja o `materialy/` w publicznym repo; szkice w `assets/_drafts/` do ręcznego usunięcia.
 Następny krok: najpierw (prośba użytkownika): przegląd portretów bohaterów pod kątem pixel artu (PLAN 2.8). Potem: na tym samym wycinku (skala 1/4) zrobić wododział: `scipy.ndimage.distance_transform_edt(~linie)` → `skimage.segmentation.watershed(-odległość, markery z h-maksimów odległości, mask=ląd)`, pokolorować obszary i sprawdzić, czy komórki wychodzą osobno; jeśli tak — policzyć dla całej mapy.
-Problemy / pytania do użytkownika: brak.
+Problemy / pytania do użytkownika: czy w grze w chmurze była już wypowiedziana wojna (wtedy zapisy GM nie działały)?
 
 ## 2026-10-18 — zasady armii od GM
 Zrobione: użytkownik potwierdził, że aktualizacja działa (etap 5 zamknięty). Zasady armii od GM wpisane do PLAN (Specyfikacja + kroki 6.2, 7.1, 7.1b, 7.1c): dowódca obowiązkowy (bohater albo pospolity), 1 ruch na turę (sąsiednia prowincja „w polu” albo między osadami), rozwiązanie poniżej 100 żołnierzy bez dowódcy, góry i rzeki bez mostu tylko z umiejętnością frakcji.
@@ -499,7 +535,7 @@ Do zrobienia: uwagi użytkownika do animacji na żywo; ewentualnie nowy GIF/MP4 
 Następny krok: zbierz uwagi do `assets/menu.html`; bez uwag zacznij 1.1 — projekt Vite + Electron.
 Dograne: nowy podgląd dla graczy z menu E i animacji v2 — `assets/sala_tronow/sala_tronow_podglad.gif` (480×270, 10 kl./s, 28 s, 9,6 MB — mniejszy niż poprzednio, bo dryf kamery/mgła zmieniają cały obraz i 640×360 miało 16 MB) i `.mp4` (1280×720, 6,4 MB). Nagrywanie: Chrome headless przez DevTools Protocol, `menu.html?nagranie`, 7 scen × 4 s, 15 kl./s, potem ffmpeg (palettegen diff, bez ditheringu).
 Poprawka GIF-a (użytkownik ma Nitro, limit 50 MB, 480×270 „syfiaste”): GIF 960×540, 12 kl./s, 28 s, 47 MB — każda scena ma własną paletę 256 kolorów (osobne GIF-y z ffmpeg sklejone skryptem, paleta globalna → lokalna), więc nie ma schodków na gradientach; MP4 1920×1080, 14 MB. Skrypty w `assets/narzedzia_nagrania/`: `node nagraj.mjs "file:///…/assets/menu.html?nagranie" <folder_klatek>` (420 PNG), potem dla każdej sceny s: `ffmpeg -framerate 15 -start_number s*60 -i k%04d.png -frames:v 48 -lavfi "fps=12,scale=960:540:flags=lanczos,split[a][b];[a]palettegen=stats_mode=diff[p];[b][p]paletteuse=dither=none:diff_mode=rectangle" segS.gif`, na koniec `python sklej.py wynik.gif seg?.gif`.
-Problemy / pytania do użytkownika: brak.
+Problemy / pytania do użytkownika: czy w grze w chmurze była już wypowiedziana wojna (wtedy zapisy GM nie działały)?
 
 ## 2026-10-16 (7) — wariant menu E (C+D) i animacje v2
 Zrobione: w `assets/menu-warianty.html` nowy wariant E = C+D (domyślny, klawisz E): duży tytuł i panel bez ramki z D, pasek miniatur władców z C (prawy dół, podpis nad nim), przejście z błyskiem; mocniejsze przyciemnienie z lewej (czytelność na jasnej scenie Seranyi). `animacje.js` v2: nowe mruganie (górna powieka łukiem + dolna, linia rzęs, kolor powieki z próbki skóry wokół każdego oka, szybkie zamknięcie/wolniejsze otwarcie, czasem podwójne), poprawione współrzędne oczu (lewe oko Taraela było przesunięte o 20 px, oczy Elmona i Shire'a z centroidów czerwieni), świecenie oczu gaśnie przy mrugnięciu; osobna warstwa głowy (rozglądanie, skinienie przy geście), oddech z rozszerzaniem piersi, dryf kamery bez odsłaniania brzegów, mgła przy podłodze (2 warstwy), smugi światła (Seranya, Shire), dym (Shire, fioletowy u Taraela), duże rozmyte drobiny przed kamerą, drganie światła pochodni, mocniej falujące sztandary, bogatsze płomienie. Sprawdzone zrzutami z Chrome headless (klatki mrugnięć wszystkich władców i pełne ekrany).

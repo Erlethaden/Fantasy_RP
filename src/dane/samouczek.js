@@ -5,7 +5,7 @@
 // a = akcje z main.js: zamknij, frakcja(id?), mojaFrakcja(), pokazMojaProwincje(), akwen(), pelnaMapa(), warstwa(nazwa, wł.), kronika(), bloki(), gm(),
 //   bohater() (okno władcy), sekcja(tytuł) / element(selektor) — w otwartym oknie albo na karcie, przekrec(nazwa), znacznik(nazwa) — znak na mapie,
 //   pokazy (tylko w rozdziale z piaskownicą): pokazJednostki, pokazArmie, pokazCel, pokazTure, pokazFlote, pokazWroga, pokazStarcie, pokazEkranBitwy,
-//   pokazTraktaty, pokazBlok; wrog() / traktat(id) — nazwy krain z pokazu; panelGM()
+//   pokazTraktaty, pokazBlok, pokazWykresy, pokazTimelapse; pokazOpowiesc (okno opowieści na niby — bez piaskownicy, nic nie zmienia); wrog() / traktat(id) — nazwy krain z pokazu; panelGM()
 // Krok z celem, którego nie ma (np. kraina bez floty), jest pomijany.
 const psy = a => a.element('form.armia[data-a="zgrzyt-a1"]')?.closest("li") || a.sekcja("Zgrzytowe Psy");   // GM: formularz, gracz: nagłówek
 const kraina = a => a.przekrec(a.mojaFrakcja()?.nazwa || "twoja kraina");
@@ -26,12 +26,14 @@ export const ROZDZIALY = [
   { id: "kraina", tytul: "Twoja kraina", kroki: [
     { cel: a => a.element(".naglowek"), akcja: a => a.frakcja(), tekst: a => `Zgrzyt otworzył kartę twojej krainy: ${kraina(a)}! Każda tarcza na górze otwiera taką kartę, tylko cudze karty mają mniej sekretów, tak tak.` },
     { cel: a => a.element(".motto"), tekst: "Motto. Mądre zdanie krainy. Zgrzyt też ma motto: „Kto pierwszy, ten Zgrzyt”." },
+    { cel: a => a.element(".zrob-grafike"), tekst: "„Zrób grafikę” maluje obrazek krainy: herb, władca, motto, liczby i bohaterowie. „Kopiuj” i wklejasz na Discorda przez Ctrl+V, a „Zapisz PNG” daje plik. Zasoby trafiają na obrazek tylko jak zaznaczysz „Pokaż zasoby”, bo sekrety to sekrety. Zgrzyt zrobił sobie taki obrazek i powiesił nad miską, tak tak." },
     { cel: a => a.element(".fakty"), tekst: "Fakty: stolica, ustrój, władca, godło, specjalizacja, tereny. Guzik „na mapie” przy stolicy leci prosto do niej, szybciej niż Zgrzyt do miski." },
     { cel: a => a.element(".wojna"), tekst: "Czerwony napis znaczy wojnę. Tu widać, z kim twoja kraina się bije. Zgrzyt by uciekał, tak tak." },
     { cel: a => a.sekcja("Bohaterowie"), tekst: "Bohaterowie krainy. Najedź myszką — portret ożywa. Kliknij — wyskakuje okno bohatera. Więcej w rozdziale o bohaterach, tak tak." },
     { cel: a => a.sekcja("Zasoby"), tekst: "Zasoby w tej turze: złoto, jedzenie, drewno i co tam jeszcze. Liczby wpisuje GM po każdej turze, ty tylko patrzysz i się cieszysz albo płaczesz. Strzałki mówią, ile przybyło albo ubyło od zeszłej tury." },
     { cel: a => a.element(".znacznik"), tekst: "Kłódka 🔒 znaczy „tajne” — widzisz to tylko ty i GM. Oczko 👁 znaczy „jawne” — widzą wszyscy. Zgrzyt ma wszystko jawne, bo zapomina zamykać, tak tak." },
     { cel: a => a.sekcja("Unikalne zasoby"), tekst: "Unikalne zasoby — skarby, które ma tylko twoja kraina. Rzadkie jak mądra myśl u Zgrzyta." },
+    { cel: a => a.sekcja("Zasoby w czasie"), tekst: "Zasoby w czasie: po jednym wykresie na każdy zasób — stan na koniec każdej zamkniętej tury. Najedź myszką, to wyskoczą liczby, a pod spodem jest tabela. Gracz widzi wykresy tylko swojej krainy; cudze to tajemnica, tak tak." },
     { cel: a => a.sekcja("Jednostki"), tekst: "Jednostki: rodzaje wojska twojej krainy — nazwa, poziom elitarności i opis. Z nich GM składa armie i floty. Zgrzyt byłby jednostką „bardzo lekka piechota”, tak tak." },
     { cel: a => a.sekcja("Armie"), tekst: "Armie! Kto dowodzi, ilu żołnierzy, gdzie stoją, dokąd idą. Zgrzyt pokaże to porządnie w rozdziale o armiach — z prawdziwym marszem na niby." },
     { cel: a => a.sekcja("Floty"), tekst: "Floty: statki twojej krainy i gdzie pływają. Zgrzyt nie pływa, Zgrzyt tonie." },
@@ -110,12 +112,34 @@ export const ROZDZIALY = [
     { cel: a => a.sekcja("Twoje propozycje") || a.sekcja("Traktaty do Twojej zgody"), akcja: a => a.frakcja(), tekst: "Wszystkie twoje propozycje są na karcie krainy z napisem: czeka, przyjęta albo odrzucona — z komentarzem GM. Niepotrzebną możesz wycofać. Traktaty od innych graczy czekają tu na twoje „Zgadzam się”." },
     { cel: "#panel-gm", warunek: a => a.gm(), tekst: "A GM widzi wszystkie propozycje w Panelu GM — licznik na guziku mówi, ile czeka. Przyjęta zmienia grę od razu, odrzucona wraca do gracza z komentarzem." },
   ] },
+  { id: "historia", tytul: "Wykresy i historia (pokaz)", piaskownica: true, kroki: [
+    { tekst: "Zgrzyt rozegra teraz na niby kilka tur, żeby było co rysować: krainy rosną, zasoby się zmieniają. Wszystko zniknie po rozdziale, tak tak." },
+    { cel: a => a.sekcja("Zasoby w czasie"), akcja: a => a.pokazWykresy(), tekst: "Zasoby w czasie: po jednym wykresie na każdy zasób, stan na koniec każdej tury. Kreska w górę — przybyło, w dół — ubyło. Gracz widzi tak tylko swoją krainę." },
+    { cel: a => a.element(".maly-wykres svg"), tekst: "Najedź myszką na wykres — wyskoczy liczba z tej tury. Zgrzyt najechał na swój brzuch i wyskoczyło „za dużo”." },
+    { cel: a => a.element(".tabela-wykresow"), akcja: a => { const t = a.element(".tabela-wykresow"); if (t) t.open = true; }, tekst: "„Tabela” rozwija te same liczby w kolumnach, tura po turze. Dla tych, co wolą cyferki niż kreski, tak tak." },
+    { tekst: a => a.gm() ? "A teraz coś tylko dla Grubego Mistrza: timelapse!" : "GM ma jeszcze timelapse całej gry — porównuje wszystkie krainy, więc widzi go tylko GM. Pewnie kiedyś wrzuci filmik na Discorda. Koniec pokazu, tak tak!" },
+    { cel: ".plotno-timelapse", warunek: a => a.gm(), akcja: a => a.pokazTimelapse(), tekst: "Timelapse odtwarza grę tura po turze: po lewej mapa w kolorach krain, z granicami, armiami i bitwami, po prawej wykres rośnie, a pod nim ranking krain z herbami." },
+    { cel: ".sterowanie-timelapse", warunek: a => a.gm(), tekst: "Sterowanie: ⏮ ▶ ⏭, suwak tur, tempo i „Miara” — zasoby, ziemia, wojsko, wojny i bitwy albo dyplomacja. Jeden wykres naraz, żeby nie było bałaganu." },
+    { cel: ".przyciski-eksportu", warunek: a => a.gm(), tekst: "„Zapisz film” robi MP4, a „Zapisz GIF” — GIF. Na Discorda lepszy film: mniejszy i płynniejszy. Zgrzyt ogląda w kółko ten, gdzie wygrywa." },
+    { akcja: a => a.zamknij(), warunek: a => a.gm(), tekst: "Prawdziwa historia zapisuje się sama przy każdym zamknięciu tury. Ta na niby zaraz zniknie. Koniec pokazu, tak tak!" },
+  ] },
+  { id: "opowiesci", tytul: "Kronika Zgrzyta", kroki: [
+    { tekst: "Zgrzyt ma najlepszą robotę w całym świecie: po każdej turze opowiada, co się stało. Po swojemu, z docinkami, tak tak. Zgrzyt pokaże na niby." },
+    { cel: "#opowiesc .opowiesc-tekst", akcja: a => a.pokazOpowiesc(), tekst: "O, taka opowieść! Wojny, bitwy, traktaty, zdobyte prowincje — wszystko, co jawne. Zgrzyt pamięta poprzednie tury, więc wypomina, kto znowu przegrał. Nowa opowieść wyskakuje sama raz, jak tylko GM ją opublikuje." },
+    { cel: "#opowiesc .opowiesc-szept", akcja: () => document.querySelector("#opowiesc .pokaz-calosc:not([hidden])")?.click(), tekst: "A to szept — tajemnica tylko dla twojej krainy: tajny traktat albo tajna wieść od GM. Inni gracze tego nie widzą, nawet jak bardzo się wpatrują. Zgrzyt umie trzymać język za zębami. Czasem." },
+    { cel: "#opowiesc .kopiuj-opowiesc", tekst: "„Kopiuj na Discorda” i wklejasz całą opowieść na kanał. Szeptu nie kopiuje — sekrety zostają w programie, tak tak." },
+    { cel: "#kronika", akcja: a => a.zamknij(), tekst: "Stare opowieści leżą w Kronice, na samej górze: „📖 Opowieści Zgrzyta”, guzik na każdą turę. Zgrzyt czyta je sobie do poduszki." },
+    { cel: a => a.element(".kronikarz") || a.element("#zamknij-ture"), warunek: a => a.gm(), akcja: a => { a.panelGM(); setTimeout(() => (a.element(".kronikarz") || a.element("#zamknij-ture"))?.scrollIntoView({ block: "center" }), 50); },
+      tekst: "Gruby Mistrzu, to twoje: „Kronika Zgrzyta” w Panelu GM. Po zamknięciu tury Zgrzyt pisze szkic — widzisz go tylko ty. „Podgląd” pokazuje opowieść i szepty wszystkich krain, „Popraw” daje tekst do edycji, „Losuj inaczej” — Zgrzyt pisze od nowa, a „Opublikuj” wysyła graczom. Poprawka już opublikowanej od razu idzie do graczy." },
+    { tekst: "Koniec! Zgrzyt idzie pisać kolejną opowieść. O tobie. Złośliwą, tak tak." },
+  ] },
   { id: "gm-panel", tytul: "Panel GM", gm: true, kroki: [
     { cel: "#panel-gm", tekst: "Rozdział dla Grubego Mistrza! Panel GM to skrzynka z narzędziami do prowadzenia gry. Gracze go nie widzą, nawet przez dziurkę od klucza, tak tak." },
     { cel: a => a.sekcja("Propozycje graczy"), akcja: a => a.panelGM(), tekst: "Na górze propozycje graczy: zmiany opisów, budynki, stolice, ruchy armii i flot, traktaty. Przy każdej „Akceptuj” albo „Odrzuć” z komentarzem. Przyjęta zmienia grę od razu, a licznik na guziku Panelu mówi, ile czeka." },
     { cel: a => a.sekcja("Typy zasobów"), tekst: "Typy zasobów wspólne dla wszystkich krain: złoto, jedzenie i reszta. Dodajesz, zmieniasz nazwę i jednostkę, przesuwasz strzałkami i usuwasz. Unikalne zasoby krainy dodajesz na jej karcie." },
     { cel: a => a.sekcja("Tury"), tekst: "Tury — serce gry! „Zamknij turę” robi naraz: zapamiętuje zasoby wszystkich krain (na kartach pojawia się +/- od zeszłej tury), każda armia i flota z celem robi krok, wykrywa bitwy, rozwiązuje armie poniżej 100 żołnierzy i dopisuje wszystko do kroniki." },
     { cel: a => a.element("#cofnij-ture") || a.sekcja("Tury"), tekst: "Pomyłka? „Cofnij zamknięcie tury” wraca do stanu sprzed ostatniego zamknięcia: armie stają tam, gdzie stały, a bitwy z tamtej tury znikają. Zgrzyt cofnąłby czas do śniadania." },
+    { cel: a => a.sekcja("Historia gry"), tekst: "Historia gry! Przy każdym zamknięciu tury program zapisuje wygląd mapy i statystyki krain. „▶ Timelapse” odtwarza grę tura po turze: mapa z granicami i armiami, wykres wybranej miary — zasoby, ziemia, wojsko, bitwy, dyplomacja — i ranking krain. „Zapisz film” albo „Zapisz GIF” i wrzucasz na Discorda. Widzi to tylko GM, bo tam są sekrety wszystkich krain, tak tak." },
     { cel: a => a.sekcja("Wojny"), tekst: "Wojny: pary krain w stanie wojny, jawne dla wszystkich. Tylko armie krain w wojnie stają do bitwy. Gdy wypowiadasz wojnę sojusznikowi albo członkowi bloku, program pyta o zerwanie sojuszu i podpowiada wojnę z całym blokiem." },
     { cel: a => a.sekcja("Traktaty"), tekst: "Traktaty: wpisujesz typ, nazwę, strony (krainy graczy i kraje NPC), opis i czy tajny. Pokój kończy wojnę, umowa handlowa rysuje szlak. Tu też zrywasz albo usuwasz traktat." },
     { cel: a => a.sekcja("Kraje NPC"), tekst: "Kraje NPC: wasale i marionetki krain graczy (kolor w odcieniu zwierzchnika) albo samodzielne kraje z własnym kolorem. Prowincje przypisujesz im na karcie prowincji. NPC walczą i podpisują traktaty jak gracze, a głosuje za nich GM." },

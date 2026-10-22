@@ -12,15 +12,18 @@ await s.evaluate(() => document.querySelectorAll("dialog[open]").forEach(d => d.
 await s.waitForSelector(".samouczek:not([hidden])", { timeout: 5000 });
 const ls = () => s.evaluate(() => [localStorage.getItem("frp-warstwy"), localStorage.getItem("frp-demo")]);
 await s.click("[data-s=wszystkie]"); const przed = await ls();
-let obwodki = 0, menu = false;
+let obwodki = 0, menu = false, grafika = false, opowiesc = false;   // opowiesc: rozdział „Kronika Zgrzyta” (13.7) otwiera okno opowieści z szeptem   // grafika: krok 12.3 podświetla „Zrób grafikę”
 for (let i = 0; i < 250 && !menu; i++) {   // „Wszystkie po kolei” = wszystkie rozdziały (ok. 120 kroków)
   await s.waitForTimeout(700);
   if (await s.evaluate(() => document.querySelector(".samouczek-tekst").dataset.pelny !== undefined)) { await s.mouse.click(800, 300); await s.waitForTimeout(150); }
   obwodki += await s.evaluate(() => !document.querySelector(".samouczek-obwodka").hidden ? 1 : 0);
+  opowiesc ||= await s.evaluate(() => Boolean(document.querySelector("#opowiesc[open] .opowiesc-szept:not([hidden])")) && !document.querySelector(".samouczek-obwodka").hidden);
+  grafika ||= await s.evaluate(() => document.querySelector(".samouczek-tekst").textContent.includes("Zrób grafikę") && !document.querySelector(".samouczek-obwodka").hidden);
   menu = await s.locator(".samouczek-rozdzialy").count() > 0;
   if (!menu) await s.mouse.click(800, 300);
 }
-assert.ok(menu, "rozdział nie wrócił do menu"); assert.ok(obwodki >= 80, "za mało podświetleń: " + obwodki);
+assert.ok(menu, "rozdział nie wrócił do menu"); assert.ok(grafika, "brak kroku „Zrób grafikę”"); assert.ok(opowiesc, "brak pokazu opowieści Zgrzyta z szeptem");
+assert.equal(await s.locator("#opowiesc[open]").count(), 0, "okno opowieści zostało po samouczku"); assert.ok(obwodki >= 80, "za mało podświetleń: " + obwodki);
 assert.deepEqual(await ls(), przed, "samouczek zmienił localStorage");
 await s.keyboard.press("Escape"); await s.waitForTimeout(300);
 assert.ok(await s.locator(".samouczek[hidden]").count(), "Esc nie zamknął");

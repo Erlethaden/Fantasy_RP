@@ -1,0 +1,23 @@
+// test 9.1: zamknięcie tury zapisuje historię (zrzut mapy i statystyki krain), cofnięcie ją usuwa — DEMO (serwer: npm run dev -- --port 5174)
+import { chromium } from "playwright-core";
+import assert from "node:assert";
+const b = await chromium.launch({ executablePath: process.env.LOCALAPPDATA + "/ms-playwright/chromium-1234/chrome-win64/chrome.exe" });
+const s = await b.newPage({ viewport: { width: 1600, height: 900 } }); const bledy = []; s.on("pageerror", e => bledy.push(e.message));
+s.on("dialog", d => d.accept());
+await s.addInitScript(() => localStorage.setItem("frp-samouczek", JSON.stringify({ propozycja: true })));
+await s.route(/firebase-config\.js/, r => r.fulfill({ contentType: "text/javascript", body: "export const firebaseConfig = {};" }));
+await s.goto("http://localhost:5174/"); await s.waitForTimeout(1500);
+await s.evaluate(() => document.querySelectorAll("dialog[open]").forEach(d => d.close()));
+await s.click("button.wejdz"); await s.waitForTimeout(2500); await s.evaluate(() => document.querySelectorAll("dialog[open]").forEach(d => d.close()));
+const historia = () => s.evaluate(() => JSON.parse(localStorage.getItem("frp-demo") || "{}").historia || {});
+await s.click("#panel-gm"); await s.click("#zamknij-ture"); await s.waitForTimeout(500);
+const h = await historia(), z = h[1];
+assert.ok(z, "brak historii tury 1"); console.log("historia tury 1:", Object.keys(z).join(", "));
+const kraj = z.kraje["krag-mhor"]; console.log("Krag-Mhor:", JSON.stringify(kraj).slice(0, 220));
+for (const k of ["prowincje", "miasta", "wioski", "budynki", "armie", "floty", "zolnierze", "okrety", "wojny", "bitwy", "wygrane", "przegrane", "traktaty", "sojusznicy", "bloki", "zasoby"]) assert.ok(k in kraj, "brak statystyki " + k);
+assert.equal(Object.keys(z.kraje).length, 7);
+await s.click("#zamknij-ture"); await s.waitForTimeout(500); assert.ok((await historia())[2], "brak historii tury 2");
+await s.click("#cofnij-ture"); await s.waitForTimeout(500);
+const po = await historia(); assert.ok(!po[2] && po[1], "cofnięcie tury 2 nie usunęło jej historii");
+console.log("✔ cofnięcie tury 2 usuwa jej historię, tura 1 zostaje");
+assert.equal(bledy.length, 0, bledy.join(" | ")); console.log("OK"); await b.close();

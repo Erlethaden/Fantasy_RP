@@ -17,7 +17,13 @@ export const PODGLAD = import.meta.env.VITE_PODGLAD === "1";
 let piaskownica = null;   // { kopia, odlozone: Map(klucz → funkcja) } albo null
 const tylkoCzytanie = () => PODGLAD || Boolean(piaskownica);
 export const wPiaskownicy = () => Boolean(piaskownica);
-export function wejdzDoPiaskownicy() { if (!piaskownica) piaskownica = { kopia: structuredClone(stan), odlozone: new Map() }; }
+// pokaz działa na kopii, a oryginały wracają po wyjściu: tablice w stanie są wspólne z danymi z bazy w pamięci (tajne_armie, gra/armie),
+// więc pokaz na oryginale wracał przy następnym sklej()
+export function wejdzDoPiaskownicy() {
+  if (piaskownica) return;
+  piaskownica = { kopia: { ...stan }, odlozone: new Map() };
+  Object.assign(stan, structuredClone(piaskownica.kopia));
+}
 export function wyjdzZPiaskownicy() {
   if (!piaskownica) return;
   const { kopia, odlozone } = piaskownica; piaskownica = null;
@@ -30,14 +36,14 @@ export const stan = {}; // jeden wspólny obiekt — moduły go mutują, magazyn
 const KLUCZ = "frp-demo";
 const WERSJA = 3; // podbij, gdy zmienią się dane startowe — stary zapis DEMO zostanie zastąpiony
 const USTAWIENIA = { dniLogow: 30 };
-const start = () => structuredClone({ wersja: WERSJA, frakcje: FRAKCJE, bohaterowie: BOHATEROWIE, zasoby: ZASOBY, tury: [], ustawienia: USTAWIENIA, prowincje: {}, npc: {}, akweny: {}, nazwyOsad: {}, pozycjeArmii: {}, pozycjeFlot: {}, cofnijRuchy: null, wojny: [], bitwy: {}, traktaty: {}, kronika: {}, bloki: {} });
+const start = () => structuredClone({ wersja: WERSJA, frakcje: FRAKCJE, bohaterowie: BOHATEROWIE, zasoby: ZASOBY, tury: [], ustawienia: USTAWIENIA, prowincje: {}, npc: {}, akweny: {}, nazwyOsad: {}, pozycjeArmii: {}, pozycjeFlot: {}, cofnijRuchy: null, wojny: [], bitwy: {}, traktaty: {}, kronika: {}, bloki: {}, historia: {}, opowiesci: [] });
 
 // --- DEMO ---
 function zapisDemo() {
   try {
     const s = JSON.parse(localStorage.getItem(KLUCZ));
     // nowe pole dopisywane do starego zapisu zamiast podbijania WERSJA, żeby nie kasować zmian z DEMO
-    if (s?.wersja === WERSJA) { s.zasoby ??= structuredClone(ZASOBY); s.tury ??= []; s.ustawienia ??= { ...USTAWIENIA }; s.prowincje ??= {}; s.npc ??= {}; s.akweny ??= {}; s.nazwyOsad ??= {}; s.pozycjeArmii ??= {}; s.pozycjeFlot ??= {}; s.cofnijRuchy ??= null; s.wojny ??= []; s.bitwy ??= {}; s.traktaty ??= {}; s.kronika ??= {}; s.bloki ??= {}; return s; }
+    if (s?.wersja === WERSJA) { s.zasoby ??= structuredClone(ZASOBY); s.tury ??= []; s.ustawienia ??= { ...USTAWIENIA }; s.prowincje ??= {}; s.npc ??= {}; s.akweny ??= {}; s.nazwyOsad ??= {}; s.pozycjeArmii ??= {}; s.pozycjeFlot ??= {}; s.cofnijRuchy ??= null; s.wojny ??= []; s.bitwy ??= {}; s.traktaty ??= {}; s.kronika ??= {}; s.bloki ??= {}; s.historia ??= {}; s.opowiesci ??= []; return s; }
   } catch {}
   return null;
 }
@@ -122,7 +128,7 @@ const dokumenty = s => {
     if (!f._brak?.notatkiGM) d.set(`notatki_gm/${f.id}`, { tekst: f.notatkiGM || "" });
   });
   s.bohaterowie.forEach((h, i) => d.set(`bohaterowie/${h.id}`, { ...bez(h, ["status", "misja", "_brak"]), _nr: i }));
-  d.set("gra/stan", { zasoby: s.zasoby, tury: s.tury.map(t => ({ nr: t.nr, data: t.data })), ustawienia: s.ustawienia || USTAWIENIA, wojny: s.wojny || [] });   // wojny: [[wł1, wł2]] — jawne (7.1f)
+  d.set("gra/stan", { zasoby: s.zasoby, tury: s.tury.map(t => ({ nr: t.nr, data: t.data })), ustawienia: s.ustawienia || USTAWIENIA, wojny: (s.wojny || []).map(([a, b]) => ({ a, b })), opowiesci: s.opowiesci || [] });   // opowiesci: [nr] opublikowanych opowieści Zgrzyta (13)   // wojny: jawne (7.1f); w pamięci [[wł1, wł2]], w bazie [{a, b}] — Firestore nie przyjmuje tablic w tablicy
   d.set("gra/prowincje", { p: s.prowincje || {}, npc: s.npc || {}, a: s.akweny || {} });
   d.set("gra/armie", { a: s.pozycjeArmii || {}, fl: s.pozycjeFlot || {}, cofnij: s.cofnijRuchy || null, bitwy: s.bitwy || {} });
   for (const [id, r] of Object.entries(s.raportyBitew || {})) d.set(`bitwy/${id}`, r);
@@ -222,7 +228,7 @@ export const ostatnieLogi = async n => {
   licznik.odczyty += snap.size; return snap.docs.map(d => d.data());
 };
 // diagnostyka: liczba dokumentów (zapytanie zliczające = 1 odczyt na 1000 dokumentów) i rozmiar wczytanych danych
-export const KOLEKCJE = ["frakcje", "bohaterowie", "gra", "nazwy_osad", "tajne_zasoby", "tajne_jednostki", "tajne_statusy", "notatki_gracza", "notatki_gm", "uzytkownicy", "propozycje", "logi"];
+export const KOLEKCJE = ["frakcje", "bohaterowie", "gra", "nazwy_osad", "tajne_zasoby", "tajne_jednostki", "tajne_statusy", "notatki_gracza", "notatki_gm", "uzytkownicy", "propozycje", "logi", "historia", "opowiesci", "szepty"];
 export async function policzDokumenty() {
   const wynik = await Promise.all(KOLEKCJE.map(async k => [k, (await getCountFromServer(collection(db, k))).data().count]));
   licznik.odczyty += KOLEKCJE.length; return Object.fromEntries(wynik);
@@ -277,6 +283,87 @@ export async function szukajSmieci() {
     await sprzatnijLogi(dni);
   } };
 }
+// historia (9.1): historia/{nr} = zrzut gry przy zamknięciu tury (właściciele prowincji, armie, floty, bitwy, statystyki krain) — tylko GM.
+// Osobno od stanu na żywo: czytana dopiero przy otwarciu timelapsu. DEMO: stan.historia (localStorage).
+export async function zapiszHistorie(nr, z) {
+  if (!CHMURA) { (stan.historia ??= {})[nr] = z; return zapisz(stan); }
+  if (tylkoCzytanie() || !dostep.gm) return;
+  licznik.zapisy++; licznik.dokumenty++;
+  await setDoc(doc(db, "historia", String(nr)), z).catch(e => { console.error(e); zalogujBlad(e, [`historia/${nr}`]); bladZapisu(e); });
+}
+export async function usunHistorie(nr) {
+  if (!CHMURA) { delete stan.historia?.[nr]; return zapisz(stan); }
+  if (tylkoCzytanie() || !dostep.gm) return;
+  await deleteDoc(doc(db, "historia", String(nr))).catch(e => { console.error(e); zalogujBlad(e, [`historia/${nr}`]); bladZapisu(e); });
+}
+export async function czytajHistorie() {   // → [zrzut] po numerze tury
+  if (!CHMURA) return Object.values(stan.historia || {}).sort((a, b) => a.nr - b.nr);
+  const snap = await getDocs(collection(db, "historia")); licznik.odczyty += snap.size;
+  return snap.docs.map(d => d.data()).sort((a, b) => a.nr - b.nr);
+}
+export async function czytajHistorieTury(nr) {   // jedna tura (Kronikarz: liczba prowincji przed turą) — 1 odczyt
+  if (!CHMURA) return stan.historia?.[nr] || null;
+  const s = await getDoc(doc(db, "historia", String(nr))).catch(() => null); licznik.odczyty++;
+  return s?.exists() ? s.data() : null;
+}
+// Kronikarz Zgrzyt (13.4–13.6): opowiesci/{nr} = { tura, akapity, ziarno, czas, opublikowana, + w szkicu: szepty {wł: [tekst]}, staty }.
+// Szkic czyta tylko GM. Po publikacji dokument BEZ szeptów czytają wszyscy, a szept każdej frakcji leży osobno: szepty/{nr}_{frakcja}
+// { tura, kraj, akapity } — czyta tylko ta frakcja i GM. Numery opublikowanych tur są w gra/stan.opowiesci (stan.opowiesci) — sama treść
+// wczytywana dopiero przy otwarciu (1–2 odczyty). DEMO: stan.opowiesciDane / stan.szeptyDane (localStorage).
+const bladOpowiesci = (e, co) => { console.error(e); zalogujBlad(e, co); bladZapisu(e); };
+export async function zapiszOpowiesc(nr, o) {
+  if (tylkoCzytanie() || (CHMURA && !dostep.gm)) return;
+  if (!CHMURA) { (stan.opowiesciDane ??= {})[nr] = o; return zapisz(stan); }
+  licznik.zapisy++; licznik.dokumenty++;
+  await setDoc(doc(db, "opowiesci", String(nr)), o).catch(e => bladOpowiesci(e, [`opowiesci/${nr}`]));
+}
+export async function czytajOpowiesc(nr) {   // gracz: tylko opublikowana (inaczej reguły odmawiają → null)
+  if (!CHMURA) return stan.opowiesciDane?.[nr] || null;
+  const s = await getDoc(doc(db, "opowiesci", String(nr))).catch(() => null); licznik.odczyty++;
+  return s?.exists() ? s.data() : null;
+}
+export async function czytajSzept(nr, wl) {   // brak szeptu albo cudzy → null (reguły odmawiają)
+  if (!wl) return null;
+  if (!CHMURA) return stan.szeptyDane?.[`${nr}_${wl}`] || null;
+  const s = await getDoc(doc(db, "szepty", `${nr}_${wl}`)).catch(() => null); licznik.odczyty++;
+  return s?.exists() ? s.data() : null;
+}
+// publikacja: opowieść bez szeptów + szept dla każdej frakcji gracza, która go ma (pozostałe szepty tej tury usuwane — po poprawkach GM);
+// kraje NPC nie mają graczy, więc ich szeptów nie zapisujemy
+export async function opublikujOpowiesc(nr, o) {
+  if (tylkoCzytanie() || (CHMURA && !dostep.gm)) return;
+  const jawna = { tura: nr, akapity: o.akapity, ...(o.miejsca?.length === o.akapity.length ? { miejsca: o.miejsca } : {}), ziarno: o.ziarno ?? nr, czas: new Date().toISOString(), opublikowana: true };   // miejsca: [{x, y} | null] na akapit — film (13.5b); po zmianie liczby akapitów przez GM odpadają
+  const szepty = Object.fromEntries(stan.frakcje.filter(f => o.szepty?.[f.id]?.length).map(f => [f.id, { tura: nr, kraj: f.id, akapity: o.szepty[f.id] }]));
+  stan.opowiesci = [...new Set([...(stan.opowiesci || []), nr])].sort((a, b) => a - b);
+  if (!CHMURA) {
+    (stan.opowiesciDane ??= {})[nr] = jawna; stan.szeptyDane ??= {};
+    for (const f of stan.frakcje) { if (szepty[f.id]) stan.szeptyDane[`${nr}_${f.id}`] = szepty[f.id]; else delete stan.szeptyDane[`${nr}_${f.id}`]; }
+    return zapisz(stan);
+  }
+  const b = writeBatch(db);
+  b.set(doc(db, "opowiesci", String(nr)), jawna);
+  for (const f of stan.frakcje) { const r = doc(db, "szepty", `${nr}_${f.id}`); if (szepty[f.id]) b.set(r, szepty[f.id]); else b.delete(r); }
+  licznik.zapisy++; licznik.dokumenty += 1 + stan.frakcje.length;
+  await b.commit().catch(e => bladOpowiesci(e, [`opowiesci/${nr}`]));
+  zapisz(stan);   // gra/stan.opowiesci — gracze dostają znak, że jest nowa opowieść
+}
+export async function usunOpowiesc(nr) {   // cofnięcie tury
+  if (tylkoCzytanie() || (CHMURA && !dostep.gm)) return;
+  stan.opowiesci = (stan.opowiesci || []).filter(x => x !== nr);
+  if (!CHMURA) {
+    delete stan.opowiesciDane?.[nr]; for (const f of stan.frakcje) delete stan.szeptyDane?.[`${nr}_${f.id}`];
+    return zapisz(stan);
+  }
+  const b = writeBatch(db);
+  b.delete(doc(db, "opowiesci", String(nr))); for (const f of stan.frakcje) b.delete(doc(db, "szepty", `${nr}_${f.id}`));
+  await b.commit().catch(e => bladOpowiesci(e, [`opowiesci/${nr}`]));
+  zapisz(stan);
+}
+// GM: szepty opublikowanej tury do poprawek (po publikacji nie ma ich w dokumencie opowieści)
+export async function czytajSzeptyTury(nr) {
+  const l = await Promise.all(stan.frakcje.map(async f => [f.id, (await czytajSzept(nr, f.id))?.akapity]));
+  return Object.fromEntries(l.filter(([, a]) => a?.length));
+}
 export function rozmiaryWczytanych() { // bajty JSON-a wczytanych dokumentów, per kolekcja
   const r = {}; for (const [sc, j] of ostatnio) { const k = sc.split("/")[0]; r[k] = (r[k] || 0) + new Blob([j]).size; } return r;
 }
@@ -326,7 +413,7 @@ export function polacz(onZmiana) {
         const z = tz?.tury?.find(x => x.nr === m.nr) ?? m.frakcje?.[f.id]; // stary format: migawki w gra/stan
         return z ? [[f.id, { stany: z.stany || {}, unikalne: z.unikalne || {} }]] : [];
       })) }));
-      Object.assign(stan, { frakcje, bohaterowie, zasoby: czesci.gra?.zasoby || [], tury, ustawienia: { ...USTAWIENIA, ...czesci.gra?.ustawienia }, prowincje: czesci.prowincje?.p || {}, npc: czesci.prowincje?.npc || {}, akweny: czesci.prowincje?.a || {}, nazwyOsad: czesci.nazwy, pozycjeArmii: czesci.armie?.a || {}, pozycjeFlot: czesci.armie?.fl || {}, cofnijRuchy: czesci.armie?.cofnij || null, bitwy: czesci.armie?.bitwy || {}, wojny: czesci.gra?.wojny || [] });
+      Object.assign(stan, { frakcje, bohaterowie, zasoby: czesci.gra?.zasoby || [], tury, ustawienia: { ...USTAWIENIA, ...czesci.gra?.ustawienia }, prowincje: czesci.prowincje?.p || {}, npc: czesci.prowincje?.npc || {}, akweny: czesci.prowincje?.a || {}, nazwyOsad: czesci.nazwy, pozycjeArmii: czesci.armie?.a || {}, pozycjeFlot: czesci.armie?.fl || {}, cofnijRuchy: czesci.armie?.cofnij || null, bitwy: czesci.armie?.bitwy || {}, wojny: (czesci.gra?.wojny || []).map(w => Array.isArray(w) ? w : [w.a, w.b]), opowiesci: czesci.gra?.opowiesci || [] });
       if (pierwszy) { pierwszy = false; if (dostep.gm) { dopiszNowychBohaterow(); dopiszNoweSekcje(); zapisz(stan); } gotowe(stan); } // GM: przeniesienie starego formatu do nowych dokumentów
       else onZmiana();
     };

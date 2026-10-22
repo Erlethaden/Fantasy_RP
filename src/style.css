@@ -334,3 +334,24 @@ select{padding:6px 10px;background:#05050a;border:1px solid var(--zloto2);color:
 .dzwieki-panel{position:fixed;top:64px;right:16px;z-index:60;display:flex;flex-direction:column;gap:8px;min-width:240px;padding:12px 14px;background:#0b0d15;border:1px solid var(--zloto2);border-radius:6px;box-shadow:0 8px 30px rgba(0,0,0,.8);color:var(--tekst);font-size:14px}
 .dzwieki-panel label{display:flex;align-items:center;justify-content:flex-start;gap:8px;margin:0;text-align:left}.dzwieki-panel label input[type=checkbox]{width:18px;height:18px;flex:0 0 auto;margin:0}.dzwieki-panel label input[type=range]{flex:1;width:auto;min-width:0;margin:0;padding:0}.dzwieki-panel select{background:#07080d;color:var(--tekst);border:1px solid var(--zloto2);font:inherit}
 @media (max-width:700px){.dzwieki-panel{top:auto;bottom:calc(66px + env(safe-area-inset-bottom));right:8px}}
+/* wykresy (9.2–9.3): przytłumiona siatka i osie, linie w kolorze kraju, tekst w kolorach tekstu */
+.wykres{position:relative;margin:0}.wykres svg{display:block;overflow:visible}
+.w-siatka{stroke:#2a2418;stroke-width:1}.w-os{fill:#8f8268;font:11px Spectral,Georgia,serif}.w-kursor{stroke:#bfae86;stroke-width:1;stroke-dasharray:3 3}
+.w-teraz{stroke:var(--zloto);stroke-width:2;opacity:.7}.w-trafienie{cursor:crosshair}
+.w-podpowiedz{position:absolute;top:0;z-index:2;display:flex;flex-direction:column;gap:2px;padding:6px 9px;background:#0b0d15;border:1px solid var(--zloto2);border-radius:4px;font-size:12.5px;color:var(--tekst);pointer-events:none;white-space:nowrap}
+.w-podpowiedz i{display:inline-block;width:10px;height:10px;margin-right:6px;border-radius:2px;vertical-align:-1px}
+.siatka-wykresow{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px 18px}.maly-wykres h4{display:flex;align-items:center;gap:6px;margin:6px 0 2px;font-size:14px}.maly-wykres .ikona{width:20px;height:20px}
+.tabela-wykresow{margin-top:8px;font-size:13px}.tabela-wykresow table{border-collapse:collapse;margin-top:6px;display:block;overflow-x:auto}.tabela-wykresow th,.tabela-wykresow td{padding:3px 8px;border-bottom:1px solid #2a2418;text-align:right;white-space:nowrap}.tabela-wykresow td:first-child,.tabela-wykresow th:first-child{text-align:left}
+/* timelapse (9.3) */
+.okno-grafiki{width:min(1000px,calc(100vw - 32px))}.okno-grafiki canvas{display:block;width:100%;height:auto;margin:10px 0;border:1px solid var(--zloto2)}.okno-grafiki .akcje-grafiki{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.akcje-grafiki label{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:#bfae86}.akcje-grafiki label input{width:16px;height:16px;margin:0;accent-color:var(--zloto)}
+.okno-opowiesci{width:min(820px,calc(100vw - 32px));--kolor:var(--zloto)}.opowiesc-portret{width:112px;height:112px;margin:0}.opowiesc-portret img{width:96px;height:96px;image-rendering:pixelated}
+.opowiesc-tekst{max-height:min(58vh,560px);overflow-y:auto;margin:14px 0 12px;padding:4px 14px 4px 18px;border-left:3px solid var(--zloto2);font-size:17px;line-height:1.7}
+.opowiesc-tekst>p{margin:0 0 12px}.opowiesc-tekst>p:empty{display:none}.opowiesc-tekst>p:first-child{font-style:italic;color:#e8d9b4}
+.opowiesc-szept{margin:16px 0 6px;padding:10px 14px;background:rgba(31,167,154,.08);border:1px dashed #1fa79a;color:#bfe3dc;font-style:italic}.opowiesc-szept h4{margin:0 0 4px;font:700 14px Cinzel,Georgia,serif;color:#5fd3c4;font-style:normal}.opowiesc-szept p{margin:0}
+.akcje-opowiesci{display:flex;flex-wrap:wrap;gap:10px}.opowiesc-szept small{font:400 12px Spectral,Georgia,serif;color:#8fbfb7}
+.akcje-kronikarza{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.popraw-opowiesc label{display:block;margin:10px 0}.popraw-opowiesc textarea{width:100%;box-sizing:border-box}
+.okno-timelapse{width:min(1280px,calc(100vw - 32px))}.plotno-timelapse{display:block;width:100%;height:auto;margin-top:10px;border:1px solid var(--zloto2);background:#0b0c12}
+.sterowanie-timelapse{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:10px}.sterowanie-timelapse input[type=range]{flex:1;min-width:160px}
+.sterowanie-timelapse label{display:flex;align-items:center;gap:6px;font-size:14px}.sterowanie-timelapse select{background:#07080d;color:var(--tekst);border:1px solid var(--zloto2);font:inherit;padding:4px 6px}
+.przyciski-eksportu{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0 0}
