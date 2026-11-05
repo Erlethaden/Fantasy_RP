@@ -6,7 +6,7 @@ const b = await chromium.launch({ executablePath: process.env.LOCALAPPDATA + "/m
 const ctx = await b.newContext({ viewport: { width: 1600, height: 900 }, acceptDownloads: true });
 const s = await ctx.newPage();
 const bledy = []; s.on("pageerror", e => bledy.push(e.message)); s.on("dialog", d => d.accept());
-await s.addInitScript(() => localStorage.setItem("frp-samouczek", JSON.stringify({ propozycja: true })));
+await s.addInitScript(() => localStorage.setItem("frp-samouczek", JSON.stringify({ propozycja: true, nowosci: false })));
 await s.route(/firebase-config\.js/, r => r.fulfill({ contentType: "text/javascript", body: "export const firebaseConfig = {};" }));
 await s.goto("http://localhost:5174/"); await s.waitForTimeout(1500);
 await s.evaluate(() => document.querySelectorAll("dialog[open]").forEach(d => d.close()));

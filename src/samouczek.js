@@ -7,7 +7,7 @@ import { wejdzDoPiaskownicy, wyjdzZPiaskownicy } from "./dane/magazyn.js";
 import portret from "../assets/portrety/zgrzyt.png?url";
 import { glos, rechot } from "./dzwieki.js";
 
-const KLUCZ = "frp-samouczek";   // { propozycja: true, przejrzane: [id] } — w tej przeglądarce
+const KLUCZ = "frp-samouczek";   // { propozycja: true, przejrzane: [id], znane: {id: odcisk} } — w tej przeglądarce
 const pamiec = () => { try { return JSON.parse(localStorage.getItem(KLUCZ)) || {}; } catch { return {}; } };
 const zapamietaj = z => { try { localStorage.setItem(KLUCZ, JSON.stringify({ ...pamiec(), ...z })); } catch {} };
 const esc = t => String(t).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -16,6 +16,12 @@ const ograniczonyRuch = () => matchMedia("(prefers-reduced-motion: reduce)").mat
 let api = null, warstwa = null, okno = null, obwodka = null, strzalka = null;
 let biezacy = null;   // { rozdzialy: [id], r: rozdział, k: nr kroku, cel: element | null, pisanie: timer }
 const rozdzialyDla = () => ROZDZIALY.filter(r => !r.gm || api.gm());
+// 20.9: odcisk rozdziału z tytułu i słów kwestii (od 4 liter — bez nazw zmiennych, które minifikator zmienia między wydaniami).
+// Inny odcisk niż zapamiętany (albo rozdział nieznany) = nowość: Zgrzyt mówi o niej przy wejściu. Przerobiony rozdział staje się znany.
+const odcisk = r => { let h = 0; for (const c of `${r.tytul} ${(r.kroki.map(k => String(k.tekst)).join(" ").match(/\p{L}{4,}/gu) || []).join(" ")}`) h = (Math.imul(h, 31) + c.charCodeAt(0)) | 0; return h.toString(36); };
+const ZNANE_PRZED_20 = ["start", "kraina", "bohaterowie", "prowincje", "armie", "bitwy", "dyplomacja", "propozycje", "historia", "opowiesci", "gm-panel", "gm-kraina", "gm-mapa"];   // stary gracz zna je w tej postaci
+const poznaj = ids => zapamietaj({ znane: { ...(pamiec().znane || {}), ...Object.fromEntries(ROZDZIALY.filter(r => ids.includes(r.id)).map(r => [r.id, odcisk(r)])) } });
+const nowosci = () => { const z = pamiec().znane || {}; return rozdzialyDla().filter(r => z[r.id] !== odcisk(r)); };
 
 function zbuduj() {
   if (warstwa) return;
@@ -99,7 +105,8 @@ function dokonczPisanie() { const t = okno.querySelector(".samouczek-tekst"); cl
 const PRZYCISKI_KROKU = `<span class="samouczek-dalej">kliknij, by dalej ▸</span><button type="button" class="cofnij" data-s="menu">Rozdziały</button><button type="button" class="cofnij" data-s="koniec">Zakończ</button>`;
 function podepnijPrzyciski() {
   okno.querySelectorAll("[data-s]").forEach(b => b.onclick = () => ({ menu: () => { zakonczRozdzial(); menu(); }, koniec: zakoncz,
-    wszystkie: () => start(rozdzialyDla().map(r => r.id)), nie: zakoncz })[b.dataset.s]());
+    wszystkie: () => start(rozdzialyDla().map(r => r.id)), nie: zakoncz,
+    nowe: () => start(nowosci().map(r => r.id)), znam: () => { poznaj(nowosci().map(r => r.id)); zakoncz(); } })[b.dataset.s]());
   okno.querySelectorAll("[data-rozdzial]").forEach(b => b.onclick = () => start([b.dataset.rozdzial]));
 }
 async function krok() {
@@ -139,12 +146,12 @@ function zakonczRozdzial(przerobiony) {
   try { r.sprzatanie?.(api.akcje); } catch (e) { console.warn("samouczek: sprzątanie", r.id, e); }
   if (r.piaskownica) wyjdzZPiaskownicy();
   api.akcje.sprzatnij(); api.odswiez();
-  if (przerobiony) zapamietaj({ przejrzane: [...new Set([...(pamiec().przejrzane || []), r.id])] });
+  if (przerobiony) { zapamietaj({ przejrzane: [...new Set([...(pamiec().przejrzane || []), r.id])] }); poznaj([r.id]); }
 }
 function menu(wstep = "Zgrzyt zna dużo rzeczy, tak tak. O czym Zgrzyt ma gadać? Wybierz rozdział albo wszystkie po kolei.") {
   biezacy ??= { rozdzialy: [] }; biezacy.cel = null; obwodka.hidden = true; if (strzalka) strzalka.hidden = true; okno.classList.remove("gora");
-  const przejrzane = pamiec().przejrzane || [];
-  pokazTekst(esc(wstep), `<div class="samouczek-rozdzialy">${rozdzialyDla().map(r => `<button type="button" class="cofnij" data-rozdzial="${r.id}">${przejrzane.includes(r.id) ? "✓ " : ""}${esc(r.tytul)}${r.gm ? " <small>(GM)</small>" : ""}</button>`).join("")}</div>
+  const przejrzane = pamiec().przejrzane || [], nowe = nowosci();
+  pokazTekst(esc(wstep), `<div class="samouczek-rozdzialy">${rozdzialyDla().map(r => `<button type="button" class="cofnij" data-rozdzial="${r.id}">${nowe.includes(r) ? "★ " : przejrzane.includes(r.id) ? "✓ " : ""}${esc(r.tytul)}${r.gm ? " <small>(GM)</small>" : ""}</button>`).join("")}</div>
     <button type="button" class="dodaj" data-s="wszystkie">Wszystkie po kolei</button><button type="button" class="cofnij" data-s="koniec">Zakończ</button>`);
   podepnijPrzyciski();
 }
@@ -156,10 +163,19 @@ export function zakoncz() {
 }
 // przycisk „Samouczek” w pasku
 export function otworzSamouczek(a) { api = a; pokaz(); menu(); }
-// pierwsze wejście do gry w tej przeglądarce: Zgrzyt proponuje oprowadzenie (raz; odmowa też się liczy)
+// pierwsze wejście do gry w tej przeglądarce: Zgrzyt proponuje oprowadzenie (raz; odmowa też się liczy); potem — tylko nowości w samouczku (20.9)
 export function zaproponujSamouczek(a) {
-  if (pamiec().propozycja) return;
-  zapamietaj({ propozycja: true }); api = a; pokaz(); biezacy = { rozdzialy: [] };
+  api = a;
+  if (pamiec().propozycja) {   // 20.9: stary gracz — tylko nowe albo zmienione rozdziały („Później” = zapyta przy następnym wejściu)
+    if (pamiec().nowosci === false) return;   // shortcut: wyłącznik tylko dla testów (materialy/test_*.mjs), w programie nie ma do niego przełącznika
+    if (!pamiec().znane) poznaj(ZNANE_PRZED_20);
+    const nowe = nowosci(); if (!nowe.length) return;
+    pokaz(); biezacy = { rozdzialy: [] };
+    pokazTekst(`Psst, ludziaku! W samouczku jest coś nowego: ${nowe.map(r => `„${r.tytul}”`).join(", ")}. Zgrzyt pokaże? Tak tak?`,
+      `<button type="button" class="dodaj" data-s="nowe">Pokaż nowości</button><button type="button" class="cofnij" data-s="koniec">Później</button><button type="button" class="cofnij" data-s="znam">Nie, dzięki</button>`);
+    return podepnijPrzyciski();
+  }
+  zapamietaj({ propozycja: true }); poznaj(rozdzialyDla().map(r => r.id)); pokaz(); biezacy = { rozdzialy: [] };   // nowy gracz: od teraz liczą się tylko przyszłe nowości
   pokazTekst("Ooo, nowy ludziak! Zgrzyt jest Zgrzyt i Zgrzyt wszystko pokaże, co gdzie jest w tej grze. Pokazać? Tak tak?",
     `<button type="button" class="dodaj" data-s="wszystkie">Tak, pokaż wszystko</button><button type="button" class="cofnij" data-s="menu">Wybiorę rozdział</button><button type="button" class="cofnij" data-s="nie">Nie, dzięki</button>`);
   podepnijPrzyciski();

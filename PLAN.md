@@ -246,18 +246,20 @@ Aplikacja dla grupy grającej tekstowo na Discordzie w fantasy RP w stylu Age of
 
 ### Etap 10 — ramki i przyciski interfejsu (użytkownik 2026-10-21)
 Pixel-artowe ramki/belki górnego paska i szuflady, przyciski, tło paska, ozdobniki z generatora w stylu `assets/STYLE.md`, żeby interfejs pasował do portretów i herbów. Przed startem krótki wywiad (nastrój: kamień / drewno / pergamin, czy w kolorze frakcji, co dostaje ramkę).
-- [ ] 10.0 Wywiad + próbka: jedna ramka i jeden przycisk na zrzucie programu do akceptacji
-- [ ] 10.1 Ramki (9-slice, `border-image`): górny pasek, szuflada, okna
-- [ ] 10.2 Przyciski (zwykły / najechany / wciśnięty / wyłączony) + tło paska
-- [ ] 10.3 Ozdobniki (narożniki, separatory) + sprawdzenie na telefonie i w samouczku
+- [x] 10.0 Wywiad + próbka: jedna ramka i jeden przycisk na zrzucie programu do akceptacji
+Ustalenia 10.0 (wywiad 2026-10-23): CIEMNY KAMIEŃ + ZŁOTO (pasuje do panel.png), akcent w kolorze otwartej krainy (pasek/klejnot), ramka sama bez barw krain. Zakres: PRZYCISKI (4 stany), GÓRNY PASEK (tło + belka), OZDOBNIKI (narożniki, separatory sekcji). Szuflada BEZ zmian.
+- [x] 10.1 Ramki (9-slice, `border-image`): górny pasek, szuflada, okna — górny pasek (kamien.png + pasek.png); szuflada bez zmian (decyzja użytkownika), okna mają panel.png
+- [x] 10.2 Przyciski (zwykły / najechany / wciśnięty / wyłączony) + tło paska — przycisk*.png (.konto button, .cofnij, .warstwy-mapy), przycisk_zloty*.png (.dodaj)
+- [x] 10.3 Ozdobniki (narożniki, separatory) + sprawdzenie na telefonie i w samouczku — separator.png + klejnot w --kolor nad sekcjami karty; narożniki już są w panel.png; zrzuty `podglady/ui_1..5_*.png` (też telefon), test_samouczek OK. Zaakceptowane przez użytkownika 2026-10-23 („jest git”)
 
 ### Etap 11 — tekstury mapy (użytkownik 2026-10-21)
 Bezszwowe kafelki pixel art (trawa, góry, woda, wybrzeże, ew. las) z generatora, nakładane według masek, które już są (ląd, ocean, jeziora, pasmo gór, rzeki); kreski z rysunku zostają na wierzchu, kolory właścicieli jako półprzezroczysta warstwa. Lasów i pustyń rysunek nie zaznacza — wtedy GM malowałby je pędzlem w edytorze. Przed startem krótki wywiad (jakie tereny, czy pędzel GM).
-- [ ] 11.0 Wywiad + próbka: kafelki trawy i wody na wycinku mapy do akceptacji
-- [ ] 11.1 Komplet kafelków (trawa, góry, woda, wybrzeże) + nakładanie według masek
-- [ ] 11.2 Kolory właścicieli jako półprzezroczysta warstwa nad teksturą, kreski z rysunku na wierzchu; timelapse z teksturą
-- [ ] 11.3 (opcjonalnie) Las / pustynia: pędzel GM w edytorze mapy
-- [ ] 11.4 Samouczek Zgrzyta: nowy wygląd mapy i tereny w rozdziale „Witaj i mapa” (+ pędzel w rozdziale GM, jeśli będzie 11.3)
+- [x] 11.0 Wywiad + próbka: kafelki trawy i wody na wycinku mapy do akceptacji
+Ustalenia 11.0 (2026-10-23): mapa ma już tekstury (wariant F, 2026-10-19), więc etap = POPRAWKI: (1) bogatsza trawa — kępki, kwiatki, kamyki, spokojniejsza głębsza zieleń zamiast żółtawych plam; (2) ostrzej z bliska — więcej detalu przy dużym zbliżeniu. Woda, las/pustynia — nie teraz.
+- [x] 11.1 Komplet kafelków (trawa, góry, woda, wybrzeże) + nakładanie według masek — nowa trawa v3 (seed 2101) + warstwa detalu z bliska; reszta kafelków z 7.6 bez zmian; zaakceptowane 2026-10-23
+- [x] 11.2 Kolory właścicieli jako półprzezroczysta warstwa nad teksturą, kreski z rysunku na wierzchu; timelapse z teksturą — było już od 7.6 (timelapse, księga i filmy biorą teren.png)
+- [ ] 11.3 (opcjonalnie, NIE wybrane 2026-10-23) Las / pustynia: pędzel GM w edytorze mapy
+- [ ] 11.4 (tylko razem z 11.3) Samouczek Zgrzyta: pędzel terenu w rozdziale GM
 
 ### Etap 12 — karta frakcji jako obrazek (użytkownik 2026-10-22)
 Przycisk „Zrób grafikę” na karcie frakcji składa gotowy obrazek PNG (herb, portret władcy, nazwa, liczby) do wklejenia na Discorda. Pokazuje tylko to, co oglądający ma prawo widzieć. Przed startem krótki wywiad: co ma być na obrazku, układ i rozmiar, czy kopiować do schowka, czy pobierać plik.
@@ -270,7 +272,7 @@ Ustalenia (wywiad 2026-10-22): wizytówka — herb, portret władcy, nazwa, mott
 ### Etap 13 — Kronikarz Zgrzyt (użytkownik 2026-10-22: „ma być bardzo rozbudowany”)
 Po zamknięciu tury Zgrzyt opowiada kronikę po swojemu: chrapliwy, złośliwy, z rechotem „tak tak”. Ma to być rozbudowana opowieść, nie jedno zdanie: wstęp, osobne fragmenty o bitwach, wojnach, traktatach, podbojach, blokach i flotach, docinki do konkretnych frakcji i władców, nawiązania do wcześniejszych tur (np. „znowu przegrali”, „trzecia wojna z rzędu”) i podsumowanie tury. Wyświetla się w oknie dialogowym Zgrzyta (portret, głos, pisanie literka po literce), a jawną wersję można skopiować na Discorda.
 Główne pytanie do wywiadu: skąd tekst. Do wyboru (a) generator z dużej biblioteki szablonów i wariantów w kodzie, bez internetu i za darmo, albo (b) model AI przez API: płatny, wymaga klucza, który nie może trafić do graczy.
-Ustalenia (wywiad 2026-10-22): SZABLONY w kodzie, bez AI — „naprawdę bardzo dużo, po kilka wariantów dla każdej możliwej opcji” (każdy rodzaj zdarzenia × wynik × frakcja, wstępy, przejścia, zakończenia, serie z poprzednich tur). Długość zależna od tury: spokojna — kilka zdań, burzliwa — kilkanaście akapitów. GM dostaje szkic po zamknięciu tury, może poprawić tekst i klika „Opublikuj” — gracze widzą dopiero opublikowaną. Ton: złośliwy, ale życzliwy (żarty z krain i władców w grze, nie z ludzi). Nowa opowieść otwiera się graczowi sama raz po wejściu; archiwum w Kronice („Opowieści Zgrzyta”). Tajne zdarzenia: opowieść wspólna i jawna, a kraj, którego dotyczy tajne zdarzenie, widzi na końcu dopisek „Zgrzyt szepcze tylko tobie…”; eksport na Discorda zawsze bez szeptów. Zgrzyt prześmiewczo PRZEKRĘCA nazwy krain i władców (użytkownik 2026-10-22) — warianty we wspólnym `src/dane/przekrecenia.js` (też samouczek); pierwsza wzmianka w opowieści prawdziwa, dalej ~60% przekręcone; BEZ FAWORYTÓW (użytkownik 2026-10-22: „ma się nie podlizywać do nikogo, nie chcę specjalnego traktowania”) — każda kraina przekręcana i obśmiewana tak samo, także Grobowe Imperium. Przekręcenia mogą być nieco zbereźne, a Zgrzyt czasem przeklina, gdy to śmieszne (użytkownik 2026-10-22) — wykrzykniki ~25% przy wojnie/bitwie/wyniku + pojedyncze warianty z przekleństwem. Podglądy do oceny → folder `podglady/` w projekcie.
+Ustalenia (wywiad 2026-10-22): SZABLONY w kodzie, bez AI — „naprawdę bardzo dużo, po kilka wariantów dla każdej możliwej opcji” (każdy rodzaj zdarzenia × wynik × frakcja, wstępy, przejścia, zakończenia, serie z poprzednich tur). Długość zależna od tury: spokojna — kilka zdań, burzliwa — kilkanaście akapitów. GM dostaje szkic po zamknięciu tury, może poprawić tekst i klika „Opublikuj” — gracze widzą dopiero opublikowaną. Ton: złośliwy, ale życzliwy (żarty z krain i władców w grze, nie z ludzi). Nowa opowieść otwiera się graczowi sama raz po wejściu; archiwum w Kronice („Opowieści Zgrzyta”). Tajne zdarzenia: opowieść wspólna i jawna, a kraj, którego dotyczy tajne zdarzenie, widzi na końcu dopisek „Zgrzyt szepcze tylko tobie…”; eksport na Discorda zawsze bez szeptów. Zgrzyt prześmiewczo PRZEKRĘCA nazwy krain i władców (użytkownik 2026-10-22) — warianty we wspólnym `src/dane/przekrecenia.js` (też samouczek); pierwsza wzmianka w opowieści prawdziwa, dalej ~60% przekręcone; BEZ FAWORYTÓW (użytkownik 2026-10-22: „ma się nie podlizywać do nikogo, nie chcę specjalnego traktowania”) — każda kraina przekręcana i obśmiewana tak samo, także Grobowe Imperium. Przekręcenia śmieszne, bez zbereźnych (użytkownik 2026-10-23: „Głąbowe Imperium”, „Kraka-Srak”), a Zgrzyt czasem przeklina, gdy to śmieszne (użytkownik 2026-10-22) — wykrzykniki ~25% przy wojnie/bitwie/wyniku + pojedyncze warianty z przekleństwem. Podglądy do oceny → folder `podglady/` w projekcie.
 TAJEMNICE (użytkownik 2026-10-22: „nie zdradzać sekretów graczom, którym nie powinien; to samo notatki i info GM”): część jawna opowieści tylko z jawnych wpisów kroniki i jawnej mapy (liczba prowincji); tajne wpisy (traktaty, wpisy GM) wyłącznie w szeptach krajów z „widza”; Zgrzyt NIGDY nie czyta notatek GM, notatek graczy, zasobów, składu armii, statusów, propozycji ani historii poza liczbą prowincji. Test `materialy/test_kronikarz.mjs` (część jawna identyczna z tajnymi danymi i bez nich). W bazie (13.4/13.5): szkic widzi tylko GM; po publikacji część jawna w dokumencie dla wszystkich, każdy szept w osobnym dokumencie z regułą „tylko ten kraj + GM” + test reguł; eksport na Discorda bez szeptów. Ta sama zasada w etapie 16 (dymki Zgrzyta komentują tylko to, co oglądający i tak widzi).
 LIMITY FIREBASE (użytkownik 2026-10-22: „nie chcę, żeby to zapchało limit pamięci”): teksty Zgrzyta są w kodzie, nie w bazie (0 B). W bazie tylko: pole `d` we wpisach kroniki (~100 B na wpis) i przy 13.4 jedna opowieść na turę = 1 dokument z gotowym tekstem (~3–6 KB) + po 1 małym dokumencie szeptu na kraj z tajemnicą; 100 tur ≈ 0,5–1 MB z 1 GB planu Spark. Odczyt: 1 dokument przy otwarciu opowieści (archiwum wczytuje turę dopiero po wybraniu, nie wszystkie naraz). Szkic GM-a nadpisuje ten sam dokument (bez kopii wersji). Cofnięcie tury usuwa jej opowieść i szepty. „Szukaj śmieci” (4.5) ma też sprawdzać osierocone opowieści/szepty.
 - [x] 13.0 Wywiad: źródło tekstu (szablony czy AI), długość opowieści, kto ją widzi (tajne wpisy tylko w wersji dla zainteresowanych), czy GM poprawia tekst przed publikacją, ton i granice żartów z graczy
@@ -284,45 +286,66 @@ Ustalenia 13.5b (wywiad 2026-10-23): wideo MP4 z dźwiękiem (głos Zgrzyta + re
 - [x] 13.6 Podgląd i poprawki GM przed publikacją — Panel GM „Kronika Zgrzyta” (podgląd z szeptami, poprawki, „Losuj inaczej”, „Opublikuj”; poprawka opublikowanej publikuje od razu; test `materialy/test_opowiesci.mjs`); telefon nie jest wymagany (użytkownik 2026-10-23), ale `materialy/test_opowiesci_telefon.mjs` i tak przechodzi
 - [x] 13.7 Samouczek Zgrzyta: rozdział „Kronika Zgrzyta” — opowieść na niby (POKAZY.pokazOpowiesc, bez piaskownicy, nic nie zapisuje), szept, kopiowanie, archiwum w Kronice; GM — sekcja w Panelu GM; test_samouczek sprawdza okno z szeptem (102 podświetlenia)
 
-### Etap 14 — dziennik władcy (użytkownik 2026-10-22)
-Prywatny pamiętnik gracza z wpisami przypisanymi do tur. Widzi go tylko autor (GM też, jeśli ustalimy to w wywiadzie). Gracz może go odsłonić innym jako „pamiętniki wydane po wojnie”: cały albo wybrane wpisy.
-- [ ] 14.0 Wywiad: kto widzi (czy GM), odsłanianie całości czy pojedynczych wpisów, gdzie przycisk (karta frakcji / pasek)
-- [ ] 14.1 Dane `dziennik/{f}` + reguły Firestore (tylko autor, ew. GM) + test reguł; wpisy z numerem tury
-- [ ] 14.2 Okno dziennika (lista tur, edycja wpisu), „Odsłoń” → widoczne dla wszystkich na karcie frakcji
-- [ ] 14.3 Telefon (tylko czytanie, jak reszta)
-- [ ] 14.4 Samouczek Zgrzyta: pisanie wpisu i „Odsłoń” (w piaskownicy, bez zapisu)
+### ~~Etap 14 — dziennik władcy~~ SKREŚLONY (użytkownik 2026-10-23)
+Niepotrzebny: „Notatki gracza” na karcie frakcji już są prywatnym zeszytem (gracz + GM). Odsłanianie notatek po kampanii → pomysł przy etapie 18.
 
 ### Etap 15 — porównanie dwóch frakcji (użytkownik 2026-10-22)
 Dwie frakcje obok siebie w jednym oknie: prowincje, osady, budynki i złoża, armie, bohaterowie, traktaty, a zasoby i wykres tylko wtedy, gdy oglądający ma do nich prawo (gracz: tajne dane tylko swojej frakcji, GM: wszystko).
-- [ ] 15.0 Wywiad: co porównywać, skąd otwierać (karta frakcji „Porównaj z…”)
-- [ ] 15.1 Okno porównania z danymi według uprawnień + słupki „kto ma więcej”
-- [ ] 15.2 Telefon (pod sobą zamiast obok)
-- [ ] 15.3 Samouczek Zgrzyta: „Porównaj z…” i co widać, a czego nie (uprawnienia)
+- [x] 15.0 Wywiad: co porównywać, skąd otwierać (karta frakcji „Porównaj z…”)
+Ustalenia 15.0 (wywiad 2026-10-23): guzik „⚖ Porównaj z…” na karcie frakcji → wybór drugiej frakcji → okno. Zawartość (decyzja Claude): liczby jawne (prowincje, osady, bohaterowie, armie, floty, traktaty/wojny) + zasoby według uprawnień (cudze tajne = „???”), bez pełnych list. Słupki w barwach frakcji przy każdej liczbie. Na dole jedno złośliwe zdanie Zgrzyta (tylko jawne dane, przekręcone nazwy).
+- [x] 15.1 Okno porównania z danymi według uprawnień + słupki „kto ma więcej” + zdanie Zgrzyta — `pokazPorownanie` w main.js (liczby z `jawneLiczby`, wspólne z obrazkiem 12), teksty `src/dane/porownanie_teksty.js`, testy `materialy/test_porownanie.mjs` (DEMO) i `materialy/test_porownanie_gracz.mjs` (emulator: „???” u gracza)
+- [x] 15.2 Telefon — zostaje układ lustrzany (słupki od środka), węższe kolumny poniżej 700 px; test `materialy/test_porownanie_telefon.mjs` (serwer VITE_PODGLAD=1, port 5175)
+- [x] 15.3 Samouczek Zgrzyta: „Porównaj z…” i co widać, a czego nie (uprawnienia) — krok w rozdziale „Twoja kraina”, test_samouczek OK (103)
 
 ### Etap 16 — Zgrzyt jako pomocnik na co dzień (użytkownik 2026-10-22, MOŻNA WYŁĄCZYĆ)
 Od czasu do czasu Zgrzyt wyskakuje w rogu z krótkim złośliwym komentarzem zależnym od tego, co robi gracz (np. „znowu klikasz w mapę orków, tak tak?”, nowa bitwa, długie siedzenie bez ruchu). Przełącznik włącz/wyłącz (+ częstotliwość) zapamiętany; domyślnie ustalić w wywiadzie. Nie przeszkadza: nie zasłania kart, znika sam, nie w trakcie samouczka.
-- [ ] 16.0 Wywiad: domyślnie włączony czy nie, jak często, czy z głosem, przy czym ma komentować
-- [ ] 16.1 Dymek w rogu (portret, głos z 8.4, znikanie) + przełącznik i częstotliwość w ustawieniach
-- [ ] 16.2 Wyzwalacze (zdarzenia w programie) + biblioteka komentarzy z wariantami, bez powtórek pod rząd
-- [ ] 16.3 Test na telefonie i w samouczku (wyłączony w trakcie)
-- [ ] 16.4 Samouczek Zgrzyta: Zgrzyt przedstawia swoje dymki i pokazuje, gdzie go wyłączyć / ustawić częstotliwość
+- [x] 16.0 Wywiad: domyślnie włączony czy nie, jak często, czy z głosem, przy czym ma komentować
+Ustalenia 16.0 (wywiad 2026-10-23): domyślnie WŁĄCZONY (wyłącznik w menu 🔊). Komentuje ZDARZENIA GRY: nowa tura, nowa bitwa/wojna, nowa opowieść w Kronice, przyjęta/odrzucona propozycja — zawsze. Poza zdarzeniami ogólny docinek najwyżej co ~5 min; częstotliwość rzadko (tylko zdarzenia) / normalnie (~5 min) / często (~2 min). Głos: przełącznik „Zgrzyt” z menu 🔊 (bez nowej opcji). Nie komentuje ruchów gracza ani bezczynności. NA TELEFONIE GO NIE MA (użytkownik 2026-10-23: „omiń telefon”). Tylko dane jawne dla oglądającego, przekręcone nazwy, bez zbereźnych.
+- [x] 16.1 Dymek w rogu (portret, głos z 8.4, znikanie) + przełącznik i częstotliwość w ustawieniach — `src/pomocnik.js` (powiedz, startDocinkow), „Zgrzyt w dymku” w 🔊, docinki `src/dane/pomocnik_teksty.js`, test `materialy/test_pomocnik.mjs`
+- [x] 16.2 Wyzwalacze (zdarzenia w programie) + biblioteka komentarzy z wariantami, bez powtórek pod rząd — `zdarzeniaPomocnika` w main.js (co 2 s porównanie: tura, wojny, bitwy, propozycje; przyjęta = zniknęła z bazy, a gracz jej nie wycofał), teksty `ZDARZENIA` w pomocnik_teksty.js; testy `materialy/test_pomocnik_zdarzenia.mjs` (DEMO) i `materialy/test_pomocnik_propozycje.mjs` (emulator). Opowieść Zgrzyta bez dymka — otwiera się sama.
+- [x] 16.3 Test w samouczku (wyłączony w trakcie) i że na telefonie się nie pokazuje — rozdziały „bitwy” i „historia” bez dymka (test_pomocnik_zdarzenia); telefon: w kodzie `if (!PODGLAD)`, bez osobnego testu
+- [x] 16.4 Samouczek Zgrzyta: Zgrzyt przedstawia swoje dymki i pokazuje, gdzie go wyłączyć / ustawić częstotliwość — krok przy 🔊 w „Witaj i mapa”
 
-### Etap 17 — muzyka frakcji chiptune (użytkownik 2026-10-22, MOŻNA WYŁĄCZYĆ)
-Każda frakcja ma własny motyw generowany w kodzie (Web Audio, jak dźwięki z 8.4, bez plików); gra po otwarciu jej karty, płynnie przechodzi przy zmianie. Do tego motyw menu / mapy. W menu 🔊 osobny przełącznik „muzyka” + głośność, zapamiętany. DOMYŚLNIE WŁĄCZONA (użytkownik 2026-10-22), inaczej niż reszta dźwięków; przełącznik wyłącza ją na stałe. Przeglądarka nie pozwala grać przed pierwszym kliknięciem, więc muzyka rusza po pierwszym kliknięciu w programie.
-- [ ] 17.0 Wywiad + strona próbek: motywy 2–3 frakcji w 2 wariantach do odsłuchu
-- [ ] 17.1 Odtwarzacz motywów (pętla, przejścia, głośność) + przełącznik w menu 🔊
-- [ ] 17.2 Motywy wszystkich 7 frakcji + motyw mapy
-- [ ] 17.3 Wyciszanie przy głosie Zgrzyta i w samouczku, test na telefonie
-- [ ] 17.4 Samouczek Zgrzyta: menu 🔊 — przełącznik „muzyka” i głośność
+### ~~Etap 17 — muzyka frakcji chiptune~~ SKREŚLONY (użytkownik 2026-10-23: „niepotrzebna”)
+Zrobiona (silnik Web Audio, 8 motywów) i usunięta tego samego dnia; kod nie trafił do gita, nie ma kopii.
 
 ### Etap 18 — księga kampanii (użytkownik 2026-10-22)
 Na koniec kampanii (albo w dowolnym momencie, przycisk w Panelu GM) program składa całą historię gry: tury, kronika, opowieści Zgrzyta, bitwy, mapy z timelapsu, bohaterowie, odsłonięte dzienniki władców. Tylko jawne treści (chyba że GM zdecyduje inaczej przy końcu gry).
-- [ ] 18.0 Wywiad: forma (PDF, strona do przeglądania, oba), co zawiera, czy ujawnić tajemnice na koniec
-- [ ] 18.1 Próbka jednego rozdziału (jedna tura) do akceptacji wyglądu
-- [ ] 18.2 Składanie całej księgi z historii tur + eksport
-- [ ] 18.3 Samouczek Zgrzyta: księga kampanii w rozdziale „Panel GM” (+ gdzie gracze ją znajdą)
+- [x] 18.0 Wywiad: forma (PDF, strona do przeglądania, oba), co zawiera, czy ujawnić tajemnice na koniec
+Ustalenia 18.0 (wywiad 2026-10-23): okno w programie (rozdział = tura, spis treści) + „Zapisz PDF” przez drukowanie przeglądarki. Rozdział: opowieść Zgrzyta (opublikowana) + mapa z tamtej tury (bez wpisów Kroniki i tabel). Otwiera każdy: jawne + szept dla własnej krainy; GM wszystko. Na koniec GM jednym przełącznikiem odsłania tajemnice (szepty wszystkich, tajne wpisy Kroniki, tajne traktaty, notatki graczy) — z ostrzeżeniem.
+Technicznie: historia/{nr} jest tylko dla GM, więc mapę tury zapisujemy w opowiesci/{nr} (właściciele prowincji — jawni na mapie) przy publikacji; brakujące uzupełnia GM przy otwarciu księgi. Bez zmiany reguł. Odsłonięcie tajemnic WYMAGA nowych reguł (flaga końca kampanii w bazie).
+- [x] 18.1 Próbka jednego rozdziału (jedna tura) do akceptacji wyglądu — okno „📚 Księga kampanii” w Kronice (`pokazKsiege` w main.js); podgląd `materialy/podglad_ksiegi.mjs` → `podglady/ksiega_okno.png`, `podglady/ksiega_kampanii.pdf`; wygląd zaakceptowany (użytkownik 2026-10-23)
+- [x] 18.2 Cała księga: wszystkie tury, spis treści, „Zapisz PDF”; mapa tury w opowiesci/{nr} (przy publikacji + uzupełnianie przez GM) — test `materialy/test_ksiega_gracze.mjs` (emulator: szepty według uprawnień, dopisanie mapy przez GM). „Zapisz PDF” w aplikacji Electron nie sprawdzony
+- [x] 18.3 Odsłonięcie tajemnic: przełącznik w Panelu GM + nowe reguły Firestore (test na emulatorze; użytkownik publikuje reguły) — flaga `gra/stan.ustawienia.koniecKampanii`, funkcja reguł `koniecKampanii()` (szepty, kronika, traktaty, notatki_gracza), `czytajTajemnice` w magazyn.js, rozdział „Tajemnice kampanii”; testy `materialy/test_reguly_koniec.mjs` (21) i `test_ksiega_gracze.mjs`. REGUŁY DO OPUBLIKOWANIA przez użytkownika
+- [x] 18.4 Samouczek Zgrzyta: księga kampanii (gdzie ją znaleźć, PDF; GM — przełącznik tajemnic) — rozdział „Kronika Zgrzyta”, test_samouczek OK (105)
+
+### Etap 19 — odliczania na karcie krainy (użytkownik 2026-10-27)
+Ustalenia: liczą tury (zapis: numer tury docelowej, więc same maleją przy zamknięciu tury); dodaje/usuwa tylko GM; każde jawne albo tajne (gracz tej krainy + GM); kilka naraz; po czasie napis „Nadeszło!”, dopóki GM nie usunie. Jawne w frakcje/{f}.odliczania, tajne w nowej kolekcji tajne_odliczania/{f} (NOWE REGUŁY do opublikowania).
+- [x] 19.1 Sekcja „Odliczania” na karcie + zapis + reguły — testy `materialy/test_odliczania.mjs` (DEMO) i `test_reguly_odliczania.mjs` (emulator, 6), test_samouczek OK (105)
+- [ ] 19.2 (opcjonalnie) krok samouczka Zgrzyta o odliczaniach
+
+### Etap 20 — rekrutacja, koszty i utrzymanie jednostek (użytkownik 2026-11-05)
+Ustalenia (wywiad 2026-11-05):
+- Jednostka (GM wpisuje): koszt rekrutacji i utrzymanie na turę **za 1 żołnierza** w dowolnych zasobach kraju (wspólne + unikalne, z ilością), populacja na 1 żołnierza (domyślnie 1), czas rekrutacji w turach.
+- Utrzymanie populacji (zasada GM): 0,1 żywności na 1 populację na turę; żołnierze w armiach też jedzą: 0,1 × populacja zużyta na żołnierza. Szczęście: GM wpisuje 0–100 na karcie kraju, program pokazuje pasek i ryzyko złych wydarzeń (niskie/średnie/wysokie); wydarzenia prowadzi GM na Discordzie.
+- Program NIE zmienia stanów co turę — tylko pokazuje bilans na turę (utrzymanie armii + żywność populacji, z ostrzeżeniem, gdy brakuje). Wyjątek: zatwierdzenie zlecenia rekrutacji przez GM raz odejmuje koszt (z populacją), anulowanie zwraca.
+- Rekrutacja: w mieście prowincji kraju; 400 slotów na miasto = najwyżej 400 żołnierzy naraz w szkoleniu (slot wolny po ukończeniu). Gracz proponuje zlecenie (i podział/łączenie armii), GM zatwierdza; GM może zlecać od razu. Ostrzeżenie przy braku zasobów lub slotów.
+- Licznik „jeszcze N tur” (zapis: tura ukończenia, maleje przy zamknięciu tury; cofnięcie tury cofa ukończenie). Po ukończeniu wg wyboru przy zleceniu: dołącz do armii w prowincji / utwórz nową armię / garnizon miasta (GM przesuwa do armii). Powiadomienie: tajny wpis w kronice (kraj + GM) + komunikat po wejściu; na karcie kraju lista „W rekrutacji”.
+- Armie: dzielenie (wybór oddziałów i liczby, nowa armia w tym samym miejscu) i łączenie (armie tego samego kraju w tym samym miejscu).
+- [x] 20.1 Pola jednostki: koszt, utrzymanie (lista zasób + ilość), populacja, czas rekrutacji — edycja GM, widok na karcie
+- [x] 20.2 Szczęście (GM, pasek + ryzyko) i bilans na turę na karcie kraju (żywność populacji + utrzymanie armii/flot/garnizonów, ostrzeżenia)
+- [x] 20.3 Zlecenia rekrutacji (GM): wybór miasta, jednostki, liczby i celu; sloty 400; odjęcie kosztu; lista „W rekrutacji”; anulowanie zwraca koszt
+- [x] 20.4 Ukończenie przy zamknięciu tury (armia / nowa armia / garnizon), cofnięcie tury, wpis w kronice, komunikat po wejściu (dymek Zgrzyta; przy wyłączonym Zgrzycie tylko Kronika). Test `materialy/test_rekrutacja.mjs` (DEMO) OK. Okrętów się nie rekrutuje (tylko jednostki lądowe).
+- [x] 20.5 Dzielenie i łączenie armii (GM)
+- [x] 20.6 Propozycje gracza: zlecenie rekrutacji, podział, łączenie → GM zatwierdza; reguły Firestore + test na emulatorze (`test_reguly_rekrutacja` 9/9, `test_rekrutacja_gracz` na 2 oknach OK) — NOWE REGUŁY do opublikowania
+- [x] 20.7 Koszty armii: podsumowanie utrzymania przy każdej armii/flocie + suma wydatków na wojsko kraju (użytkownik 2026-11-05)
+- [x] 20.8 Samouczek Zgrzyta: rozdział o rekrutacji, utrzymaniu, dzieleniu/łączeniu (użytkownik 2026-11-05: obowiązkowo)
+- [x] 20.9 Zgrzyt przy wejściu mówi, że w samouczku jest coś nowego, gdy dodano lub zmieniono rozdział, którego gracz nie widział (wersja/odcisk treści rozdziału)
+- [x] 20.10 (użytkownik 2026-11-05) Wybór konkretnej armii przy zleceniu; gdy przy ukończeniu jej nie ma w prowincji — nowa armia (wpis w Kronice). Test w `test_rekrutacja.mjs` OK; reguła przyjmuje pole `armia` (nie sprawdzone na emulatorze)
+- Garnizon = żołnierze w mieście poza armią (przyjęte domyślnie, użytkownik nie zaprzeczył). Wpis w zmiany.js przy każdym kroku.
 
 ## Decyzje
+- 2026-11-05: wyjątek od „nie liczy gospodarki”: program pokazuje bilans utrzymania na turę i przy zatwierdzeniu rekrutacji odejmuje jej koszt (etap 20). Stanów co turę dalej sam nie zmienia.
 - Telefon (użytkownik 2026-10-23: „na telefonie nie musi to działać”): nowe funkcje nie wymagają sprawdzania na telefonie — kroki „telefon” w etapach 14–18 są opcjonalne.
 - 2026-10-19: wygląd mapy = wariant F (`assets/mapa_tekstury.py`): tekstury pixel art Z GENERATORA (trawa, woda ×2, piasek; 512 px → 128 BOX + paleta 24, zszyte odbiciem, 8 wersji obrót/odbicie/przesunięcie w nieregularnych plamach), texel 2 px mapy, LEKKIE brązowe kreski wybrzeży/granic; rzeki i góry rysuje program (kreski rzek i gór z rysunku usunięte): rzeka = ciągłe koryto (domknięcie dyskiem R=12 skleja przerwy po mostach z rysunku) z ciemnym brzegiem; góry = gęste sprite'y pixel art ze śnieżną czapą (`gora_m*.png`, 3 warianty, 48/36 px) na ciemniejszym podgórzu.
 - 2026-10-19: nowe opisy frakcji od graczy dopisuję do `src/dane/frakcje.js` jako sekcje z polem `dopisek: "<data>"` — GM przy logowaniu wgrywa je do chmury sam (raz; usunięta przez GM nie wraca).
@@ -382,9 +405,6 @@ Na koniec kampanii (albo w dowolnym momencie, przycisk w Panelu GM) program skł
 
 ## Pomysły na później
 - Opowieść Zgrzyta jako GIF albo długi obrazek-komiks (13.5b zrobione tylko jako MP4).
-- Film opowieści z mapą z tamtej tury (dziś: obecni właściciele) — wymaga odczytu historii, do której gracze nie mają dostępu.
+- Film opowieści z mapą z tamtej tury (dziś: obecni właściciele) — od 18 opowieść ma zapisaną mapę tury (opowiesci/{nr}.wlasciciele), więc to już mała zmiana.
 - Koszt jednostek w zasobach i punkty limitu, gdy GM ustali mechanikę armii.
-- Wykresy zasobów w czasie.
-- Dyplomacja: traktaty, sojusze, wiadomości między państwami (było w WorldWatch).
 - Powiadomienia o nowej turze; link/eksport na Discorda.
-- Muzyka frakcji (gracze linkują motywy z Heroes/Disciples).

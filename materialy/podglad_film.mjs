@@ -1,15 +1,17 @@
 // podgląd filmu opowieści (13.5b) dla BOGATEJ tury: wymyślone zdarzenia z prawdziwymi krainami i miejscami na mapie, nagrane tym samym kodem
-// co przycisk „🎬 Nagraj film”. Serwer: npm run dev -- --port 5174 ; node podglad_film.mjs <folder na film>
+// co przycisk „🎬 Nagraj film”. Serwer: npm run dev -- --port 5174 ; node podglad_film.mjs <folder na film> [smieszna]
+// „smieszna”: tura 8 z materialy/zdarzenia_smieszne.mjs, ziarno 189 (wybrane z 300 jako najzabawniejsze)
 import { chromium } from "playwright-core";
 const b = await chromium.launch({ executablePath: process.env.LOCALAPPDATA + "/ms-playwright/chromium-1234/chrome-win64/chrome.exe", args: ["--autoplay-policy=no-user-gesture-required"] });
 const s = await (await b.newContext({ viewport: { width: 1600, height: 900 }, acceptDownloads: true })).newPage();
 s.on("pageerror", e => console.log("BŁĄD:", e.message));
-await s.addInitScript(() => localStorage.setItem("frp-samouczek", JSON.stringify({ propozycja: true })));
+await s.addInitScript(() => localStorage.setItem("frp-samouczek", JSON.stringify({ propozycja: true, nowosci: false })));
 await s.route(/firebase-config\.js/, r => r.fulfill({ contentType: "text/javascript", body: "export const firebaseConfig = {};" }));
 await s.goto("http://localhost:5174/"); await s.waitForTimeout(1500);
 await s.evaluate(() => document.querySelectorAll("dialog[open]").forEach(d => d.close()));
 await s.click("button.wejdz"); await s.waitForSelector("#aplikacja:not([hidden])"); await s.waitForTimeout(2000);
-const [pobranie] = await Promise.all([s.waitForEvent("download", { timeout: 400000 }), s.evaluate(async () => {
+const smieszna = process.argv[3] === "smieszna";
+const [pobranie] = await Promise.all([s.waitForEvent("download", { timeout: 600000 }), s.evaluate(async smieszna => {
   const { opowiedz } = await import("/src/kronikarz.js"), { nagrajOpowiesc, planFilmu } = await import("/src/film_opowiesci.js");
   const { przygotujTimelapse } = await import("/src/timelapse.js"), { FRAKCJE } = await import("/src/dane/frakcje.js");
   const PROWINCJE = (await import("/assets/mapa/prowincje.json")).default, AKWENY = (await import("/assets/mapa/akweny.json")).default;
@@ -45,16 +47,17 @@ const [pobranie] = await Promise.all([s.waitForEvent("download", { timeout: 4000
   ].map(z => ({ ...z, kraje: [] }));
   const staty = { przed: { "gor-khar": { prowincje: 18 }, aurelia: { prowincje: 18 }, goblandia: { prowincje: 17 }, "krag-mhor": { prowincje: 19 } },
     teraz: { "gor-khar": { prowincje: 21 }, aurelia: { prowincje: 15 }, goblandia: { prowincje: 18 }, "krag-mhor": { prowincje: 18 } } };
-  const o = opowiedz({ tura: 7, ziarno: 21, kraje, zdarzenia, pamiec, staty });
+  const tura = smieszna ? 8 : 7, cfg = smieszna ? (await import("/materialy/zdarzenia_smieszne.mjs")).smiesznaTura(P, morze) : { zdarzenia, pamiec, staty };
+  const o = opowiedz({ tura, ziarno: smieszna ? 189 : 21, kraje, ...cfg });
   const gdzie = z => { const d = z?.d; if (!d) return null; if (d.a) { const w = AKWENY[d.a - 1]; return [w.x, w.y]; }
     const p = PROWINCJE.find(q => q.id === (d.p || d.prowincja)) || ziemia(d.A || d.lista?.[0]); return p ? [p.x, p.y] : null; };
-  const tl = await przygotujTimelapse({ terenUrl, indeksyUrl, liczbaProwincji: PROWINCJE.length, historia: [{ nr: 7, wlasciciele: wl }], ikonaBitwy: ikona, miary: [],
+  const tl = await przygotujTimelapse({ terenUrl, indeksyUrl, liczbaProwincji: PROWINCJE.length, historia: [{ nr: tura, wlasciciele: wl }], ikonaBitwy: ikona, miary: [],
     kraje: [], kolorWl: w => kraje[w]?.kolor || null, punkt: () => null, prowincjaNr: x => PROWINCJE.findIndex(q => q.id === x) + 1 });
   console.log("akapitów:", o.akapity.length, "plan:", JSON.stringify(planFilmu(o.akapity)));
   window.__tekst = o.akapity.join("\n\n");
-  const { blob, rozszerzenie } = await nagrajOpowiesc({ tura: 7, akapity: o.akapity, miejsca: o.zrodla.map(gdzie), mapa: tl.mapa({ nr: 7, wlasciciele: wl }) });
-  const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: `kronika-zgrzyta-tura-7-bogata.${rozszerzenie}` }); a.click();
-})]);
+  const { blob, rozszerzenie } = await nagrajOpowiesc({ tura, akapity: o.akapity, miejsca: o.zrodla.map(gdzie), mapa: tl.mapa({ nr: tura, wlasciciele: wl }) });
+  const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: `kronika-zgrzyta-tura-${tura}-${smieszna ? "najsmieszniejsza" : "bogata"}.${rozszerzenie}` }); a.click();
+}, smieszna)]);
 s.on("console", m => console.log(m.text()));
 const cel = `${process.argv[2]}/${pobranie.suggestedFilename()}`; await pobranie.saveAs(cel);
 console.log("TEKST:\n" + await s.evaluate(() => window.__tekst));

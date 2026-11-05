@@ -28,15 +28,16 @@ button{font:600 15px Cinzel,Georgia,serif;letter-spacing:.06em;cursor:pointer}
 /* powłoka aplikacji */
 [hidden]{display:none!important}
 #aplikacja{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--tlo)}
-.gora{position:relative;z-index:2;display:flex;align-items:center;gap:20px;padding:8px 20px;border-bottom:1px solid #3a3020;background:#08090e;box-shadow:0 2px 12px rgba(0,0,0,.6)}
+.gora{position:relative;z-index:2;display:flex;align-items:center;gap:20px;padding:8px 20px 4px;background:#1f2029 url("../assets/ramki/kamien.png") 0 0/64px 64px;border:0;border-bottom:16px solid transparent;border-image:url("../assets/ramki/pasek.png") 0 0 8 0/0 0 16px 0 repeat;image-rendering:pixelated;box-shadow:0 2px 12px rgba(0,0,0,.6)}   /* 10: kamień + złota listwa (assets/ramki.py) */
 .gora .tytul{flex:0 0 auto}
 .obszar{flex:1;min-height:0;display:flex}
 /* mapa: rysunek tuszem na pergaminie (multiply zabiera białe tło) */
 .obszar{position:relative}
 .szukaj-mapy{position:absolute;left:12px;top:12px;z-index:2}.szukaj-mapy input{width:280px;max-width:calc(100vw - 48px);padding:6px 10px;background:rgba(14,15,23,.82);color:#e8dcc0;border:1px solid #3a3020;font:14px Spectral,Georgia,serif}.szukaj-mapy input:focus{border-color:var(--zloto);outline:none}
+.mapa-detal{position:absolute;inset:0;pointer-events:none;background:url("../assets/mapa/detal.png") 0 0/512px 512px;image-rendering:pixelated;mix-blend-mode:soft-light;-webkit-mask:url("../assets/mapa/detal_maska.png") 0 0/100% 100%;mask:url("../assets/mapa/detal_maska.png") 0 0/100% 100% luminance}   /* 11: tylko ląd, włączana w mapa.js przy zbliżeniu */
 .warstwy-mapy{position:absolute;left:12px;bottom:12px;display:flex;gap:6px;z-index:2}
-.warstwy-mapy button{padding:5px 10px;background:rgba(14,15,23,.7);color:#8f8268;border:1px solid #3a3020;font:600 13px Spectral,Georgia,serif;letter-spacing:0;cursor:pointer}
-.warstwy-mapy button.wlaczona{color:var(--zloto);border-color:var(--zloto);background:rgba(40,30,10,.92)}
+.warstwy-mapy button{padding:0 6px;background:none;color:#bfae86;border:8px solid transparent;border-image:url("../assets/ramki/przycisk.png") 4 fill/8px round;image-rendering:pixelated;font:600 13px Spectral,Georgia,serif;letter-spacing:0;cursor:pointer}.warstwy-mapy button:hover{border-image-source:url("../assets/ramki/przycisk_hover.png")}
+.warstwy-mapy button.wlaczona{color:var(--zloto);border-image-source:url("../assets/ramki/przycisk_wcisniety.png")}
 .mapa{flex:1;min-width:0;position:relative;overflow:hidden;background:radial-gradient(ellipse at 50% 45%,#e9dcbc,#cdb98d);cursor:grab;touch-action:none;user-select:none;-webkit-user-drag:none}
 .mapa.ciagnie{cursor:grabbing}
 .mapa:focus-visible{outline:2px solid var(--zloto);outline-offset:-2px}
@@ -104,7 +105,7 @@ button{font:600 15px Cinzel,Georgia,serif;letter-spacing:.06em;cursor:pointer}
 .szuflada .glowny{padding-top:4px}
 .tytul{font:900 22px Cinzel,Georgia,serif;color:var(--zloto);letter-spacing:.04em}.tytul span{font-weight:500;font-size:15px;color:#bfae86}
 .konto{display:flex;gap:16px;align-items:center;font-size:13px;color:#8f8268}
-.konto button{padding:7px 14px;background:#07080d;border:1px solid var(--zloto2);color:var(--tekst)}.konto button:hover{border-color:var(--zloto)}
+.konto button{padding:0 6px;color:var(--tekst)}
 .frakcje{flex:1;min-width:0;display:flex;gap:4px;justify-content:center;overflow-x:auto;scrollbar-width:thin}
 .frakcje button{flex:0 0 auto;display:grid;place-items:center;width:52px;height:52px;padding:2px;background:transparent;border:2px solid transparent;border-bottom:3px solid var(--kolor)}
 .frakcje button img{width:44px;height:44px;image-rendering:pixelated;transition:transform .15s}
@@ -128,6 +129,11 @@ button{font:600 15px Cinzel,Georgia,serif;letter-spacing:.06em;cursor:pointer}
 .fakty{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px 24px;margin:24px 0 0;padding:18px 0;border-block:1px solid #2a2418}
 .fakty dt{font:600 12px Cinzel,Georgia,serif;letter-spacing:.08em;color:#8f8268}.fakty dd{margin:2px 0 0}
 .karta h3{margin:28px 0 8px;font:700 20px Cinzel,Georgia,serif;color:var(--zloto)}
+/* 10: ozdobny separator nad każdą sekcją karty — złota listwa z rombami (assets/ramki.py) i klejnot w kolorze krainy */
+.karta>section{position:relative;display:flow-root}   /* flow-root: margines separatora zostaje w sekcji, klejnot trafia na linię */
+.koniec-kampanii label{display:flex;gap:8px;align-items:center}.koniec-kampanii input{width:auto;margin:0}
+.karta>section::before{content:"";display:block;height:16px;margin:26px 0 -14px;border-style:solid;border-width:0 16px;border-image:url("../assets/ramki/separator.png") 0 8 fill/0 16px round;image-rendering:pixelated}
+.karta>section::after{content:"";position:absolute;top:29px;left:calc(50% - 7px);width:10px;height:10px;transform:rotate(45deg);background:var(--kolor,var(--zloto));border:2px solid #f2d78a;box-shadow:0 0 0 2px #120c04}
 .karta p{margin:0 0 10px}.karta ul{margin:0 0 10px;padding-left:22px}.karta li{margin-bottom:4px}.karta li::marker{color:var(--kolor)}
 .unikalne{margin-top:24px;padding:4px 20px 8px;background:color-mix(in srgb,var(--kolor) 12%,#0b0c12);border:1px solid color-mix(in srgb,var(--kolor) 50%,#2a2418)}
 .unikalne h3{margin-top:14px;font-size:16px}
@@ -142,7 +148,10 @@ button{font:600 15px Cinzel,Georgia,serif;letter-spacing:.06em;cursor:pointer}
 .zasoby li.puste{color:#8f8268;font-style:italic;border:0}
 .usun{flex:0 0 auto;width:28px;height:28px;padding:0;background:transparent;border:1px solid #4a3c1e;color:#bfae86;font:16px/1 Spectral,Georgia,serif}.usun:hover{border-color:#c0392b;color:#ff8a7a}
 .dodaj-zasob{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0 6px}.dodaj-zasob input{flex:1 1 180px;width:auto;padding:8px 10px}.dodaj-zasob input[name=opis]{flex-grow:3}
-.dodaj{padding:8px 18px;background:linear-gradient(#e2bd66,#a77d2e);border:1px solid #000;color:#1a1206}.dodaj:hover{filter:brightness(1.1)}
+/* 10: złoty przycisk główny (assets/ramki.py, 12x12 slice 4, ×2) */
+.dodaj{padding:1px 10px;background:none;border:8px solid transparent;border-image:url("../assets/ramki/przycisk_zloty.png") 4 fill/8px round;image-rendering:pixelated;color:#1a1206}
+.dodaj:hover{border-image-source:url("../assets/ramki/przycisk_zloty_hover.png")}.dodaj:active{border-image-source:url("../assets/ramki/przycisk_zloty_wcisniety.png")}
+.dodaj:disabled{border-image-source:url("../assets/ramki/przycisk_wylaczony.png");color:#8a8a90;cursor:default}
 
 /* bohaterowie */
 .bohaterowie{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
@@ -209,7 +218,12 @@ select{padding:6px 10px;background:#05050a;border:1px solid var(--zloto2);color:
 .stany h3 .tura{margin-left:8px;font:500 14px Spectral,Georgia,serif;color:#bfae86;letter-spacing:0}
 .stany .opis-sekcji{margin:0 0 8px;color:#bfae86;font-size:14px}
 .przyciski-tur{display:flex;flex-wrap:wrap;gap:10px}
-.cofnij{padding:8px 18px;background:#07080d;border:1px solid var(--zloto2);color:var(--tekst)}.cofnij:hover{border-color:var(--zloto)}
+.cofnij{padding:1px 10px;color:var(--tekst)}
+/* 10: kamienne przyciski w złotej fazie (assets/ramki.py, 12x12 slice 4, ×2 jak panel) — stany: najechany, wciśnięty, wyłączony */
+.konto button,.cofnij{background:none;border:8px solid transparent;border-image:url("../assets/ramki/przycisk.png") 4 fill/8px round;image-rendering:pixelated}
+.konto button:hover,.cofnij:hover{border-image-source:url("../assets/ramki/przycisk_hover.png")}
+.konto button:active,.cofnij:active{border-image-source:url("../assets/ramki/przycisk_wcisniety.png")}
+.konto button:disabled,.cofnij:disabled{border-image-source:url("../assets/ramki/przycisk_wylaczony.png");color:#8a8a90;cursor:default}
 .lista-tur{margin:8px 0 0;padding-left:20px;color:#bfae86;font-size:14px}
 .jednostki h4{margin:14px 0 4px;font:600 15px Cinzel,Georgia,serif;letter-spacing:.06em;color:#bfae86}
 .lista-jednostek{list-style:none;margin:0;padding:0}
@@ -221,6 +235,11 @@ select{padding:6px 10px;background:#05050a;border:1px solid var(--zloto2);color:
 .dodaj-jednostke .morska,.edytuj-jednostke .morska{display:flex;align-items:center;gap:6px;white-space:nowrap}.dodaj-jednostke .morska input,.edytuj-jednostke .morska input{flex:none;width:auto}
 .dodaj-jednostke [name=pojemnosc],.edytuj-jednostke [name=pojemnosc]{flex:0 1 160px}
 .dodaj-jednostke:not(:has([name=morska]:checked)) [name=pojemnosc],.edytuj-jednostke:not(:has([name=morska]:checked)) [name=pojemnosc]{display:none}
+.koszty-jednostki{flex:1 1 100%}.koszty-jednostki summary{cursor:pointer;color:#bfae86}
+.koszty-jednostki table{border-collapse:collapse;margin:6px 0;width:100%}.koszty-jednostki th{font-weight:400;color:#bfae86;font-size:14px;text-align:left;padding:2px 6px}
+.koszty-jednostki td{padding:2px 6px}.koszty-jednostki td input{width:100%;padding:4px 6px}
+.koszty-jednostki label{display:inline-flex;align-items:center;gap:6px;margin:4px 16px 0 0}.koszty-jednostki label input{flex:0 0 70px;width:70px;padding:4px 6px}
+.lista-jednostek small.koszty{color:#bfae86}
 .dodaj-jednostke select,.edytuj-jednostke select{padding:8px 10px;background:rgba(5,5,10,.7);border:1px solid var(--zloto2);color:var(--tekst);font:inherit}
 .dodaj-jednostke textarea,.edytuj-jednostke textarea{flex:1 1 100%;padding:8px 10px;background:rgba(5,5,10,.7);border:1px solid var(--zloto2);color:var(--tekst);font:inherit;resize:vertical}
 .panel .blad{margin:12px 0 0;padding:8px 10px;border:1px solid #c0392b;background:rgba(80,10,10,.5);color:#ffb3a8;font-size:14px}
@@ -315,6 +334,9 @@ select{padding:6px 10px;background:#05050a;border:1px solid var(--zloto2);color:
 .mapa-nakladka.mapa-bloki{inset:auto}
 .blok-glowa .fokus-bloku{margin-left:auto;flex:none;font-size:12px;padding:3px 8px}.blok-glowa .fokus-bloku[aria-pressed=true]{color:var(--zloto);border-color:var(--zloto)}
 /* samouczek (8.1): Zgrzyt w oknie dialogu, omawiany element w migającej obwódce; cała warstwa łapie kliknięcia (= dalej) */
+.pomocnik{position:fixed;left:16px;bottom:56px;z-index:40;width:min(380px,calc(100vw - 32px));display:flex;gap:12px;align-items:flex-start;padding:10px 34px 10px 10px;background:#0b0d15;border:2px solid var(--zloto2);border-radius:6px;box-shadow:0 6px 28px rgba(0,0,0,.8)}
+.pomocnik[hidden]{display:none}.pomocnik img{flex:0 0 auto;width:64px;height:64px;image-rendering:pixelated;border:1px solid var(--zloto2);background:#000}
+.pomocnik-tekst{margin:0;font-size:15px;line-height:1.45;color:var(--tekst)}.pomocnik-zamknij{position:absolute;top:4px;right:6px;padding:0 6px;background:none;border:0;color:#bfae86;font-size:20px;cursor:pointer}
 .samouczek{position:fixed;inset:0;z-index:50;cursor:pointer;touch-action:none}.samouczek.ciagnie{cursor:grabbing}
 .samouczek-obwodka{position:fixed;pointer-events:none;border:3px solid #f2c94c;border-radius:8px;box-shadow:0 0 0 3px rgba(0,0,0,.55),0 0 18px 4px rgba(242,201,76,.65);animation:obwodka 1s ease-in-out infinite}
 .samouczek-strzalka{position:fixed;pointer-events:none;filter:drop-shadow(0 0 6px rgba(242,201,76,.8))}.samouczek-strzalka svg{display:block;animation:strzalka .8s ease-in-out infinite}
@@ -345,13 +367,49 @@ select{padding:6px 10px;background:#05050a;border:1px solid var(--zloto2);color:
 /* timelapse (9.3) */
 .okno-grafiki{width:min(1000px,calc(100vw - 32px))}.okno-grafiki canvas{display:block;width:100%;height:auto;margin:10px 0;border:1px solid var(--zloto2)}.okno-grafiki .akcje-grafiki{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .akcje-grafiki label{display:inline-flex;align-items:center;gap:6px;font-size:14px;color:#bfae86}.akcje-grafiki label input{width:16px;height:16px;margin:0;accent-color:var(--zloto)}
+.okno-porownania{width:min(720px,calc(100vw - 32px))}.okno-porownania .rasa select{margin-left:4px}
+.porownanie{margin:14px 0}.porownanie h3{margin:16px 0 6px;text-align:center}
+.por-wiersz{display:grid;grid-template-columns:4.5em 1fr 10.5em 1fr 4.5em;gap:8px;align-items:center;padding:3px 0}
+.por-wiersz>span:first-child{text-align:right}.por-wiersz .wiecej{color:var(--zloto);font-weight:700}
+.por-s{height:12px;background:#05050a;border:1px solid #2a2a36;display:flex}.por-s:nth-child(2){justify-content:flex-end}.por-s i{display:block;height:100%}
+.por-n{text-align:center;color:#bfae86;font-size:14px}
+.por-glowa{grid-template-columns:1fr 1fr;font:700 15px Cinzel,Georgia,serif}.por-glowa b:last-child{text-align:right}
+.por-zgrzyt{margin:10px 0 0;padding:8px 12px;border-left:3px solid var(--zloto2);font-style:italic}
+@media (max-width:700px){.por-wiersz{grid-template-columns:3em 1fr 6.5em 1fr 3em;gap:5px;font-size:14px}.por-n{font-size:12px;line-height:1.2}.por-glowa{grid-template-columns:1fr 1fr;font-size:13px}}
 .okno-opowiesci{width:min(820px,calc(100vw - 32px));--kolor:var(--zloto)}.opowiesc-portret{width:112px;height:112px;margin:0}.opowiesc-portret img{width:96px;height:96px;image-rendering:pixelated}
 .opowiesc-tekst{max-height:min(58vh,560px);overflow-y:auto;margin:14px 0 12px;padding:4px 14px 4px 18px;border-left:3px solid var(--zloto2);font-size:17px;line-height:1.7}
 .opowiesc-tekst>p{margin:0 0 12px}.opowiesc-tekst>p:empty{display:none}.opowiesc-tekst>p:first-child{font-style:italic;color:#e8d9b4}
 .opowiesc-szept{margin:16px 0 6px;padding:10px 14px;background:rgba(31,167,154,.08);border:1px dashed #1fa79a;color:#bfe3dc;font-style:italic}.opowiesc-szept h4{margin:0 0 4px;font:700 14px Cinzel,Georgia,serif;color:#5fd3c4;font-style:normal}.opowiesc-szept p{margin:0}
 .akcje-opowiesci{display:flex;flex-wrap:wrap;gap:10px}.opowiesc-szept small{font:400 12px Spectral,Georgia,serif;color:#8fbfb7}
+.okno-ksiegi{width:min(860px,calc(100vw - 32px));--kolor:var(--zloto)}.akcje-ksiegi{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.spis-ksiegi{display:flex;flex-wrap:wrap;gap:6px 14px;margin:8px 0 4px;font-size:14px}.spis-ksiegi a{color:var(--zloto)}
+.rozdzialy-ksiegi{max-height:min(62vh,640px);overflow-y:auto;margin-top:10px;padding-right:8px}
+.rozdzial-ksiegi{padding:12px 0 18px;border-top:1px solid var(--zloto2);font-size:16px;line-height:1.7}.rozdzial-ksiegi h3{margin:6px 0 10px}
+.notatka-ksiegi{white-space:pre-wrap;margin:4px 0 10px}#ksiega-tajemnice li{margin:4px 0}.mapa-ksiegi{margin:0 0 12px}.mapa-ksiegi img{display:block;width:min(100%,520px);margin:0 auto;border:1px solid var(--zloto2)}
+/* „Zapisz PDF” w księdze (18): na wydruku tylko księga, białe tło, każda tura od nowej strony */
+@media print{
+  html:has(body.druk-ksiegi),body.druk-ksiegi{background:#fff}body.druk-ksiegi *{visibility:hidden}
+  body.druk-ksiegi *:not(:has(#ksiega)):not(#ksiega):not(#ksiega *){display:none}   /* reszta programu nie zajmuje miejsca na stronach */
+  body.druk-ksiegi #ksiega,body.druk-ksiegi #ksiega *{visibility:visible}
+  body.druk-ksiegi #ksiega{position:absolute;inset:0 auto auto 0;width:100%;max-width:none;max-height:none;margin:0;padding:0;border:0;border-image:none;box-shadow:none;background:#fff;color:#111;overflow:visible}
+  body.druk-ksiegi #ksiega::backdrop{display:none}
+  body.druk-ksiegi #ksiega .zamknij,body.druk-ksiegi #ksiega .akcje-ksiegi,body.druk-ksiegi #ksiega .spis-ksiegi{display:none}
+  body.druk-ksiegi #ksiega h2,body.druk-ksiegi #ksiega h3,body.druk-ksiegi #ksiega .rasa{color:#111}
+  body.druk-ksiegi .rozdzialy-ksiegi{max-height:none;overflow:visible}body.druk-ksiegi .rozdzial-ksiegi{break-before:page;border:0}
+  body.druk-ksiegi .rozdzial-ksiegi:first-child{break-before:auto}body.druk-ksiegi .opowiesc-szept{background:none;color:#222;border-color:#888}
+}
 .akcje-kronikarza{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.popraw-opowiesc label{display:block;margin:10px 0}.popraw-opowiesc textarea{width:100%;box-sizing:border-box}
 .okno-timelapse{width:min(1280px,calc(100vw - 32px))}.plotno-timelapse{display:block;width:100%;height:auto;margin-top:10px;border:1px solid var(--zloto2);background:#0b0c12}
 .sterowanie-timelapse{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin-top:10px}.sterowanie-timelapse input[type=range]{flex:1;min-width:160px}
 .sterowanie-timelapse label{display:flex;align-items:center;gap:6px;font-size:14px}.sterowanie-timelapse select{background:#07080d;color:var(--tekst);border:1px solid var(--zloto2);font:inherit;padding:4px 6px}
 .przyciski-eksportu{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0 0}
+.odliczania ul{margin:0;padding-left:18px}.odliczania li{margin:4px 0}.nadeszlo{color:#e07a5a}.dodaj-odliczanie{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:8px}.dodaj-odliczanie input[name=nazwa]{flex:1 1 180px;width:auto;padding:8px 10px}.dodaj-odliczanie input[type=number]{width:4.5em;padding:8px 6px}.dodaj-odliczanie label{display:inline-flex;align-items:center;gap:6px}.dodaj-odliczanie input[type=checkbox]{width:16px;height:16px;margin:0;accent-color:var(--zloto)}
+/* 20: wojsko — rekrutacja, garnizony, utrzymanie */
+.wojsko h4{margin:14px 0 4px;font:600 15px Cinzel,Georgia,serif;letter-spacing:.06em;color:#bfae86}
+.wojsko .szczescie{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:6px 0}.wojsko .szczescie input{width:5em;padding:6px 8px}.wojsko meter{width:140px}
+.ryzyko-dobrze{color:#8fc07a}.ryzyko-srednio{color:#f0c060}.ryzyko-zle{color:#e07a5a}
+.zlec-rekrutacje{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px;margin:8px 0}.zlec-rekrutacje label{display:flex;flex-direction:column;gap:2px;font-size:14px;color:#bfae86}
+.zlec-rekrutacje select,.zlec-rekrutacje input{padding:6px 8px;background:rgba(5,5,10,.7);border:1px solid var(--zloto2);color:var(--tekst);font:inherit}.zlec-rekrutacje input{width:6em}
+.zlec-rekrutacje .podglad-kosztu{flex:1 1 100%;margin:0}
+.garnizony li{flex-wrap:wrap}.garnizony select{padding:4px 6px;background:rgba(5,5,10,.7);border:1px solid var(--zloto2);color:var(--tekst);font:inherit}
+.wydatki summary{cursor:pointer;margin-top:8px}.armia-info small.koszty{color:#bfae86}

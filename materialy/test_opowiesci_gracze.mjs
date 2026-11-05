@@ -21,7 +21,7 @@ const bledy = [];
 async function okno(email) {
   const s = await (await b.newContext({ viewport: { width: 1600, height: 900 } })).newPage();
   s.on("pageerror", e => bledy.push(`${email}: ${e.message}`)); s.on("dialog", d => d.accept());
-  await s.addInitScript(() => localStorage.setItem("frp-samouczek", JSON.stringify({ propozycja: true })));
+  await s.addInitScript(() => localStorage.setItem("frp-samouczek", JSON.stringify({ propozycja: true, nowosci: false })));
   await s.goto(ADRES); await s.waitForTimeout(1500);
   await s.evaluate(() => document.querySelectorAll("dialog[open]").forEach(d => d.close()));
   await s.click("#mail"); await s.keyboard.type(email); await s.click("#haslo"); await s.keyboard.type("haslo123");

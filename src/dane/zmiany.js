@@ -1,7 +1,38 @@
 // „Co nowego” po aktualizacji: najnowsza wersja na górze; przed każdym wydaniem dopisz wpis z numerem z package.json (INSTRUKCJA-WYDANIE.md)
 export const ZMIANY = [
   {
-    wersja: "0.6.0", data: "", zmiany: [
+    wersja: "0.6.3", data: "", zmiany: [
+      "Jednostki mają koszt rekrutacji i utrzymanie na turę (za 1 żołnierza, w dowolnych zasobach krainy, także unikalnych), populację zużytą na żołnierza i czas rekrutacji w turach — GM wpisuje je w „Koszt, utrzymanie, rekrutacja” przy jednostce.",
+      "Karta krainy: nowa sekcja „Wojsko i utrzymanie”. Rekrutacja w miastach (każde szkoli naraz najwyżej 400 żołnierzy): koszt i populacja schodzą przy zleceniu, anulowanie je zwraca, a lista pokazuje „jeszcze N tur”. Po rekrutacji żołnierze dołączają do armii w prowincji, tworzą nową armię albo zostają w garnizonie miasta (GM przenosi garnizon do armii). Wpis w Kronice, a Zgrzyt melduje, że rekruci są gotowi.",
+      "Rekrutacja: w „Po rekrutacji” można wybrać konkretną armię stojącą w prowincji miasta. Jeśli przy końcu rekrutacji tej armii już tam nie ma (odeszła albo została rozwiązana), rekruci tworzą nową armię — Kronika to odnotowuje.",
+      "Jeśli kraj straci miasto w trakcie szkolenia, rekrutacja tam przepada (wpis w Kronice) — rekruci nie pojawiają się już w cudzej prowincji. Zmiana nazwy jednostki przenosi się na armie, floty, garnizony i zlecenia, więc ich utrzymanie dalej się liczy. Nowe armie nie dostają już powtórzonych nazw.",
+      "Utrzymanie na turę: populacja je 0,1 żywności na osobę, żołnierz 0,1 × populacja zużyta na niego, do tego utrzymanie jednostek — z ostrzeżeniem „brakuje!” i „starczy na N tur”. Przy każdej armii i flocie jej utrzymanie, a w „Wydatkach na wojsko” rozpiska na armie, floty, garnizony i rekrutów. Program tylko liczy — stany zasobów dalej zmienia GM.",
+      "Armie można dzielić („Podziel / połącz”: ilu żołnierzy z każdego oddziału odłączyć do nowej armii w tym samym miejscu) i łączyć (armie stojące w tym samym miejscu; bohaterowie przechodzą razem z żołnierzami). Gracz może zaproponować GM rekrutację, podział i połączenie swoich armii. Wymaga opublikowania nowych reguł bazy.",
+      "Samouczek: nowy rozdział „Rekrutacja i utrzymanie (pokaz)” — Zgrzyt na niby pokazuje koszty jednostek, szczęście, rekrutację, garnizon, utrzymanie i dzielenie armii.",
+      "Samouczek: gdy pojawi się nowy rozdział albo zmieni się taki, który już znasz, Zgrzyt przy wejściu mówi „w samouczku jest coś nowego” i proponuje pokazać tylko nowości („Później” — zapyta następnym razem). W spisie rozdziałów nowości mają gwiazdkę ★.",
+      "Szczęście populacji (0–100, wpisuje GM) z paskiem i ryzykiem złych wydarzeń: niskie, średnie albo wysokie.",
+      "Karta krainy: nowa sekcja „Odliczania” — GM dodaje ile chce odliczań („Przebudzenie smoka: za 3 tury”), jawnych dla wszystkich albo tajnych (widzi tylko gracz tej krainy i GM). Liczą się same z każdą zamkniętą turą, a gdy czas minie, pokazują „Nadeszło!”, dopóki GM ich nie usunie. Wymaga opublikowania nowych reguł bazy.",
+      "Poprawka: filmy (opowieść Zgrzyta i timelapse) mają teraz w pliku prawdziwą długość — wcześniej Windows, telefony i Discord mogły pokazywać „0:00” albo kilka sekund i nie dało się przewijać.",
+    ],
+  },
+  {
+    wersja: "0.6.2", data: "23-10-2026", zmiany: [
+      "Czarny Smok: Baba Jaga zniknęła z bohaterów (gracz się jej pozbył) — także z armii i flot, w których była.",
+      "Mapa: nowa, bujniejsza trawa w głębszej zieleni, a przy dużym przybliżeniu mapa dostaje drobną fakturę (źdźbła, kępki) zamiast wielkich kwadratów.",
+      "Nowy wygląd interfejsu: górny pasek z ciemnego kamienia ze złotą listwą, kamienne przyciski w złotej oprawie (jaśnieją po najechaniu, „wciskają się” po kliknięciu), złote przyciski główne, a między sekcjami karty ozdobne złote listwy z klejnotem w kolorze krainy.",
+    ],
+  },
+  {
+    wersja: "0.6.0", data: "23-10-2026", zmiany: [
+      "Karta krainy: przycisk „⚖ Porównaj z…” pokazuje dwie krainy obok siebie — prowincje, miasta, wioski, armie, floty, bohaterów, wojny i sojuszników ze słupkami w barwach krain, a zasoby tylko tam, gdzie wolno ci je widzieć (cudze tajne: „???”). Na dole Zgrzyt rzuca swoją uwagę.",
+      "Zgrzyt przekręca nazwy krain i władców po nowemu — śmiesznie, ale bez sprośności.",
+      "Samouczek: w rozdziale „Twoja kraina” Zgrzyt pokazuje przycisk „Porównaj z…”.",
+      "Zgrzyt w dymku: w lewym dolnym rogu Zgrzyt komentuje nową turę, wojny, bitwy i propozycje (GM: nowa propozycja czeka; gracz: przyjęta albo odrzucona), a od czasu do czasu po prostu coś gada. W menu 🔊 „Zgrzyt w dymku”: wyłączony, rzadko (tylko zdarzenia), normalnie albo często. W samouczku milczy, na telefonie go nie ma.",
+      "Samouczek: w rozdziale „Witaj i mapa” Zgrzyt pokazuje, gdzie ustawić albo wyłączyć dymki.",
+      "Księga kampanii: w Kronice „📚 Księga kampanii” — wszystkie opowieści Zgrzyta tura po turze, każda z mapą krain z końca tamtej tury; twój szept też tam jest. „🖨 Zapisz PDF” zapisuje całą księgę jako plik PDF na dysku — wybierasz tylko, gdzie (każda tura od nowej strony).",
+      "Panel GM: „Kampania zakończona: odsłoń tajemnice” — po zakończeniu gry każdy zobaczy w Księdze kampanii wszystkie szepty Zgrzyta i rozdział „Tajemnice kampanii” (tajne wpisy Kroniki, tajne traktaty, notatki graczy). Wymaga opublikowania nowych reguł bazy.",
+      "Poprawka: gdy GM coś zapisał (np. zamknął turę), a zaraz potem coś zmienił inny gracz (np. swoje notatki albo nazwę osady), program GM-a mógł wrócić do starszych danych i przy następnym zapisie nadpisać nimi bazę (np. zgubić zamknięte tury). Teraz zawsze pracuje na aktualnych danych.",
+      "Samouczek: Zgrzyt pokazuje Księgę kampanii, a GM-owi przełącznik końca kampanii.",
       "Karta krainy: przycisk „🖼 Zrób grafikę” tworzy obrazek krainy do wklejenia na Discorda — herb, władca, motto, liczba prowincji, miast, wiosek, armii i flot, bohaterowie, wojny i sojusze. „Kopiuj” wkłada obrazek do schowka (Ctrl+V na Discordzie), „Zapisz PNG” zapisuje plik. Zasoby trafiają na obrazek tylko po zaznaczeniu „Pokaż zasoby”.",
       "Samouczek: w rozdziale „Twoja kraina” Zgrzyt pokazuje przycisk „Zrób grafikę”.",
       "Kronika Zgrzyta: po zamknięciu tury Zgrzyt opowiada po swojemu, co się w niej wydarzyło — wojny, bitwy, zdobycze, traktaty, pokoje — z docinkami, przekręconymi nazwami i pamięcią poprzednich tur. Nowa opowieść otwiera się sama raz po wejściu, a wszystkie są w Kronice („📖 Opowieści Zgrzyta”). „Kopiuj na Discorda” kopiuje tekst.",

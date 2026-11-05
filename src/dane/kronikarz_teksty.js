@@ -1,7 +1,7 @@
 // teksty Kronikarza Zgrzyta (13) — wiele wariantów na każdą sytuację; silnik (src/kronikarz.js) nie powtarza wariantu w jednej opowieści.
 // Teksty są w kodzie programu, NIE w bazie — nie zużywają limitów Firebase.
 // Zgrzyt: hiena-gnoll, mówi o sobie w trzeciej osobie, „tak tak”, głupawy, złośliwy, ale życzliwy — śmieje się z krain
-// i władców w grze, nigdy z graczy. BEZ FAWORYTÓW: z każdej krainy kpi tak samo, do nikogo się nie podlizuje (użytkownik 2026-10-22). Przekleństwa i zbereźne żarty wolno, rzadko i tylko gdy śmieszne (użytkownik 2026-10-22).
+// i władców w grze, nigdy z graczy. BEZ FAWORYTÓW: z każdej krainy kpi tak samo, do nikogo się nie podlizuje (użytkownik 2026-10-22). Przekleństwa wolno, rzadko i tylko gdy śmieszne (użytkownik 2026-10-22); BEZ zbereźnych żartów (użytkownik 2026-10-23).
 // ZASADY PISANIA: nazwy krain i władców tylko w mianowniku (podmiot, po dwukropku, „zwana X”), czasowniki przy nich w czasie teraźniejszym
 // (bez rodzaju: „wygrywa”, nie „wygrało”) — wtedy pasują do każdej krainy i kraju NPC. Zgrzyt o sobie może mówić w przeszłym („Zgrzyt widział”).
 // Nazwy przekręca silnik (przekrecenia.js) — tu piszemy je zwyczajnie przez pola.
@@ -227,7 +227,7 @@ export const T = {
       "Z guzami i dziurami wraca: {kto}. Przeżyją. Chyba.",
       "Poturbowani: {kto}. Medycy mają robotę, a Zgrzyt ma śmiech, jak słyszy te jęki.",
       "Rany odnosi: {kto}. Nic, czego nie wyleczy dobry trunek i dużo snu.",
-      "Pokiereszowani: {kto}. Blizny są sexy, tak tak. Zgrzyt wie, Zgrzyt ma trzy.",
+      "Pokiereszowani: {kto}. Blizny są modne, tak tak. Zgrzyt wie, Zgrzyt ma trzy.",
       "Do łóżka marsz: {kto}. Zgrzyt przyniesie rosół. Z kości. Swoich nie da.",
     ],
   },
@@ -466,7 +466,7 @@ export const T = {
     },
     "rogus-ardens": {
       wojna: ["Kreeganie mogą się teleportować. Zgrzyt by się teleportował daleko od nich.", "Rogus Ardens rusza, a za nim bzyczą insektoidy. Bzzz, fuj.", "Elmon Devil uśmiecha się. Zgrzyt nie lubi, jak demony się uśmiechają."],
-      wygrana: ["Insektoidy Rogus Ardens bzyczą z radości. Zgrzyt zakrył uszy.", "Kreeganie wygrywają i stapiają łupy w hucie. Gorąco, tak tak.", "Demony świętują. Lepiej nie pytać, jak."],
+      wygrana: ["Insektoidy Rogus Ardens bzyczą z radości. Zgrzyt zakrył uszy.", "Kreeganie wygrywają i stapiają łupy w hucie. Gorąco, tak tak.", "Demony świętują. Śmierdzi siarką na trzy prowincje."],
       przegrana: ["Teleport nie pomógł. Może zły adres?", "Kreeganie tracą zapał. I kilka odnóży.", "Huta Rogus Ardens dziś ostygła ze wstydu."],
       pokoj: ["Rogus Ardens zawiera pokój. Demony też potrzebują urlopu.", "Pokój z demonami? Zgrzyt sprawdziłby, czy podpis nie jest krwią."],
       traktat: ["Kreeganie podpisują ognistym piórem. Pergamin trochę się tli.", "Umowa z Rogus Ardens? Zgrzyt by przeczytał trzy razy. Pod światło."],

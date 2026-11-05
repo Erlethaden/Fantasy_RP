@@ -6,10 +6,11 @@ rules_version = '2';
 // - konto admina rozpoznawane po e-mailu Google (zweryfikowanym) — tylko ono może utworzyć sobie profil z rolą admin
 // - część tajna frakcji (tajne_zasoby / tajne_jednostki / tajne_statusy) czyta GM, admin i gracz tej frakcji;
 //   pozostali członkowie tylko wtedy, gdy GM ustawił w dokumencie frakcji jawne.<rodzaj> = true
+// - tajne_odliczania: czyta gracz tej frakcji + GM, pisze GM
 // - notatki_gracza: czyta i pisze gracz tej frakcji + GM; notatki_gm: tylko GM/admin
 // - nazwy_osad/{prowincja} (6.2, 2026-10-19): nazwy osad zmienia GM albo gracz, którego frakcja ma tę prowincję (gra/prowincje)
 // - propozycje (4.4, 7.12–7.15): gracz proponuje opis państwa i bohaterów, stolicę i budynki we własnych prowincjach, cel własnej armii, traktat
-//   (najpierw zgoda graczy-stron) i zerwanie swojego traktatu; GM akceptuje — przyjęta jest od razu kasowana
+//   (najpierw zgoda graczy-stron), zerwanie swojego traktatu, rekrutację we własnym mieście, podział i połączenie własnych armii (20.6); GM akceptuje — przyjęta jest od razu kasowana
 service cloud.firestore {
   match /databases/{database}/documents {
     function zalogowany() { return request.auth != null; }
@@ -27,6 +28,8 @@ service cloud.firestore {
     function jawne(f, rodzaj) {
       return czlonek() && get(/databases/$(database)/documents/frakcje/$(f)).data.get("jawne", {}).get(rodzaj, false) == true;
     }
+    // koniec kampanii (18.3): GM odsłonił tajemnice — członkowie czytają cudze szepty, tajne wpisy Kroniki, tajne traktaty i notatki graczy
+    function koniecKampanii() { return czlonek() && get(/databases/$(database)/documents/gra/stan).data.get("ustawienia", {}).get("koniecKampanii", false) == true; }
     function polaProfilu() { return request.resource.data.keys().hasOnly(["email", "nazwa", "rola", "frakcja", "utworzono"]); }
 
     match /uzytkownicy/{uid} {
@@ -64,7 +67,7 @@ service cloud.firestore {
     // raporty bitew (7.1h): skład obu stron — czyta GM i gracze krajów biorących udział
     match /bitwy/{id} { allow read: if gm() || (czlonek() && mojaFrakcja() in resource.data.uczestnicy); allow write: if gm(); }
     // traktaty (7.4): jawne czytają wszyscy, tajne tylko strony i GM; pisze GM
-    match /traktaty/{id} { allow read: if gm() || (czlonek() && (resource.data.tajny == false || mojaFrakcja() in resource.data.strony)); allow write: if gm(); }
+    match /traktaty/{id} { allow read: if gm() || (czlonek() && (resource.data.tajny == false || mojaFrakcja() in resource.data.strony)) || koniecKampanii(); allow write: if gm(); }
     // bloki (7.9): jawne czytają wszyscy, tajne — członkowie i zaproszeni (pole widza) oraz GM; GM pisze wszystko.
     // Gracz (7.9b): zakłada blok (jedyny członek i lider), przyjmuje / odrzuca swoje zaproszenie, wychodzi, zgłasza wnioski i głosuje;
     // inne zmiany: lider w trybie lidera albo członek wykonujący przegłosowany wniosek (wykonano = id wniosku, który miał większość „za”).
@@ -95,22 +98,23 @@ service cloud.firestore {
     }
     // kronika (7.2): jawne wpisy czytają wszyscy, tajne — kraje z listy „widza” i GM; pisze GM, gracz tylko wpis o bloku ze swoim krajem (7.9b)
     match /kronika/{id} {
-      allow read: if gm() || (czlonek() && (resource.data.tajny == false || mojaFrakcja() in resource.data.widza));
+      allow read: if gm() || (czlonek() && (resource.data.tajny == false || mojaFrakcja() in resource.data.widza)) || koniecKampanii();
       allow write: if gm();
       allow create: if czlonek() && mojaFrakcja() != "" && request.resource.data.typ == "blok" && mojaFrakcja() in request.resource.data.kraje
         && request.resource.data.keys().hasOnly(["tura", "czas", "typ", "tekst", "kraje", "tajny", "widza"]) && request.resource.data.tekst is string && request.resource.data.tekst.size() <= 600;
     }
     match /tajne_statusy/{f} { allow read: if gm() || wlasciciel(f) || jawne(f, "statusy"); allow write: if gm(); }
     match /notatki_gracza/{f} {
-      allow read: if gm() || wlasciciel(f);
+      allow read: if gm() || wlasciciel(f) || koniecKampanii();
       allow write: if gm() || (wlasciciel(f) && request.resource.data.keys().hasOnly(["tekst"]) && request.resource.data.tekst.size() <= 5000);
     }
     match /notatki_gm/{f} { allow read, write: if gm(); }
+    match /tajne_odliczania/{f} { allow read: if gm() || wlasciciel(f); allow write: if gm(); }
     // historia (9.1): zrzut gry przy zamknięciu tury do timelapsu — tylko GM
     match /historia/{nr} { allow read, write: if gm(); }
     // Kronikarz Zgrzyt (13): szkic opowieści widzi tylko GM; opublikowaną (bez szeptów) czytają członkowie; szept — tylko jego kraj i GM
     match /opowiesci/{nr} { allow read: if gm() || (czlonek() && resource.data.opublikowana == true); allow write: if gm(); }
-    match /szepty/{id} { allow read: if gm() || (czlonek() && mojaFrakcja() != "" && resource.data.kraj == mojaFrakcja()); allow write: if gm(); }
+    match /szepty/{id} { allow read: if gm() || (czlonek() && mojaFrakcja() != "" && resource.data.kraj == mojaFrakcja()) || koniecKampanii(); allow write: if gm(); }
     // propozycje zmian: gracz składa tylko dla swojego państwa i jego bohaterów, tylko dozwolone pola; GM rozpatruje;
     // gracz czyta i wycofuje (dopóki czeka) tylko swoje
     function nowaPropozycja() {
@@ -133,6 +137,14 @@ service cloud.firestore {
           // 7.8d: cel własnej floty (celId = id floty z gra/armie.fl, cel = nr akwenu)
           || (d.cel == "rejs" && get(/databases/$(database)/documents/gra/armie).data.fl.get(d.celId, {}).get("f", "") == mojaFrakcja()
               && d.zmiany.keys().hasOnly(["cel"]) && d.zmiany.cel is int)
+          // 20.6: rekrutacja w mieście własnej prowincji (celId = id prowincji), do 400 żołnierzy
+          || (d.cel == "rekrutacja" && mojaProwincja(d.celId) && d.zmiany.keys().hasOnly(["p", "j", "n", "cel", "armia"]) && d.zmiany.p == d.celId
+              && d.zmiany.j is string && d.zmiany.n is int && d.zmiany.n > 0 && d.zmiany.n <= 400 && d.zmiany.cel in ["armia", "nowa", "garnizon"] && d.zmiany.get("armia", "") is string)
+          // 20.6: podział własnej armii (ile = {indeks oddziału: liczba}) i połączenie z inną własną armią
+          || (d.cel == "podzial" && get(/databases/$(database)/documents/gra/armie).data.a.get(d.celId, {}).get("f", "") == mojaFrakcja()
+              && d.zmiany.keys().hasOnly(["ile"]) && d.zmiany.ile is map && d.zmiany.ile.size() <= 50)
+          || (d.cel == "laczenie" && get(/databases/$(database)/documents/gra/armie).data.a.get(d.celId, {}).get("f", "") == mojaFrakcja()
+              && d.zmiany.keys().hasOnly(["z"]) && get(/databases/$(database)/documents/gra/armie).data.a.get(d.zmiany.z, {}).get("f", "") == mojaFrakcja())
           // 7.15: nowy traktat — autor jest stroną i od razu się zgadza; strony propozycji = strony traktatu (po nich czytają i dają zgodę)
           || (d.cel == "traktat" && d.celId == "" && d.strony is list && mojaFrakcja() in d.strony && d.strony.size() >= 2 && d.strony.size() <= 30
               && d.zgody.keys().hasOnly([mojaFrakcja()]) && d.zgody[mojaFrakcja()] == true

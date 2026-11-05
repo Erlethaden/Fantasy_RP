@@ -29,12 +29,13 @@ export function utworzMape(kontener, { rysunek, rozmiar, teren, indeksy, ramki, 
   const ostre = document.createElement("div"); ostre.className = "mapa-kafle";
   const ter = document.createElement("canvas"); ter.className = "mapa-teren"; ter.setAttribute("aria-hidden", "true");
   const fale = document.createElement("canvas"); fale.className = "mapa-fale"; fale.setAttribute("aria-hidden", "true");
+  const detal = document.createElement("div"); detal.className = "mapa-detal"; detal.hidden = true;   // 11: drobna faktura trawy przy dużym zbliżeniu (style.css)
   // ozdoby (7.6c): ramka pixel art wokół mapy, mgła przy krawędziach, róża wiatrów na morzu (lewy dolny róg)
   const ramka = document.createElement("div"); ramka.className = "mapa-ramka";
   const mgla = document.createElement("div"); mgla.className = "mapa-mgla";
   const roza = new Image(); roza.className = "mapa-roza"; roza.alt = ""; roza.draggable = false; if (ikony.roza) roza.src = ikony.roza;
   const herbyW = document.createElement("div"); herbyW.className = "mapa-herby"; herbyW.setAttribute("aria-hidden", "true");   // 7.6d: herby krajów graczy przy oddaleniu
-  warstwa.append(img, ter, fale, mgla, ostre, kol, blk, herbyW, nak, ramka, ...(ikony.roza ? [roza] : []));
+  warstwa.append(img, ter, detal, fale, mgla, ostre, kol, blk, herbyW, nak, ramka, ...(ikony.roza ? [roza] : []));
   let SZ = 0, WY = 0;   // rozmiar mapy w px mapa.png
   const plotnoGranic = document.createElement("canvas"); plotnoGranic.className = "mapa-granice"; plotnoGranic.setAttribute("aria-hidden", "true");
   const sciezka = new Path2D();
@@ -45,7 +46,9 @@ export function utworzMape(kontener, { rysunek, rozmiar, teren, indeksy, ramki, 
   const w = { s: 1, x: 0, y: 0 };
   let ramkaKafli = 0;
   // herby: pełne do przybliżenia 0.3, znikają do 0.5 (wtedy widać stolice i armie)
-  const ustaw = () => { warstwa.style.transform = `translate(${w.x}px,${w.y}px) scale(${w.s})`; herbyW.style.opacity = Math.min(1, Math.max(0, (0.5 - w.s) / 0.2)); if (!ramkaKafli) ramkaKafli = requestAnimationFrame(() => { ramkaKafli = 0; odswiezKafle(); rysujGranice(); odswiezOsady(); }); };
+  const ustaw = () => { warstwa.style.transform = `translate(${w.x}px,${w.y}px) scale(${w.s})`; herbyW.style.opacity = Math.min(1, Math.max(0, (0.5 - w.s) / 0.2));
+    detal.hidden = w.s < 0.9; detal.style.opacity = Math.min(1, (w.s - 0.9) / 0.9);   /* detal od przybliżenia ~1, pełny od ~1.8 */
+    if (!ramkaKafli) ramkaKafli = requestAnimationFrame(() => { ramkaKafli = 0; odswiezKafle(); rysujGranice(); odswiezOsady(); }); };
   function rysujGranice() {   // w pikselach ekranu, więc kreska ma stałą grubość przy każdym przybliżeniu
     const d = devicePixelRatio || 1, cw = kontener.clientWidth, ch = kontener.clientHeight;
     if (plotnoGranic.width !== Math.round(cw * d) || plotnoGranic.height !== Math.round(ch * d)) { plotnoGranic.width = Math.round(cw * d); plotnoGranic.height = Math.round(ch * d); }

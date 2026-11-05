@@ -3,6 +3,7 @@
 // Tempo pisania i jakość obrazu dobierane tak, żeby plik zmieścił się w limicie Discorda bez Nitro (10 MB). Tylko część jawna — bez szeptów.
 import portretUrl from "../assets/portrety/zgrzyt.png?url";
 import { strumienDzwieku } from "./dzwieki.js";
+import { uzupelnijCzas } from "./mp4_czas.js";
 
 const SZ = 1280, WY = 720, MAPA = 900;   // mapa z timelapsu: płótno 900×900 (= mapa świata 5000 px)
 const ZLOTO = "#d9b25a", TEKST = "#efe3c8", TLO = "#0b0c12";
@@ -89,7 +90,7 @@ export async function nagrajOpowiesc(o, postep = () => {}) {
   const czesci = [], rek = new MediaRecorder(strumien, { mimeType: typ, videoBitsPerSecond: obrazBps, audioBitsPerSecond: AUDIO });
   rek.ondataavailable = e => e.data.size && czesci.push(e.data);
   const koniec = new Promise(ok => { rek.onstop = ok; });
-  klatka(0, 0); rek.start(250);
+  klatka(0, 0); rek.start(250); const start = performance.now();
   // jeden zegar: audio (gdy jest) — obraz i dźwięk liczą ten sam czas filmu; bipy planowane z wyprzedzeniem 0,3 s
   const zegar = dzwiek ? dzwiek.czas : () => performance.now() / 1000, t0 = zegar() + 0.15;
   try {
@@ -105,5 +106,5 @@ export async function nagrajOpowiesc(o, postep = () => {}) {
     });
   } finally { rek.stop(); dzwiek?.koniec(); }
   await koniec;
-  return { blob: new Blob(czesci, { type: typ.split(";")[0] }), rozszerzenie: typ.startsWith("video/mp4") ? "mp4" : "webm" };
+  return { blob: await uzupelnijCzas(new Blob(czesci, { type: typ.split(";")[0] }), (performance.now() - start) / 1000), rozszerzenie: typ.startsWith("video/mp4") ? "mp4" : "webm" };
 }

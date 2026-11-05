@@ -1,7 +1,7 @@
 // stan gry: w chmurze (Firestore, na żywo u wszystkich) albo w trybie DEMO (localStorage, gdy brak firebaseConfig)
 // reszta aplikacji zna tylko: stan, wczytaj (DEMO), polacz (chmura), zapisz(stan)
 import { FRAKCJE } from "./frakcje.js";
-import { BOHATEROWIE } from "./bohaterowie.js";
+import { BOHATEROWIE, USUNIECI_BOHATEROWIE } from "./bohaterowie.js";
 import { ZASOBY } from "./zasoby.js";
 import { firebaseConfig } from "../firebase-config.js";
 import { initializeApp } from "firebase/app";
@@ -92,13 +92,15 @@ const zmianyDok = (sciezka, stary, nowy) => roznice(stary ?? {}, nowy).slice(0, 
 //   tajne_jednostki/{f} { jednostki }                                                         — jawne, gdy f.jawne.jednostki
 //   tajne_statusy/{f}   { statusy: {idBohatera: {status, misja}} }                             — jawne, gdy f.jawne.statusy
 //   tajne_armie/{f}     { armie: [{id, nazwa, dowodca, pospolity, bohaterowie, oddzialy, cel, przebyte}], cofnij: {nr, armie, pozycje} | null,
+//                         rekrutacja: [{id, p, j, n, koniec, cel, zaplacono}], garnizony: {idProwincji: [{jednostka, liczba}]}, cofnijRek (20.3–20.4)
 //                         floty: [{id, nazwa, dowodca, pospolity, bohaterowie, oddzialy (okręty), pojemnosc?}] (7.8c) } — jawne, gdy f.jawne.armie
 //   gra/armie           { a: {idArmii: {f, p, o}}, fl: {idFloty: {f, a: nr akwenu}}, cofnij: {nr, pozycje, przebyte: {idArmii: ile}} | null } — pozycje znaczników armii i flot, jawne (7.1, 7.8c); cofnij = stan sprzed ruchu ostatniej tury
 //   tajne_budynki/{f}   { p: {idProwincji: {sloty, zloze}} }                                  — jawne, dopóki f.jawne.budynki !== false (6.4: domyślnie jawne)
+//   tajne_odliczania/{f} { o: [{nazwa, tura, tajne: true}] } — gracz tej frakcji + GM; jawne odliczania leżą w frakcje/{f}.odliczania
 //   notatki_gracza/{f}  { tekst } — gracz tej frakcji + GM;  notatki_gm/{f} { tekst } — tylko GM/admin
 // W pamięci aplikacja widzi jeden scalony stan; części, których nie wolno czytać, są puste i oznaczone w f._brak / h._brak.
 const RODZAJE = ["zasoby", "jednostki", "statusy", "budynki", "armie"];
-const TAJNE_POLA_FRAKCJI = ["stany", "zasoby", "jednostki", "budynki", "armie", "floty", "cofnijRozwiazanie", "notatkiGracza", "notatkiGM", "_brak"];
+const TAJNE_POLA_FRAKCJI = ["stany", "zasoby", "jednostki", "budynki", "armie", "floty", "cofnijRozwiazanie", "rekrutacja", "garnizony", "cofnijRekrutacji", "notatkiGracza", "notatkiGM", "odliczania", "_brak"];
 const bez = (o, pola) => Object.fromEntries(Object.entries(o).filter(([k]) => !pola.includes(k)));
 let dostep = { gm: true, frakcja: "" }; // kto czyta: ustawiane przez main.js po zalogowaniu (ustawDostep)
 const wolnoCzytac = (sciezka, frakcje) => {
@@ -110,18 +112,20 @@ const wolnoCzytac = (sciezka, frakcje) => {
   const r = kolekcja.slice(6), j = frakcje.find(f => f.id === id)?.jawne?.[r]; // tajne_zasoby → zasoby
   return r === "budynki" ? j !== false : Boolean(j);
 };
-const sciezkiTajne = frakcje => frakcje.flatMap(f => [...RODZAJE.map(r => `tajne_${r}/${f.id}`), `notatki_gracza/${f.id}`, `notatki_gm/${f.id}`])
+const sciezkiTajne = frakcje => frakcje.flatMap(f => [...RODZAJE.map(r => `tajne_${r}/${f.id}`), `notatki_gracza/${f.id}`, `notatki_gm/${f.id}`, `tajne_odliczania/${f.id}`])
   .filter(sc => wolnoCzytac(sc, frakcje));
 
 const dokumenty = s => {
   const d = new Map();
   s.frakcje.forEach((f, i) => {
-    d.set(`frakcje/${f.id}`, { ...bez(f, TAJNE_POLA_FRAKCJI), _nr: i });
+    d.set(`frakcje/${f.id}`, { ...bez(f, TAJNE_POLA_FRAKCJI), odliczania: (f.odliczania || []).filter(o => !o.tajne), _nr: i });
+    if (!f._brak?.odliczania) d.set(`tajne_odliczania/${f.id}`, { o: (f.odliczania || []).filter(o => o.tajne) });
     if (!f._brak?.zasoby) d.set(`tajne_zasoby/${f.id}`, { stany: f.stany || {}, zasoby: f.zasoby || [],
       tury: s.tury.filter(t => t.frakcje?.[f.id]).map(t => ({ nr: t.nr, ...t.frakcje[f.id] })) });
     if (!f._brak?.jednostki) d.set(`tajne_jednostki/${f.id}`, { jednostki: f.jednostki || [] });
     if (!f._brak?.budynki) d.set(`tajne_budynki/${f.id}`, { p: f.budynki || {} });
-    if (!f._brak?.armie) d.set(`tajne_armie/${f.id}`, { armie: f.armie || [], cofnij: f.cofnijRozwiazanie || null, floty: f.floty || [] });   // cofnij: armie rozwiązane przy ostatnim zamknięciu tury (7.1e) — tajne jak skład
+    if (!f._brak?.armie) d.set(`tajne_armie/${f.id}`, { armie: f.armie || [], cofnij: f.cofnijRozwiazanie || null, floty: f.floty || [],
+      rekrutacja: f.rekrutacja || [], garnizony: f.garnizony || {}, cofnijRek: f.cofnijRekrutacji || null });   // 20.3–20.4: zlecenia rekrutacji, garnizony miast, cofnięcie ukończeń   // cofnij: armie rozwiązane przy ostatnim zamknięciu tury (7.1e) — tajne jak skład
     if (!f._brak?.statusy) d.set(`tajne_statusy/${f.id}`, { statusy: Object.fromEntries(s.bohaterowie.filter(h => h.frakcja === f.id)
       .map(h => [h.id, { status: h.status || "stolica", misja: h.misja || "" }])) });
     if (!f._brak?.notatkiGracza) d.set(`notatki_gracza/${f.id}`, { tekst: f.notatkiGracza || "" });
@@ -234,7 +238,7 @@ export async function policzDokumenty() {
   licznik.odczyty += KOLEKCJE.length; return Object.fromEntries(wynik);
 }
 // porządki (admin): najpierw szukaj (bez zmian w bazie), potem wykonaj — z podglądem dla użytkownika
-const TAJNE_KOLEKCJE = ["tajne_zasoby", "tajne_jednostki", "tajne_statusy", "tajne_budynki", "tajne_armie", "notatki_gracza", "notatki_gm"];
+const TAJNE_KOLEKCJE = ["tajne_zasoby", "tajne_jednostki", "tajne_statusy", "tajne_budynki", "tajne_armie", "notatki_gracza", "notatki_gm", "tajne_odliczania"];
 // pozycja: { opis, ile, szczegoly: [tekst] } — szczegoly mówią dokładnie, czego dotyczy (dokument, pole, wartość w bazie → po sprzątaniu)
 export async function szukajSmieci() {
   const frakcje = new Set(stan.frakcje.map(f => f.id)), typy = new Set(stan.zasoby.map(z => z.id)), pozycje = [];
@@ -332,7 +336,7 @@ export async function czytajSzept(nr, wl) {   // brak szeptu albo cudzy → null
 // kraje NPC nie mają graczy, więc ich szeptów nie zapisujemy
 export async function opublikujOpowiesc(nr, o) {
   if (tylkoCzytanie() || (CHMURA && !dostep.gm)) return;
-  const jawna = { tura: nr, akapity: o.akapity, ...(o.miejsca?.length === o.akapity.length ? { miejsca: o.miejsca } : {}), ziarno: o.ziarno ?? nr, czas: new Date().toISOString(), opublikowana: true };   // miejsca: [{x, y} | null] na akapit — film (13.5b); po zmianie liczby akapitów przez GM odpadają
+  const jawna = { tura: nr, akapity: o.akapity, ...(o.miejsca?.length === o.akapity.length ? { miejsca: o.miejsca } : {}), ...(o.wlasciciele ? { wlasciciele: o.wlasciciele } : {}), ziarno: o.ziarno ?? nr, czas: new Date().toISOString(), opublikowana: true };   // miejsca: [{x, y} | null] na akapit — film (13.5b); po zmianie liczby akapitów przez GM odpadają; wlasciciele {prowincja: kraj} z końca tury — mapa w księdze (18)
   const szepty = Object.fromEntries(stan.frakcje.filter(f => o.szepty?.[f.id]?.length).map(f => [f.id, { tura: nr, kraj: f.id, akapity: o.szepty[f.id] }]));
   stan.opowiesci = [...new Set([...(stan.opowiesci || []), nr])].sort((a, b) => a - b);
   if (!CHMURA) {
@@ -346,6 +350,24 @@ export async function opublikujOpowiesc(nr, o) {
   licznik.zapisy++; licznik.dokumenty += 1 + stan.frakcje.length;
   await b.commit().catch(e => bladOpowiesci(e, [`opowiesci/${nr}`]));
   zapisz(stan);   // gra/stan.opowiesci — gracze dostają znak, że jest nowa opowieść
+}
+// koniec kampanii (18.3): GM odsłania tajemnice (stan.ustawienia.koniecKampanii w gra/stan) — wtedy reguły pozwalają każdemu członkowi
+// czytać cudze szepty, tajne wpisy Kroniki, tajne traktaty i notatki graczy. Księga czyta je raz, przy otwarciu.
+export async function czytajTajemnice() {
+  if (!CHMURA) return { kronika: Object.values(stan.kronika || {}).filter(k => k.tajny), traktaty: Object.values(stan.traktaty || {}).filter(t => t.tajny),
+    notatki: Object.fromEntries(stan.frakcje.filter(f => f.notatkiGracza).map(f => [f.id, f.notatkiGracza])) };
+  const tajne = async k => (await getDocs(query(collection(db, k), where("tajny", "==", true)))).docs.map(d => d.data());
+  const [kronika, traktaty, notatki] = await Promise.all([tajne("kronika"), tajne("traktaty"),
+    Promise.all(stan.frakcje.map(async f => [f.id, (await getDoc(doc(db, "notatki_gracza", f.id)).catch(() => null))?.data()?.tekst]))]);
+  licznik.odczyty += kronika.length + traktaty.length + stan.frakcje.length;
+  return { kronika, traktaty, notatki: Object.fromEntries(notatki.filter(([, t]) => t)) };
+}
+// księga (18): opowieściom sprzed 18 brakuje mapy tury — GM dopisuje ją z historii przy otwarciu księgi
+export async function dopiszMapeOpowiesci(nr, wlasciciele) {
+  if (tylkoCzytanie() || (CHMURA && !dostep.gm)) return;
+  if (!CHMURA) { if (stan.opowiesciDane?.[nr]) stan.opowiesciDane[nr].wlasciciele = wlasciciele; return zapisz(stan); }
+  licznik.zapisy++; licznik.dokumenty++;
+  await updateDoc(doc(db, "opowiesci", String(nr)), { wlasciciele }).catch(e => bladOpowiesci(e, [`opowiesci/${nr}`]));
 }
 export async function usunOpowiesc(nr) {   // cofnięcie tury
   if (tylkoCzytanie() || (CHMURA && !dostep.gm)) return;
@@ -395,9 +417,11 @@ export function polacz(onZmiana) {
         if (tj === undefined) brak.jednostki = true; else x.jednostki = migracja(f.jednostki, tj?.jednostki) || [];
         if (t(`tajne_statusy/${f.id}`) === undefined) brak.statusy = true;
         const tb = t(`tajne_budynki/${f.id}`); if (tb === undefined) brak.budynki = true; else x.budynki = tb?.p || {};
-        const ta = t(`tajne_armie/${f.id}`); if (ta === undefined) brak.armie = true; else { x.armie = ta?.armie || []; x.cofnijRozwiazanie = ta?.cofnij || null; x.floty = ta?.floty || []; }
+        const ta = t(`tajne_armie/${f.id}`); if (ta === undefined) brak.armie = true; else { x.armie = ta?.armie || []; x.cofnijRozwiazanie = ta?.cofnij || null; x.floty = ta?.floty || []; x.rekrutacja = ta?.rekrutacja || []; x.garnizony = ta?.garnizony || {}; x.cofnijRekrutacji = ta?.cofnijRek || null; }
         if (ng === undefined) brak.notatkiGracza = true; else x.notatkiGracza = ng?.tekst || "";
         if (nm === undefined) brak.notatkiGM = true; else x.notatkiGM = nm?.tekst || "";
+        const to = t(`tajne_odliczania/${f.id}`); if (to === undefined) brak.odliczania = true;
+        x.odliczania = [...(f.odliczania || []), ...(to?.o || [])];
         if (Object.keys(brak).length) x._brak = brak;
         return x;
       });
@@ -423,26 +447,29 @@ export function polacz(onZmiana) {
       const chce = new Set(sciezkiTajne(czesci.frakcje).filter(sc => !odmowy.has(sc)));
       for (const [sc, odp] of tajneSub) if (!chce.has(sc)) { odp(); tajneSub.delete(sc); tajne.delete(sc); zaladowane.delete(sc); ostatnio.delete(sc); }
       for (const sc of chce) if (!tajneSub.has(sc)) tajneSub.set(sc, onSnapshot(doc(db, sc), snap => {
-        if (snap.metadata.hasPendingWrites) return;
-        licznik.odczyty++; zaladowane.add(sc); tajne.set(sc, snap.exists() ? snap.data() : null);
+        tajne.set(sc, snap.exists() ? snap.data() : null);
+        if (snap.metadata.hasPendingWrites) return;   // echo własnego zapisu: tylko aktualna kopia (patrz niżej), bez odświeżania
+        licznik.odczyty++; zaladowane.add(sc);
         if (snap.exists()) ostatnio.set(sc, json(snap.data())); else ostatnio.delete(sc);
         sklej();
       }, e => { console.warn(sc, e.code); odmowy.add(sc); tajneSub.delete(sc); tajne.delete(sc); zaladowane.delete(sc); sklej(); })); // brak dostępu = część tajna
     };
+    // echo własnego zapisu (hasPendingWrites): nie odświeżamy widoku, ale kopia w `czesci` MUSI być aktualna — inaczej następna zmiana
+    // od kogoś innego (sklej) złożyłaby stan ze starej kopii, a kolejny zapis nadpisałby bazę starymi danymi (błąd znaleziony 2026-10-23)
     const lista = nazwa => onSnapshot(collection(db, nazwa), snap => {
-      if (snap.metadata.hasPendingWrites) return; // echo własnego zapisu
+      czesci[nazwa] = snap.docs.map(d => d.data()).sort((a, b) => a._nr - b._nr).map(({ _nr, ...x }) => x);
+      if (snap.metadata.hasPendingWrites) return;
       licznik.odczyty += snap.docChanges().length;
       snap.docs.forEach(d => { ostatnio.set(`${nazwa}/${d.id}`, json(d.data())); zaladowane.add(`${nazwa}/${d.id}`); });
-      czesci[nazwa] = snap.docs.map(d => d.data()).sort((a, b) => a._nr - b._nr).map(({ _nr, ...x }) => x);
       if (nazwa === "frakcje") odmowy.clear(); // mogły się zmienić przełączniki „jawne”
       sklej();
     }, blad);
     // kolekcje z widocznością (traktaty, kronika): GM — wszystko; gracz — jawne + te, gdzie jego kraj jest na liście (dwa zapytania zgodne z regułami)
     const widoczne = (nazwa, pole) => {
       const czesc = new Map(), sub = (klucz, q) => onSnapshot(q, snap => {
+        czesc.set(klucz, new Map(snap.docs.map(d => [d.id, d.data()])));
         if (snap.metadata.hasPendingWrites) return;
         licznik.odczyty += snap.docChanges().length;
-        czesc.set(klucz, new Map(snap.docs.map(d => [d.id, d.data()])));
         snap.docs.forEach(d => { ostatnio.set(`${nazwa}/${d.id}`, json(d.data())); zaladowane.add(`${nazwa}/${d.id}`); });
         naZywo(nazwa, () => { stan[nazwa] = Object.fromEntries([...czesc.values()].flatMap(x => [...x])); if (!pierwszy) onZmiana(); });
       }, e => console.warn(nazwa, e.code));
@@ -451,31 +478,43 @@ export function polacz(onZmiana) {
           ...(dostep.frakcja ? [sub("moje", query(collection(db, nazwa), where(pole, "array-contains", dostep.frakcja)))] : [])];
     };
     odpiecia = [...widoczne("traktaty", "strony"), ...widoczne("kronika", "widza"), ...widoczne("bloki", "widza"), lista("frakcje"), lista("bohaterowie"), onSnapshot(doc(db, "gra/stan"), snap => {
+      czesci.gra = snap.exists() ? snap.data() : null;
       if (snap.metadata.hasPendingWrites) return;
       licznik.odczyty++; zaladowane.add("gra/stan");
       if (snap.exists()) ostatnio.set("gra/stan", json(snap.data()));
-      czesci.gra = snap.exists() ? snap.data() : null; sklej();
+      sklej();
     }, blad), onSnapshot(doc(db, "gra/prowincje"), snap => {
+      czesci.prowincje = snap.exists() ? snap.data() : null;
       if (snap.metadata.hasPendingWrites) return;
       licznik.odczyty++; zaladowane.add("gra/prowincje");
       if (snap.exists()) ostatnio.set("gra/prowincje", json(snap.data()));
-      czesci.prowincje = snap.exists() ? snap.data() : null; sklej();
+      sklej();
     }, blad), onSnapshot(doc(db, "gra/armie"), snap => {
+      czesci.armie = snap.exists() ? snap.data() : null;
       if (snap.metadata.hasPendingWrites) return;
       licznik.odczyty++; zaladowane.add("gra/armie");
       if (snap.exists()) ostatnio.set("gra/armie", json(snap.data()));
-      czesci.armie = snap.exists() ? snap.data() : null; sklej();
+      sklej();
     }, blad), onSnapshot(collection(db, "nazwy_osad"), snap => {
+      czesci.nazwy = Object.fromEntries(snap.docs.map(d => [d.id, d.data().n || {}]));
       if (snap.metadata.hasPendingWrites) return;
       licznik.odczyty += snap.docChanges().length;
-      czesci.nazwy = Object.fromEntries(snap.docs.map(d => [d.id, d.data().n || {}])); sklej();
+      sklej();
     }, blad), () => { tajneSub.forEach(o => o()); tajneSub.clear(); }];
   });
 }
 // bohaterowie dopisani w kodzie (bohaterowie.js) po starcie gry: GM przy logowaniu wgrywa tych, których nie ma w bazie.
-// shortcut: bohater usunięty ręcznie w konsoli Firebase wróciłby — gdy dojdzie usuwanie w programie, trzeba listy usuniętych
+// Wyrzuceni (USUNIECI_BOHATEROWIE) znikają z bazy, z armii i flot; bohater usunięty tylko w konsoli Firebase wróciłby — dopisz go do tej listy.
 function dopiszNowychBohaterow() {
   const frakcje = new Set(stan.frakcje.map(f => f.id));
+  for (const id of USUNIECI_BOHATEROWIE) if (!tylkoCzytanie() && stan.bohaterowie.some(h => h.id === id)) {   // podgląd na telefonie nic nie zapisuje
+    stan.bohaterowie = stan.bohaterowie.filter(h => h.id !== id);
+    for (const a of stan.frakcje.flatMap(f => [...(f.armie || []), ...(f.floty || [])])) {
+      if (a.dowodca === id) a.dowodca = ""; if (a.bohaterowie) a.bohaterowie = a.bohaterowie.filter(x => x !== id);
+    }
+    const sc = `bohaterowie/${id}`; ostatnio.delete(sc); zaladowane.delete(sc);
+    deleteDoc(doc(db, "bohaterowie", id)).catch(e => { console.error(e); zalogujBlad(e, [sc]); bladZapisu(e); });
+  }
   for (const h of BOHATEROWIE) if (frakcje.has(h.frakcja) && !stan.bohaterowie.some(x => x.id === h.id)) {
     stan.bohaterowie.push(structuredClone(h)); zaladowane.add(`bohaterowie/${h.id}`);   // nowy dokument: nie nadpisuje niczego pustką
   }

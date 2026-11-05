@@ -2,7 +2,7 @@
 // Dwa przełączniki zapamiętane w przeglądarce: dźwięki interfejsu i głos Zgrzyta, plus głośność (domyślnie cicho).
 // Ten sam dźwięk nie gra częściej niż co 40 ms (szybkie klikanie nie robi kakofonii).
 const KLUCZ = "frp-dzwieki";
-const DOMYSLNE = { ui: true, zgrzyt: true, glosnosc: 0.35, glos: "chrapliwy" };
+const DOMYSLNE = { ui: true, zgrzyt: true, glosnosc: 0.35, glos: "chrapliwy", pomocnik: "normalnie" };   // pomocnik: Zgrzyt w dymku (16)
 let ust = { ...DOMYSLNE };
 try { ust = { ...DOMYSLNE, ...JSON.parse(localStorage.getItem(KLUCZ) || "{}") }; } catch {}
 export const ustawieniaDzwiekow = () => ({ ...ust });

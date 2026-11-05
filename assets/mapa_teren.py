@@ -80,8 +80,8 @@ plaza = ~woda & (od_wody <= 4) & ~gory
 podgorze = ndi.binary_dilation(gory, iterations=5) & ~woda & ~gory
 
 # --- obraz ---
-_, TRAWA = tekstura("trawa_v2.png", 1.05)
-_, PODG = tekstura("trawa_v2.png", 0.85)
+_, TRAWA = tekstura("trawa_v3.png", 1.0)   # 11 (2026-10-23): nowa trawa z generatora, seed 2101 — wybór użytkownika
+_, PODG = tekstura("trawa_v3.png", 0.85)
 _, PIASEK = tekstura("piasek_v1.png")
 _, WODA1 = tekstura("woda_v1.png", 1.08); _, WODA2 = tekstura("woda_s1012.png", 1.08)
 _, GLEBIA = tekstura("woda_v1.png", 0.8)
@@ -128,9 +128,17 @@ maska = np.zeros((N, N, 3), np.uint8); maska[..., 0] = zwykly * 255; maska[..., 
 Image.fromarray(maska).save("assets/mapa/teren_maska.png", optimize=True)
 
 # --- tekstury typów dla przeglądarki (128², bez odbicia — przeglądarka składa wersje sama) ---
-for typ, (plik, jas) in {"rownina": ("trawa_v2.png", 1.05), "las": ("las_v1.png", 1.0), "pustynia": ("pustynia_v1.png", 1.0),
+for typ, (plik, jas) in {"rownina": ("trawa_v3.png", 1.0), "las": ("las_v1.png", 1.0), "pustynia": ("pustynia_v1.png", 1.0),
                          "bagno": ("bagno_v1.png", 1.0), "tundra": ("tundra_v1.png", 1.0)}.items():
     t, _ = tekstura(plik, jas); Image.fromarray(t).save(f"assets/mapa/tekstury/{typ}.png")
+
+# --- detal z bliska (11, 2026-10-23): faktura trawy 512 px bez niskich częstotliwości (szara, ~0.5) — przeglądarka nakłada ją
+# w trybie soft-light tylko na ląd (detal_maska.png = R maski) i tylko przy dużym zbliżeniu; 1024 px na 512 px mapy = 4× gęściej niż teren.png
+l = np.array(Image.open(T + "trawa_v3.png").convert("L")).astype(float) / 255
+d = np.clip(0.5 + (l - ndi.uniform_filter(l, 9)) * 1.6, 0, 1)
+d = np.concatenate([np.concatenate([d, d[:, ::-1]], 1), np.concatenate([d[::-1], d[::-1, ::-1]], 1)], 0)   # odbicie 2x2 → 1024 px bez szwów (512 px mapy)
+Image.fromarray((d * 255).astype(np.uint8)).save("assets/mapa/detal.png", optimize=True)   # odcienie szarości
+Image.fromarray(np.where(maska[..., 0] == 255, 255, 0).astype(np.uint8)).save("assets/mapa/detal_maska.png", optimize=True)
 
 # --- startowe tereny prowincji: tundra na dalekiej północy, pustynia na południowym wschodzie, lasy plamami, bagna przy wodzie ---
 prow = json.load(open("assets/mapa/prowincje.json", encoding="utf-8"))

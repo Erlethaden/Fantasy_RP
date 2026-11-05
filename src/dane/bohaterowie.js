@@ -4,6 +4,9 @@
 const b = (frakcja, imie, pola) => ({ id: frakcja + "-" + imie.toLowerCase().replace(/[^a-ząćęłńóśźż0-9]+/g, "-").replace(/^-|-$/g, ""),
   frakcja, imie, tytul: "", funkcja: "", wiek: "", bron: "", opis: "", status: "stolica", misja: "", wladca: false, ...pola });
 
+// bohaterowie wyrzuceni z gry (np. gracz się ich pozbył): GM przy logowaniu kasuje ich z bazy
+export const USUNIECI_BOHATEROWIE = ["czarny-smok-baba-jaga"];
+
 export const BOHATEROWIE = [
   // Krag-Mhor
   b("krag-mhor", "Najwyższy Kowal Surtr", { wladca: true, tytul: "Najwyższy Kowal", funkcja: "władca Krag-Mhor, mistrz kowalstwa demonów",
@@ -134,7 +137,6 @@ Nieznajomy, który podróżuje po świecie — po co, nikt nie wie. Zawsze jest 
   b("czarny-smok", "Koszmarne Widma", { funkcja: "zespół koszmarnych elfów", opis: `- Veythar „Krwawy Riff” — blady elf z czerwonymi runami na skórze, grający na gitarze z kości.
 - Sylvara „Echo Pustki” — elfka z pękniętą porcelanową twarzą i fioletowym dymem.
 - Draven „Czarny Akord” — szkieletowy elf z koroną cierniową, grający na perkusji z czaszek.` }),
-  b("czarny-smok", "Baba Jaga", { opis: "" }),
   // id zostaje po dawnym imieniu „Czarownik z krainy IRS” — pod nim bohater jest już zapisany w bazie gry
   b("czarny-smok", "Magister Aurelius „Podatek” Vex", { id: "czarny-smok-czarownik-z-krainy-irs",
     tytul: "Zarządca Długów, Czarownik z Krainy IRS", funkcja: "nekromanta i zarządca; sinner (były człowiek)",

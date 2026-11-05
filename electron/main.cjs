@@ -44,6 +44,14 @@ autoUpdater.on("update-downloaded", () => { wyslij({ stan: "instaluje", wersja: 
 autoUpdater.on("error", e => wyslij({ stan: stanAktualizacji.stan === "pobieram" ? "blad-pobierania" : "blad", wersja: stanAktualizacji.wersja, opis: String(e?.message || e).slice(0, 300) }));
 ipcMain.handle("aktualizacja-stan", () => stanAktualizacji);
 ipcMain.handle("aktualizacja-pobierz", () => autoUpdater.downloadUpdate().catch(() => {})); // błąd przyjdzie zdarzeniem „error”
+// księga kampanii (18): „Zapisz PDF” — PDF ze stylami druku (@media print) prosto do pliku wybranego w oknie zapisu; zwraca ścieżkę albo null
+ipcMain.handle("zapisz-pdf", async (e, nazwa) => {
+  const w = BrowserWindow.fromWebContents(e.sender);
+  const { canceled, filePath } = await dialog.showSaveDialog(w, { defaultPath: path.join(app.getPath("documents"), nazwa), filters: [{ name: "PDF", extensions: ["pdf"] }] });
+  if (canceled || !filePath) return null;
+  fs.writeFileSync(filePath, await e.sender.printToPDF({ pageSize: "A4", printBackground: true, margins: { marginType: "default" } }));
+  return filePath;
+});
 
 app.whenReady().then(() => serwer.listen(PORT, "localhost", () => {
   okno = new BrowserWindow({ width: 1600, height: 900, backgroundColor: "#0b0c12", autoHideMenuBar: true, title: "Fantasy RP dla autystów",

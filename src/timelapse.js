@@ -1,6 +1,8 @@
 // timelapse (9.3–9.4, tylko GM): historia gry tura po turze na JEDNYM płótnie 1600×900 — po lewej mapa (właściciele prowincji, granice krajów,
 // armie, floty, bitwy), po prawej wykres wybranej miary (rośnie z turami) i ranking tury. Jedno płótno = ta sama klatka w programie i w filmie.
 // Dane: historia/{nr} (zrzuty z zamknięcia tur). Kolory i herby krajów — obecne.
+import { uzupelnijCzas } from "./mp4_czas.js";
+
 export const SZER = 1600, WYS = 900;
 const M = 900;   // bok mapy w klatce
 const TLO = "#0b0c12", TEKST = "#efe3c8", TEKST2 = "#bfae86", ZLOTO = "#d9b25a", SIATKA = "#2a2418";
@@ -119,7 +121,7 @@ export async function nagrajFilm(plotno, klatka, ileTur, { naTure = 1.2, postep 
   rek.ondataavailable = e => e.data.size && czesci.push(e.data);
   const koniec = new Promise(ok => { rek.onstop = ok; });
   const czas = 1 + (ileTur - 1) * naTure + 2.5;
-  rek.start(250);
+  rek.start(250); const start = performance.now();
   await new Promise(ok => {
     const t0 = performance.now();
     const krok = teraz => {
@@ -130,7 +132,7 @@ export async function nagrajFilm(plotno, klatka, ileTur, { naTure = 1.2, postep 
     requestAnimationFrame(krok);
   });
   rek.stop(); await koniec;
-  return new Blob(czesci, { type: typ.split(";")[0] });
+  return uzupelnijCzas(new Blob(czesci, { type: typ.split(";")[0] }), (performance.now() - start) / 1000);
 }
 // GIF: klatki co 1/fps s, pomniejszone do szer (mniejszy plik), paleta 256 kolorów na klatkę (gifenc)
 export async function nagrajGif(klatka, ileTur, { szer = 800, fps = 6, naTure = 1.2, postep = () => {} } = {}) {   // 800 px i 6 kl./s: GIF i tak wychodzi kilka razy większy niż film

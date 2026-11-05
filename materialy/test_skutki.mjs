@@ -5,7 +5,7 @@ const exe = process.env.LOCALAPPDATA + "/ms-playwright/chromium-1234/chrome-win6
 const b = await chromium.launch({ executablePath: exe });
 const s = await b.newPage({ viewport: { width: 1600, height: 900 } });
 const bledy = [], okna = []; s.on("pageerror", e => bledy.push(e.message)); s.on("dialog", d => { okna.push(d.message()); d.accept(); });
-await s.addInitScript(() => localStorage.setItem("frp-samouczek", JSON.stringify({ propozycja: true })));   // bez propozycji Zgrzyta (8.1), zasłaniałaby mapę
+await s.addInitScript(() => localStorage.setItem("frp-samouczek", JSON.stringify({ propozycja: true, nowosci: false })));   // bez propozycji Zgrzyta (8.1), zasłaniałaby mapę
 await s.route(/firebase-config\.js/, r => r.fulfill({ contentType: "text/javascript", body: "export const firebaseConfig = {};" }));
 await s.goto("http://localhost:5174/");
 await s.waitForTimeout(1500);
@@ -99,7 +99,7 @@ await s.click("#kronika"); await s.waitForTimeout(300); const kr = await tekst("
 // Kronikarz Zgrzyt (13.2): wynik bitwy z danymi — zwycięzca, zdobycz (bez drugiego akapitu o zmianie właściciela), jeniec
 const opow = await s.evaluate(() => [1, 2, 3].map(nr => window.opowiescTury(nr).akapity.join(" ")).join(" "));
 console.log("zgrzyt:", opow.slice(0, 900));
-assert.ok(/wygrywa|Zwycięzca/.test(opow) && opow.includes("Elmon Devil") && !opow.includes("Zgrzyt znalazł w kronice"), "opowieść o bitwie");
+assert.ok(/wygrywa|zwycięz|zwycięstw/i.test(opow) && opow.includes("Elmon Devil") && !opow.includes("Zgrzyt znalazł w kronice"), "opowieść o bitwie");
 assert.ok(!/zmienia pana|wbija flagę/.test(opow), "zdobycz opowiedziana dwa razy");
 console.log(bledy.length ? "BŁĘDY: " + bledy.join(" | ") : "bez błędów strony");
 await b.close();
